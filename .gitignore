@@ -7,4 +7,5 @@ coverage/
 *.log
 .DS_Store
 vite.config.ts.timestamp-*
+*.tsbuildinfo
 .engram/

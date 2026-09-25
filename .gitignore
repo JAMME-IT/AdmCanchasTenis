@@ -1,5 +1,6 @@
 node_modules/
 dist/
+apps/api/src/generated/
 .env
 .env.*
 !.env.example
@@ -9,3 +10,4 @@ coverage/
 vite.config.ts.timestamp-*
 *.tsbuildinfo
 .engram/
+.atl/

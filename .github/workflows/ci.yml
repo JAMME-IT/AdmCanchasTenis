@@ -17,4 +17,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # prisma generate does not connect to a database; the dummy URL only
+      # satisfies prisma.config.ts, which reads DIRECT_URL for CLI commands.
+      - run: npm run db:generate --workspace=api
+        env:
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
       - run: npm run build

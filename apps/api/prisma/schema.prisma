@@ -1,0 +1,397 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  previewFeatures     = ["partialIndexes"]
+  importFileExtension = ""
+  moduleFormat        = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model canchas {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nro_cancha     Int               @unique(map: "uq_canchas_nro") @db.SmallInt
+  superficie     superficie_cancha
+  iluminacion    Boolean           @default(true)
+  estado_actual  estado_cancha     @default(disponible)
+  created_at     DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime          @default(now()) @db.Timestamptz(6)
+  estados_cancha estados_cancha[]
+  turnos         turnos[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model cuotas {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  socio_id          String          @db.Uuid
+  fecha_inicio      DateTime        @db.Date
+  fecha_vencimiento DateTime        @db.Date
+  monto_total       Decimal         @db.Decimal(12, 2)
+  estado_actual     estado_cuota    @default(pendiente)
+  created_at        DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime        @default(now()) @db.Timestamptz(6)
+  socios            socios          @relation(fields: [socio_id], references: [id], onUpdate: NoAction)
+  estados_cuota     estados_cuota[]
+  lineas_cuota      lineas_cuota[]
+
+  @@unique([socio_id, fecha_inicio], map: "uq_cuotas_socio_periodo")
+  @@index([fecha_vencimiento], map: "idx_cuotas_fecha_vencimiento")
+  @@index([socio_id, estado_actual], map: "idx_cuotas_socio_estado")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model dias_funcionamiento {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dia_semana Int      @unique(map: "uq_dias_funcionamiento_dia") @db.SmallInt
+  habilitado Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model estados_cancha {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cancha_id    String        @db.Uuid
+  valor_state  estado_cancha
+  fecha_cambio DateTime      @default(now()) @db.Timestamptz(6)
+  motivo       String?
+  canchas      canchas       @relation(fields: [cancha_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([cancha_id, fecha_cambio(sort: Desc)], map: "idx_estados_cancha_cancha_fecha")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model estados_cuota {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cuota_id     String       @db.Uuid
+  valor_estado estado_cuota
+  fecha_hora   DateTime     @default(now()) @db.Timestamptz(6)
+  cuotas       cuotas       @relation(fields: [cuota_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([cuota_id, fecha_hora(sort: Desc)], map: "idx_estados_cuota_cuota_fecha")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model estados_luz {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  luz_id       String   @db.Uuid
+  costo_x_hora Decimal  @db.Decimal(12, 2)
+  fecha        DateTime @default(now()) @db.Timestamptz(6)
+  luz          luz      @relation(fields: [luz_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([luz_id, fecha(sort: Desc)], map: "idx_estados_luz_luz_fecha")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model estados_turno {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turno_id          String       @db.Uuid
+  valor_estado      estado_turno
+  valor_estado_pago estado_pago
+  motivo            String?
+  fecha_y_hora      DateTime     @default(now()) @db.Timestamptz(6)
+  turnos            turnos       @relation(fields: [turno_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([turno_id, fecha_y_hora(sort: Desc)], map: "idx_estados_turno_turno_fecha")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model estados_usuario {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id String         @db.Uuid
+  valor      estado_usuario
+  fecha_hora DateTime       @default(now()) @db.Timestamptz(6)
+  usuarios   usuarios       @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuario_id, fecha_hora(sort: Desc)], map: "idx_estados_usuario_usuario_fecha")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model lineas_cuota {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cuota_id     String             @db.Uuid
+  numero_linea Int                @db.SmallInt
+  fecha_pago   DateTime?          @db.Timestamptz(6)
+  monto        Decimal            @db.Decimal(12, 2)
+  estado       estado_linea_cuota @default(registrada)
+  created_at   DateTime           @default(now()) @db.Timestamptz(6)
+  cuotas       cuotas             @relation(fields: [cuota_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([cuota_id, numero_linea], map: "uq_lineas_cuota_numero")
+  @@index([cuota_id, fecha_pago(sort: Desc)], map: "idx_lineas_cuota_cuota_fecha")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model lineas_pago_turno {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pago_turno_id    String      @db.Uuid
+  monto_turno_pago Decimal     @db.Decimal(12, 2)
+  created_at       DateTime    @default(now()) @db.Timestamptz(6)
+  pagos_turno      pagos_turno @relation(fields: [pago_turno_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([pago_turno_id], map: "idx_lineas_pago_turno_pago")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model luz {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  costo_x_hora          Decimal       @db.Decimal(12, 2)
+  franja_horario_inicio DateTime      @db.Time(6)
+  franja_horario_fin    DateTime      @db.Time(6)
+  created_at            DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime      @default(now()) @db.Timestamptz(6)
+  estados_luz           estados_luz[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model pagos_luz {
+  id_pago_luz     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turno_id        String   @db.Uuid
+  monto_total_luz Decimal  @db.Decimal(12, 2)
+  fecha_pago      DateTime @default(now()) @db.Timestamptz(6)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  turnos          turnos   @relation(fields: [turno_id], references: [id], onUpdate: NoAction)
+
+  @@index([fecha_pago], map: "idx_pagos_luz_fecha")
+  @@index([turno_id], map: "idx_pagos_luz_turno")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model pagos_turno {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turno_id          String              @db.Uuid
+  monto_total_turno Decimal             @db.Decimal(12, 2)
+  fecha_pago        DateTime            @default(now()) @db.Timestamptz(6)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  lineas_pago_turno lineas_pago_turno[]
+  turnos            turnos              @relation(fields: [turno_id], references: [id], onUpdate: NoAction)
+
+  @@index([fecha_pago], map: "idx_pagos_turno_fecha")
+  @@index([turno_id], map: "idx_pagos_turno_turno")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model rangos_horario {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String   @unique(map: "uq_rangos_horario_nombre") @db.VarChar(50)
+  hora_inicio DateTime @db.Time(6)
+  hora_fin    DateTime @db.Time(6)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model roles {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre         rol_nombre       @unique(map: "uq_roles_nombre")
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
+  usuarios_roles usuarios_roles[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model socios {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  numero_socio String   @unique(map: "uq_socios_numero_socio") @db.VarChar(20)
+  fecha_alta   DateTime @default(dbgenerated("CURRENT_DATE")) @db.Date
+  usuario_id   String   @unique(map: "uq_socios_usuario") @db.Uuid
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+  cuotas       cuotas[]
+  usuarios     usuarios @relation(fields: [usuario_id], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tipos_turno {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  duracion_max Int      @unique(map: "uq_tipos_turno_duracion_max") @db.SmallInt
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+  turnos       turnos[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model turnos {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id         String          @db.Uuid
+  cancha_id          String          @db.Uuid
+  tipo_turno_id      String          @db.Uuid
+  valor_turno_id     String          @db.Uuid
+  fecha              DateTime        @db.Date
+  hora_inicio        DateTime        @db.Time(6)
+  hora_fin           DateTime        @db.Time(6)
+  cantidad_personas  Int             @default(1) @db.SmallInt
+  cantidad_no_socios Int             @default(0) @db.SmallInt
+  costo_turno_ns     Decimal         @default(0) @db.Decimal(12, 2)
+  requiere_luz       Boolean         @default(false)
+  estado_actual      estado_turno    @default(confirmado)
+  estado_pago        estado_pago     @default(impago)
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime        @default(now()) @db.Timestamptz(6)
+  estados_turno      estados_turno[]
+  pagos_luz          pagos_luz[]
+  pagos_turno        pagos_turno[]
+  canchas            canchas         @relation(fields: [cancha_id], references: [id], onUpdate: NoAction)
+  tipos_turno        tipos_turno     @relation(fields: [tipo_turno_id], references: [id], onUpdate: NoAction)
+  usuarios           usuarios        @relation(fields: [usuario_id], references: [id], onUpdate: NoAction)
+  valores_turno      valores_turno   @relation(fields: [valor_turno_id], references: [id], onUpdate: NoAction)
+
+  @@unique([cancha_id, fecha, hora_inicio], map: "uq_turnos_cancha_fecha_hora")
+  @@index([cancha_id], map: "idx_turnos_cancha")
+  @@index([fecha, cancha_id], map: "idx_turnos_fecha_cancha")
+  @@index([usuario_id, fecha], map: "idx_turnos_usuario_fecha")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model usuarios {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username        String            @unique(map: "uq_usuarios_username") @db.VarChar(50)
+  password_hash   String
+  email           String            @unique(map: "uq_usuarios_email") @db.VarChar(254)
+  nombre          String            @db.VarChar(100)
+  apellido        String            @db.VarChar(100)
+  telefono        String?           @db.VarChar(30)
+  dni             String            @unique(map: "uq_usuarios_dni") @db.VarChar(15)
+  estado_actual   estado_usuario    @default(activo)
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+  estados_usuario estados_usuario[]
+  socios          socios?
+  turnos          turnos[]
+  usuarios_roles  usuarios_roles?
+
+  @@index([apellido, nombre], map: "idx_usuarios_apellido_nombre")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model usuarios_roles {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id   String    @unique(map: "uq_usuarios_roles_vigente", where: raw("(fecha_fin IS NULL)")) @db.Uuid
+  rol_id       String    @db.Uuid
+  fecha_inicio DateTime  @default(now()) @db.Timestamptz(6)
+  fecha_fin    DateTime? @db.Timestamptz(6)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  roles        roles     @relation(fields: [rol_id], references: [id], onUpdate: NoAction)
+  usuarios     usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([rol_id], map: "idx_usuarios_roles_rol")
+  @@index([usuario_id], map: "idx_usuarios_roles_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model valores_cuota {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  precio       Decimal  @db.Decimal(12, 2)
+  fecha_cambio DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([fecha_cambio(sort: Desc)], map: "idx_valores_cuota_fecha")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model valores_turno {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  costo_x_hora Decimal  @db.Decimal(12, 2)
+  fecha_cambio DateTime @default(now()) @db.Timestamptz(6)
+  turnos       turnos[]
+
+  @@index([fecha_cambio(sort: Desc)], map: "idx_valores_turno_fecha")
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum estado_cancha {
+  disponible
+  en_mantenimiento
+  inhabilitada
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum estado_cuota {
+  pendiente
+  pagada
+  parcial
+  adeudada
+  cancelada
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum estado_linea_cuota {
+  registrada
+  anulada
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum estado_pago {
+  impago
+  pago
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum estado_turno {
+  confirmado
+  cancelado
+  iniciado
+  finalizado
+  no_asistio
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum estado_usuario {
+  activo
+  moroso
+  suspendido
+  inactivo
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum rol_nombre {
+  admin
+  socio
+  no_socio
+}
+
+/// This enum is commented in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+enum superficie_cancha {
+  dura
+  polvo_de_ladrillo
+  cesped
+}

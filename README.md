@@ -51,3 +51,18 @@ npm run build
 ```
 
 This runs the `build` script in every workspace (`shared` typechecks, `api` emits to `dist/`, `web` emits to `dist/`).
+
+## Database (Prisma)
+
+`apps/api` uses Prisma ORM v7 with the `@prisma/adapter-pg` driver adapter. Two connection strings are required in `apps/api/.env` (see `apps/api/.env.example`):
+
+- `DATABASE_URL` — pooled connection (Supabase transaction-mode pooler, pgbouncer) used by the runtime client.
+- `DIRECT_URL` — direct/session connection used by the Prisma CLI (migrations, introspection, Studio) through `apps/api/prisma.config.ts`.
+
+Generate the typed client into `apps/api/src/generated/prisma` (gitignored, regenerated on demand):
+
+```bash
+npm run db:generate --workspace=api
+```
+
+Migration commands use `DIRECT_URL` via `prisma.config.ts`: `npm run db:pull --workspace=api`, `npm run db:status --workspace=api`, `npm run db:studio --workspace=api`. The build pipeline runs `db:generate` before compiling the API.

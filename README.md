@@ -15,6 +15,13 @@ npm workspaces are configured at the root (`apps/*`, `packages/*`).
 - Node 24 (see `.nvmrc`)
 - npm 12+
 
+Install Node 24 per OS:
+
+- **Linux / WSL / macOS**: use [nvm](https://github.com/nvm-sh/nvm) — `nvm install` followed by `nvm use` (both read `.nvmrc`).
+- **Windows**: use [nvm-windows](https://github.com/coreybutler/nvm-windows) (`nvm install 24`, `nvm use 24`) or [Volta](https://volta.sh/) (`volta install node@24`).
+
+`.gitattributes` enforces LF line endings so Windows and WSL checkouts produce the same diffs. On WSL, keep the repo inside the Linux filesystem (e.g. `~/projects`), not under `/mnt/c`.
+
 ## Install
 
 ```bash

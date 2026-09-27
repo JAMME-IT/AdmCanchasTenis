@@ -118,6 +118,7 @@ Monorepo actual (`AdmCanchasTenis`):
 1. `npm install`
 2. Terminal 1: `npm run dev:api` (API en :3000)
 3. Terminal 2: `npm run dev:web` (web en :5173)
+4. Referencia interactiva de la API (Scalar): `http://localhost:3000/api/docs` (spec OpenAPI en `/api/docs.json`).
 
 ## 12. Convenciones del equipo
 

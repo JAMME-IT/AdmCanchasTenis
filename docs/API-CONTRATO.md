@@ -76,7 +76,7 @@ Formato NestJS estándar:
 | HTTP | `error` | Cuándo se usa |
 |---|---|---|
 | 400 | `Bad Request` | DTO inválido: campos faltantes, formato, enums fuera de rango, query inválida. |
-| 401 | `Unauthorized` | Token ausente, malformado o expirado; credenciales inválidas en login. |
+| 401 | `Unauthorized` | Token ausente, malformado o expirado (login y registro ocurren en Clerk, ADR-0008). |
 | 403 | `Forbidden` | Rol insuficiente; usuario `suspendido` o `inactivo`; operar un recurso ajeno. |
 | 404 | `Not Found` | Recurso inexistente (usuario, turno, cuota, cancha, pago). |
 | 409 | `Conflict` | Choque de unicidad: slot ocupado, `username`/`email`/`dni` duplicado, cuota mensual duplicada, pago de luz duplicado. |
@@ -293,7 +293,7 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 
 - **Roles**: admin.
 - **RF**: RF-5; RN-4 (solo el admin cambia el estado).
-- **Descripción**: edición administrativa de datos y del estado del usuario. Si cambia `estadoActual`, inserta la fila en `estados_usuario` y actualiza el caché en la misma transacción.
+- **Descripción**: edición administrativa de datos y del estado del usuario. Si cambia `estadoActual`, inserta la fila en `estados_usuario` y actualiza el caché en la misma transacción. El `email` no se edita por API: su fuente es Clerk y se sincroniza con `usuarios.email` por el webhook `user.updated` (ADR-0008).
 - **Request** (al menos un campo):
 
 | Campo | Tipo | Validación |
@@ -301,12 +301,11 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 | `nombre` | string | 1–100. |
 | `apellido` | string | 1–100. |
 | `telefono` | string | ≤30. |
-| `email` | string | email válido; único. |
 | `dni` | string | ≤15; único. |
 | `estadoActual` | enum `estado_usuario` | `activo|moroso|suspendido|inactivo`. |
 
 - **Response 200**: `Usuario`.
-- **Errores**: 400, 401, 403, 404, 409 (`email` o `dni` duplicado).
+- **Errores**: 400, 401, 403, 404, 409 (`dni` duplicado).
 
 #### PATCH /usuarios/:id/rol
 
@@ -327,7 +326,7 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 
 - **Roles**: admin.
 - **RF**: RF-7.
-- **Descripción**: baja lógica: `usuarios.estado_actual = 'inactivo'` + fila en `estados_usuario`. No se borra ninguna fila (las FKs son `on delete restrict`). El usuario no puede volver a loguearse (403).
+- **Descripción**: baja lógica: `usuarios.estado_actual = 'inactivo'` + fila en `estados_usuario`. No se borra ninguna fila (las FKs son `on delete restrict`). El usuario queda `inactivo`: la API responde 403 a cualquier uso; Clerk todavía puede autenticarlo, pero los guards rechazan por estado (§2.2).
 - **Response 200**: `{ "id": "...", "estadoActual": "inactivo" }`.
 - **Errores**: 401, 403, 404.
 
@@ -335,10 +334,10 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 
 - **Roles**: autenticados.
 - **RF**: RF-6.
-- **Descripción**: edición de datos propios. No permite cambiar `username`, `dni`, `estadoActual` ni rol.
-- **Request** (al menos un campo): `nombre`, `apellido`, `telefono`, `email` (único), o `passwordActual` + `passwordNueva` (mínimo 8; `passwordNueva` exige `passwordActual` válida).
+- **Descripción**: edición de datos propios. No permite cambiar `email`, `dni`, `estadoActual` ni rol; el email y la contraseña se gestionan en el perfil de Clerk (el email se sincroniza con `usuarios.email` por el webhook `user.updated`, ADR-0008).
+- **Request** (al menos un campo): `nombre`, `apellido`, `telefono`, `username` (único).
 - **Response 200**: `Usuario`.
-- **Errores**: 400, 401, 409 (`email` duplicado), 422 (password actual incorrecta).
+- **Errores**: 400, 401, 409 (`username` duplicado).
 
 ### 5.3 Turnos
 
@@ -822,3 +821,4 @@ Fuente de la lista: `docs/CONTEXTO.md` §6.
 19. **Cambio de estado de cancha**: pasar una cancha a `en_mantenimiento`/`inhabilitada` no cancela turnos futuros en v1; queda a criterio del admin (pendiente de política).
 20. **Zona horaria**: los campos `fecha` y `hora*` se interpretan en hora local del club sin offset; los timestamps de auditoría y pagos sí llevan offset.
 21. **Rol vigente en cada request**: los guards releen `usuarios_roles` (el session token de Clerk no lleva rol de negocio), por lo que un cambio de rol aplica de inmediato.
+22. **Baja de tarifas**: el diagrama de diseño incluye `eliminarValorDeCuota/Luz/Turno`; no se implementa DELETE. Las tarifas son versionadas append-only (`valores_cuota`, `valores_turno`, `estados_luz`) y ningún RF pide borrar: dar de baja un valor es registrar el nuevo (el anterior queda como historial). Eliminar rompería el historial de tarifas (RF-30/31) y las estadísticas financieras (RF-45).

@@ -81,7 +81,7 @@
 
 | Clase en DOMINIO.md | Objeto en el esquema | Notas |
 |---|---|---|
-| RangoHorario | `rangos_horario` (`id`, `nombre`, `hora_inicio`, `hora_fin`) | Franja genérica (apertura, iluminación). `check (hora_fin > hora_inicio)`. |
+| RangoHorario | `rangos_horario` (`id`, `nombre`, `hora_inicio`, `hora_fin`) | Franja genérica de apertura del club. La franja de iluminación vive en `luz` (`franja_horario_inicio/fin`), no acá. `check (hora_fin > hora_inicio)`. |
 | DiaFuncionamientoClub | `dias_funcionamiento` (`id`, `dia_semana`, `habilitado`) | `dia_semana` ISO-8601 (1 = lunes, 7 = domingo), único. |
 
 ## 3. Decisiones clave

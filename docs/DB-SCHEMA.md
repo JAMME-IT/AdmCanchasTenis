@@ -3,8 +3,9 @@
 > Diseño derivado de `docs/DOMINIO.md` (modelo de análisis, pág. 18 del PDF de cátedra)
 > y `docs/CONTEXTO.md`. Migración inicial:
 > `supabase/migrations/20260925000000_initial_schema.sql`.
-> PostgreSQL 15+ (compatible con Supabase). Sin Supabase Auth: la tabla `usuarios`
-> es propia de la aplicación y la autenticación se resuelve en la API con JWT.
+> PostgreSQL 15+ (compatible con Supabase). La identidad la provee Clerk (ADR-0008):
+> las credenciales no se almacenan en la base y `usuarios.clerk_user_id` mapea al
+> usuario de Clerk.
 
 ## 1. Convenciones
 
@@ -34,7 +35,7 @@
 
 | Clase en DOMINIO.md | Objeto en el esquema | Notas |
 |---|---|---|
-| Usuario | `usuarios` (`id`, `username`, `password_hash`, `email`, `nombre`, `apellido`, `telefono`, `dni`, `estado_actual`) | `password` (diagrama) se materializa como `password_hash`; la API aplica bcrypt/argon2. `estado_actual` es la fuente única de estado del usuario. |
+| Usuario | `usuarios` (`id`, `username`, `clerk_user_id`, `email`, `nombre`, `apellido`, `telefono`, `dni`, `estado_actual`) | `password` (diagrama) queda a cargo de Clerk: la base no almacena credenciales (ADR-0008). `clerk_user_id` es único y mapea al usuario de Clerk (`sub` del session token). `estado_actual` es la fuente única de estado del usuario. |
 | Socio | `socios` (`id`, `numero_socio`, `fecha_alta`, `usuario_id`) | Asociación 0..1 con `usuarios`; `numero_socio` y `usuario_id` son `unique`. `Socio.estado` del diagrama queda cubierto por `usuarios.estado_actual` (sin doble fuente). |
 | EstadoUsuario | `estados_usuario` (`usuario_id`, `valor`, `fecha_hora`) | Historial append-only. |
 | EstadoUsuario.valor (enum) | enum `estado_usuario` | `activo`, `moroso`, `suspendido`, `inactivo`. |
@@ -163,8 +164,8 @@ Al crear un turno se inserta la fila inicial (`confirmado`, `impago`).
 - **Generación automática de cuotas mensuales** (RF-20): el servicio crea la cuota y
   su estado inicial; la unicidad `(socio_id, fecha_inicio)` hace idempotente el
   reintento.
-- **Autenticación y autorización** (RF-2, RF-46, RNF-2): hash de password, emisión y
-  validación de JWT, y chequeo de rol vigente en `usuarios_roles`.
+- **Autenticación y autorización** (RF-2, RF-46, RNF-2): validación del session token
+  de Clerk, mapeo a `usuarios.clerk_user_id` y chequeo de rol vigente en `usuarios_roles`.
 - **Registro de pagos ya verificados**: los comprobantes llegan por WhatsApp y el
   admin carga el pago (RF-19, RF-21, RF-33). No hay estado de verificación ni pasarela
   de pago (decisión consciente, nota 6 de DOMINIO.md).
@@ -249,9 +250,9 @@ RLS **no** se habilita en esta migración: la API accede con service role y es l
 vía de acceso a datos (el frontend nunca toca la base). Como paso futuro:
 
 1. `alter table <tabla> enable row level security;`
-2. Policies por rol de aplicación. Como no se usa Supabase Auth, `auth.uid()` no
-   aplica: el contexto del usuario debe viajar en claims propios del JWT de la API o
-   mediante `SET LOCAL` dentro de la transacción.
+2. Policies por rol de aplicación. Como la identidad la provee Clerk, `auth.uid()` no
+   aplica: el contexto del usuario se resuelve por `usuarios.clerk_user_id` y puede
+   viajar mediante `SET LOCAL` dentro de la transacción.
 3. Mientras RLS esté deshabilitado, no exponer la base ni las API keys con acceso
    directo a clientes.
 
@@ -264,3 +265,6 @@ vía de acceso a datos (el frontend nunca toca la base). Como paso futuro:
 - Los enums requieren `alter type ... add value` si el club incorpora estados nuevos.
 - `dia_semana` usa ISO-8601; cualquier conversión desde `Date.getDay()` de JavaScript
   (0 = domingo) debe hacerse en la API.
+- La sincronización con Clerk depende del webhook (`user.updated`, `user.deleted`):
+  si no llega, `usuarios.email` o la baja lógica quedan desactualizados hasta el
+  reintento manual.

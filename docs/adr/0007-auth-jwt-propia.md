@@ -1,6 +1,6 @@
 # ADR-0007: Autenticación JWT propia en la API
 
-- **Estado**: Aceptada
+- **Estado**: Reemplazada por [ADR-0008](0008-identidad-clerk.md)
 - **Fecha**: 2026-09-25
 
 ## Contexto

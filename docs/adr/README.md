@@ -30,9 +30,10 @@ Convenciones:
 | [ADR-0004](0004-historial-cache-estados.md) | Historial append-only + caché de estado actual | Aceptada | 2026-09-25 |
 | [ADR-0005](0005-sin-docker-por-ahora.md) | Sin Docker por ahora | Aceptada | 2026-09-25 |
 | [ADR-0006](0006-prisma-orm.md) | Prisma ORM v7 como capa de acceso a datos | Aceptada | 2026-09-25 |
-| [ADR-0007](0007-auth-jwt-propia.md) | Autenticación JWT propia en la API | Aceptada | 2026-09-25 |
+| [ADR-0007](0007-auth-jwt-propia.md) | Autenticación JWT propia en la API | Reemplazada por [ADR-0008](0008-identidad-clerk.md) | 2026-09-25 |
+| [ADR-0008](0008-identidad-clerk.md) | Identidad con Clerk y RBAC propio en la base | Aceptada | 2026-09-26 |
 
 ## Referencias cruzadas
 
-- `docs/API-CONTRATO.md` cita ADR-0003 (naming), ADR-0006 (acceso a datos) y ADR-0007 (sesión y roles).
-- `docs/DB-SCHEMA.md` cita el patrón historial + caché (ADR-0004) y la ausencia de Supabase Auth (ADR-0007).
+- `docs/API-CONTRATO.md` cita ADR-0003 (naming), ADR-0006 (acceso a datos) y ADR-0008 (identidad y sesión).
+- `docs/DB-SCHEMA.md` cita el patrón historial + caché (ADR-0004) y la identidad delegada a Clerk (ADR-0008).

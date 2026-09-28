@@ -48,11 +48,14 @@ export class ClerkWebhookController {
     let event: ClerkWebhookEvent;
     try {
       const webhook = new Webhook(secret);
-      event = webhook.verify(req.rawBody, {
+      // svix v2 verify() only validates the signature and returns nothing
+      // (v1 returned the parsed payload), so the signed raw body is parsed here.
+      webhook.verify(req.rawBody, {
         'svix-id': String(req.headers['svix-id'] ?? ''),
         'svix-timestamp': String(req.headers['svix-timestamp'] ?? ''),
         'svix-signature': String(req.headers['svix-signature'] ?? ''),
-      }) as unknown as ClerkWebhookEvent;
+      });
+      event = JSON.parse(req.rawBody.toString('utf8')) as ClerkWebhookEvent;
     } catch {
       throw new BadRequestException('Firma de webhook invalida');
     }

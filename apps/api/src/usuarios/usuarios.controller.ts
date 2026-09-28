@@ -27,6 +27,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { estado_usuario, rol_nombre } from '../generated/prisma/client';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
+import { CambiarRolDto } from './dto/cambiar-rol.dto';
 import { CompletarPerfilDto } from './dto/completar-perfil.dto';
 import { ListarUsuariosDto } from './dto/listar-usuarios.dto';
 import type { UsuarioResponse } from './usuario-response';
@@ -99,6 +100,18 @@ export class UsuariosController {
     @Body() dto: ActualizarUsuarioDto,
   ): Promise<UsuarioResponse> {
     return this.usuarios.actualizar(id, dto);
+  }
+
+  /** Admin role change with history and socio sign-up (RF-3, RN-5, ACT-24/27). */
+  @Patch(':id/rol')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Cambia el rol vigente (historial) y da de alta el socio (admin)' })
+  @ApiOkResponse({ type: UsuarioSchema })
+  async cambiarRol(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: CambiarRolDto,
+  ): Promise<UsuarioResponse> {
+    return this.usuarios.cambiarRol(id, dto);
   }
 
   /** Admin logical deactivation (RF-7). */

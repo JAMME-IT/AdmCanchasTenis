@@ -12,6 +12,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 import type { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
+import type { CambiarRolDto } from './dto/cambiar-rol.dto';
 import type { CompletarPerfilDto } from './dto/completar-perfil.dto';
 import type { ListarUsuariosDto } from './dto/listar-usuarios.dto';
 import {
@@ -238,6 +239,103 @@ export class UsuariosService {
   }
 
   /**
+   * Role change (RF-3, RN-5, API contract §5.2 PATCH /usuarios/:id/rol):
+   * closes the current usuarios_roles row and opens the new one in a single
+   * transaction, respecting the partial unique index uq_usuarios_roles_vigente.
+   * When the new role is socio it also creates the socios row (ACT-27): an
+   * existing row is reused untouched (re-entry keeps its number) and the new
+   * one takes the explicit numeroSocio or the next correlative.
+   */
+  async cambiarRol(usuarioId: string, dto: CambiarRolDto): Promise<UsuarioResponse> {
+    const usuario = await this.prisma.usuarios.findUnique({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const rolVigente = await this.rolVigenteDe(usuarioId);
+    if (rolVigente === dto.rol) {
+      throw new UnprocessableEntityException(`El usuario ya tiene el rol vigente ${dto.rol}`);
+    }
+
+    const numeroExplicito = dto.numeroSocio?.trim() || null;
+    if (numeroExplicito && dto.rol !== 'socio') {
+      throw new BadRequestException('numeroSocio solo aplica al rol socio');
+    }
+
+    const rolDestino = await this.prisma.roles.findUnique({ where: { nombre: dto.rol } });
+    if (!rolDestino) {
+      throw new InternalServerErrorException(`Falta el seed del rol ${dto.rol}`);
+    }
+
+    // An explicit number cannot be retried into uniqueness: one attempt and a
+    // 409. The automatic correlative can collide under concurrent sign-ups
+    // (P2002 on socios.numero_socio): retry with a freshly computed number.
+    const intentosMaximos = numeroExplicito ? 1 : MAX_INTENTOS_CAMBIO_ROL;
+
+    for (let intento = 1; ; intento++) {
+      try {
+        const actualizado = await this.prisma.$transaction(async (tx) => {
+          const ahora = new Date();
+          await tx.usuarios_roles.updateMany({
+            where: { usuario_id: usuarioId, fecha_fin: null },
+            data: { fecha_fin: ahora },
+          });
+          await tx.usuarios_roles.create({
+            data: { usuario_id: usuarioId, rol_id: rolDestino.id, fecha_inicio: ahora },
+          });
+
+          if (dto.rol === 'socio') {
+            const socioExistente = await tx.socios.findUnique({
+              where: { usuario_id: usuarioId },
+            });
+            if (!socioExistente) {
+              await tx.socios.create({
+                data: {
+                  usuario_id: usuarioId,
+                  numero_socio: numeroExplicito ?? (await this.siguienteNumeroSocio(tx)),
+                },
+              });
+            }
+          }
+
+          return tx.usuarios.findUniqueOrThrow({
+            where: { id: usuarioId },
+            include: { socios: true },
+          });
+        });
+
+        return toUsuarioResponse(actualizado, dto.rol);
+      } catch (error) {
+        if (!esViolacionDeUnicidad(error)) {
+          throw error;
+        }
+        if (intento < intentosMaximos) {
+          continue;
+        }
+        throw new ConflictException(
+          numeroExplicito
+            ? 'numeroSocio duplicado'
+            : 'No se pudo asignar un numero de socio libre',
+        );
+      }
+    }
+  }
+
+  /**
+   * Next correlative S-0001, S-0002... (ACT-27). The club has hundreds of
+   * socios, so parsing numero_socio in memory is fine; move to
+   * MAX(CAST(...)) in SQL if the table ever grows by orders of magnitude.
+   */
+  private async siguienteNumeroSocio(tx: Prisma.TransactionClient): Promise<string> {
+    const filas = await tx.socios.findMany({ select: { numero_socio: true } });
+    const maximo = filas.reduce((max, fila) => {
+      const coincidencia = /^S-(\d+)$/.exec(fila.numero_socio);
+      return coincidencia ? Math.max(max, Number(coincidencia[1])) : max;
+    }, 0);
+    return `S-${String(maximo + 1).padStart(4, '0')}`;
+  }
+
+  /**
    * Logical deactivation (RF-7): estado_actual = inactivo plus its
    * estados_usuario row in the same transaction; no row is deleted (FKs are
    * on delete restrict). Idempotent by design: an already inactive user gets
@@ -302,6 +400,9 @@ export class UsuariosService {
     return email.trim().toLowerCase();
   }
 }
+
+/** Auto-correlative retries before surfacing a 409 (P2002 races, ACT-27). */
+const MAX_INTENTOS_CAMBIO_ROL = 3;
 
 function esViolacionDeUnicidad(error: unknown): boolean {
   return (

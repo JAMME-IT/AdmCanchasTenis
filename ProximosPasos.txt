@@ -1,0 +1,26 @@
+Resumen medio por arriba
+
+Repo (monorepo)
+
+- API en NestJS, web en React + Vite.
+
+Documentación (todo en /docs)
+
+- Contexto del club sacado del PDF que habíamos hecho (alcance, RF y RN).
+- Modelo de dominio del diagrama de clases (socios, cuotas, turnos, canchas, luz, config).
+- Contrato de API: 38 endpoints con tema roles. Péguenle una leída porque vamos a programar contra eso.
+- 7 ADRs con algunas decisiones que fui charlando con el amigo que sabe al armar el repo:
+  monorepo, Supabase, naming en español, historial + caché de estados, sin Docker por ahora, 
+  Prisma y Clerk para autenticación. La idea es que Clerk se encargue del login, usuarios y sesiones, 
+  mientras que NestJS mantiene la lógica de roles y permisos de nuestra aplicación. 
+  Si ven que cambiarían algo de eso, edítenlo en el .md así después nos queda a todos esa 
+  decisión persistida de cierto modo ahí.
+
+Base de datos
+
+- Schema inicial completo (22 tablas, 8 enums) ya en Supabase.
+- Prisma configurado y conectado, la migración hecha: de acá en más supuestamente 
+  el historial de migraciones lo maneja Prisma.
+- Pueden chusmear la base con: "npm run db:studio --workspace=api"
+- Avísenme si les llegó al mail el proyecto de Supabase, traten de aceptar en el 
+  día porque creo que vence a las 24 hs.

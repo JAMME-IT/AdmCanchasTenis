@@ -11,7 +11,8 @@
     "db:pull": "prisma db pull",
     "db:status": "prisma migrate status",
     "db:studio": "prisma studio",
-    "db:health": "ts-node scripts/db-health.ts"
+    "db:health": "ts-node scripts/db-health.ts",
+    "db:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@adm/shared": "*",

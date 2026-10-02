@@ -11,7 +11,8 @@
     "db:pull": "prisma db pull",
     "db:status": "prisma migrate status",
     "db:studio": "prisma studio",
-    "db:health": "ts-node scripts/db-health.ts"
+    "db:health": "ts-node scripts/db-health.ts",
+    "test": "ts-node --transpile-only src/turnos/disponibilidad-slots.spec.ts && ts-node --transpile-only src/turnos/turnos.service.spec.ts && ts-node --transpile-only src/turnos/turnos-reserva.spec.ts"
   },
   "dependencies": {
     "@adm/shared": "*",

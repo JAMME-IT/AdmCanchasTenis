@@ -8,6 +8,7 @@ import {
   ServiceUnavailableException,
   type RawBodyRequest,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Webhook } from 'svix';
 import { Public } from '../auth/decorators/public.decorator';
@@ -27,6 +28,7 @@ interface ClerkWebhookEvent {
  * the logical deactivation (user.deleted, RF-7). The initial sign-up row is
  * created by completar-perfil.
  */
+@ApiTags('Interno')
 @Controller('webhooks')
 export class ClerkWebhookController {
   private readonly logger = new Logger(ClerkWebhookController.name);
@@ -36,6 +38,13 @@ export class ClerkWebhookController {
   @Public()
   @Post('clerk')
   @HttpCode(200)
+  @ApiOperation({
+    summary: 'Webhook de Clerk (firma svix): sincroniza email y aplica la baja logica',
+    description: 'Uso interno: lo invoca Clerk, no el frontend.',
+  })
+  @ApiOkResponse({
+    schema: { type: 'object', properties: { received: { type: 'boolean', example: true } } },
+  })
   async recibir(@Req() req: RawBodyRequest<Request>): Promise<{ received: boolean }> {
     const secret = process.env.CLERK_WEBHOOK_SECRET;
     if (!secret) {

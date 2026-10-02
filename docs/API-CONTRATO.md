@@ -7,8 +7,8 @@
 ## 1. Overview
 
 - Arquitectura: REST sobre HTTP con JSON.
-- Base path: `/api`. Todos los paths de este documento son relativos a esa base (por ejemplo, `POST /api/auth/login`).
-- Autenticación: JWT Bearer (ver §2). Header requerido: `Authorization: Bearer <token>`.
+- Base path: `/api`. Todos los paths de este documento son relativos a esa base (por ejemplo, `POST /api/turnos`).
+- Autenticación: session token de Clerk enviado como Bearer (ver §2). Header requerido: `Authorization: Bearer <token>`.
 - Acceso a datos: solo la API accede a PostgreSQL; el frontend nunca toca la base (DB-SCHEMA §9).
 - Sin versionado en URL en v1: los cambios incompatibles se documentan en este contrato.
 
@@ -30,27 +30,28 @@ Los montos los calcula siempre el servidor: el cliente nunca envía importes en 
 
 ## 2. Autenticación y roles
 
-### 2.1 Token
+### 2.1 Session token
 
-- `POST /auth/login` emite un access token JWT firmado por la API.
-- Vigencia: 8 h. Sin refresh token en v1 (ver ADR-0007 y §7).
-- Header en todos los endpoints protegidos: `Authorization: Bearer <token>`.
-- Payload del token:
+- El registro y el login se hacen contra **Clerk** desde el frontend; la API no emite tokens (ADR-0008).
+- La API recibe el **session token** de Clerk como Bearer y lo valida con `@clerk/backend` (`verifyToken` con `CLERK_JWT_KEY` y `authorizedParties`), sin llamadas de red por request.
+- `sub` = `usuarios.clerk_user_id`; el rol de negocio **no** viaja en el token: los guards lo releen de `usuarios_roles` (§2.2).
+- `sid` = sesión de Clerk, usado por `POST /auth/logout` para revocarla.
+
+Claims relevantes:
 
 ```json
 {
-  "sub": "uuid-del-usuario",
-  "rol": "socio",
+  "sub": "user_2RfWKJREkjKbHZy0Wqa5qrHeAnb",
+  "sid": "sess_2Ro7e2IxrffdqBboq8KfB6eGbIy",
+  "azp": "http://localhost:5173",
   "iat": 1758825600,
   "exp": 1758854400
 }
 ```
 
-`sub` = `usuarios.id`; `rol` = nombre del rol vigente en `usuarios_roles` (`fecha_fin is null`) al momento de emitir.
-
 ### 2.2 Roles del sistema
 
-| Valor en token (`rol`) | Etiqueta de negocio | Origen |
+| Valor (`rol`) | Etiqueta de negocio | Origen |
 |---|---|---|
 | `admin` | Administrador | `roles.nombre` + `usuarios_roles` vigente |
 | `socio` | Socio | idem; además tiene fila en `socios` |
@@ -58,7 +59,7 @@ Los montos los calcula siempre el servidor: el cliente nunca envía importes en 
 
 - Rol por defecto al registrarse: `no_socio` (supuesto explícito, ver §7). El alta como socio se pide por WhatsApp (RF-8, comportamiento de frontend) y la asigna el administrador con `PATCH /usuarios/:id/rol`.
 - Estados del usuario (`usuarios.estado_actual`): `activo`, `moroso`, `suspendido`, `inactivo`. Login y uso general habilitados para `activo` y `moroso` (RN-9 limita la reserva del moroso); `suspendido` e `inactivo` reciben 403.
-- Los guards de rol releen el rol vigente de `usuarios_roles` en cada request, por lo que un cambio de rol impacta de inmediato aunque el token siga vigente.
+- Los guards de rol releen el rol vigente de `usuarios_roles` en cada request, por lo que un cambio de rol impacta de inmediato aunque la sesión siga vigente.
 
 ## 3. Formato de errores
 
@@ -75,7 +76,7 @@ Formato NestJS estándar:
 | HTTP | `error` | Cuándo se usa |
 |---|---|---|
 | 400 | `Bad Request` | DTO inválido: campos faltantes, formato, enums fuera de rango, query inválida. |
-| 401 | `Unauthorized` | Token ausente, malformado o expirado; credenciales inválidas en login. |
+| 401 | `Unauthorized` | Token ausente, malformado o expirado (login y registro ocurren en Clerk, ADR-0008). |
 | 403 | `Forbidden` | Rol insuficiente; usuario `suspendido` o `inactivo`; operar un recurso ajeno. |
 | 404 | `Not Found` | Recurso inexistente (usuario, turno, cuota, cancha, pago). |
 | 409 | `Conflict` | Choque de unicidad: slot ocupado, `username`/`email`/`dni` duplicado, cuota mensual duplicada, pago de luz duplicado. |
@@ -90,7 +91,7 @@ Formato NestJS estándar:
 
 | Grupo de endpoints | Público | Admin | Socio | No socio |
 |---|---|---|---|---|
-| `POST /auth/registro`, `POST /auth/login` | Si | Si | Si | Si |
+| `POST /usuarios/completar-perfil` | — | Si | Si | Si |
 | `POST /auth/logout`, `GET /auth/me` | — | Si | Si | Si |
 | `GET /usuarios`, `GET /usuarios/:id` | — | Si | — | — |
 | `PATCH /usuarios/:id`, `PATCH /usuarios/:id/rol`, `DELETE /usuarios/:id` | — | Si | — | — |
@@ -111,6 +112,7 @@ Formato NestJS estándar:
 
 Notas:
 
+- El registro y el login no son endpoints de esta API: se realizan contra Clerk desde el frontend (ADR-0008); el alta de dominio se completa con `POST /usuarios/completar-perfil`.
 - El admin también puede reservar turnos y no tiene tope diario (RN-10).
 - `GET /cuotas/mias` es exclusivo de `socio`; un `no_socio` recibe 403 porque no tiene cuota (el alta se pide por WhatsApp, RF-8).
 
@@ -139,7 +141,7 @@ Los endpoints referencian estos modelos para no repetir el detalle.
 }
 ```
 
-`passwordHash` nunca se devuelve. `rol` surge de `usuarios_roles` vigente; `numeroSocio` es `null` si el usuario no tiene fila en `socios`.
+`clerk_user_id` no se expone. `rol` surge de `usuarios_roles` vigente; `numeroSocio` es `null` si el usuario no tiene fila en `socios`.
 
 **Turno**
 
@@ -228,50 +230,13 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 
 ### 5.1 Auth
 
-#### POST /auth/registro
-
-- **Roles**: público.
-- **RF**: RF-1.
-- **Descripción**: alta de usuario con datos personales. Crea `usuarios`, la fila inicial en `estados_usuario` (`activo`) y la asignación vigente en `usuarios_roles` con rol `no_socio`, en una transacción.
-- **Request**:
-
-| Campo | Tipo | Oblig. | Validación |
-|---|---|---|---|
-| `username` | string | Si | 3–50; único (`uq_usuarios_username`); minúsculas; sin espacios. |
-| `email` | string | Si | email válido ≤254; único; minúsculas. |
-| `password` | string | Si | mínimo 8; se guarda hasheado (bcryptjs, ADR-0007). |
-| `nombre` | string | Si | 1–100. |
-| `apellido` | string | Si | 1–100. |
-| `telefono` | string | No | ≤30. |
-| `dni` | string | Si | ≤15; único. |
-
-- **Response 201**: `Usuario` (sin token; el login es un paso separado).
-- **Errores**: 400 (formato), 409 (`username`, `email` o `dni` duplicado).
-
-#### POST /auth/login
-
-- **Roles**: público.
-- **RF**: RF-2.
-- **Descripción**: valida credenciales y emite el access token.
-- **Request**: `{ "username": "jperez", "password": "********" }` (`username` 1–50 y `password` requeridos).
-- **Response 200**:
-
-```json
-{
-  "accessToken": "<jwt>",
-  "tokenType": "Bearer",
-  "expiresIn": 28800,
-  "usuario": { "...Usuario..." }
-}
-```
-
-- **Errores**: 400, 401 (credenciales inválidas), 403 (usuario `suspendido` o `inactivo`).
+> El registro y el login se realizan contra **Clerk** desde el frontend (ADR-0008); la API no expone endpoints de credenciales. El alta del usuario de dominio se completa con `POST /usuarios/completar-perfil` (§5.2).
 
 #### POST /auth/logout
 
 - **Roles**: autenticados.
 - **RF**: RF-46.
-- **Descripción**: en v1 el token es stateless; la API registra el cierre y el cliente descarta el token (ADR-0007). No hay denylist.
+- **Descripción**: revoca la sesión de Clerk indicada por el claim `sid` del token (Backend API) y el cliente limpia su sesión.
 - **Request**: sin body.
 - **Response 200**: `{ "message": "Sesion cerrada" }`.
 - **Errores**: 401.
@@ -285,6 +250,24 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 - **Errores**: 401.
 
 ### 5.2 Usuarios
+
+#### POST /usuarios/completar-perfil
+
+- **Roles**: autenticados sin fila en `usuarios` (alta posterior al sign-up de Clerk).
+- **RF**: RF-1.
+- **Descripción**: crea `usuarios` con `clerk_user_id` (del token verificado), la fila inicial en `estados_usuario` (`activo`) y la asignación vigente en `usuarios_roles` con rol `no_socio`, en una transacción. El email se toma del usuario de Clerk (Backend API); la API no recibe passwords.
+- **Request**:
+
+| Campo | Tipo | Oblig. | Validación |
+|---|---|---|---|
+| `username` | string | Si | 3–50; único (`uq_usuarios_username`); minúsculas; sin espacios. |
+| `nombre` | string | Si | 1–100. |
+| `apellido` | string | Si | 1–100. |
+| `telefono` | string | No | ≤30. |
+| `dni` | string | Si | ≤15; único. |
+
+- **Response 201**: `Usuario`.
+- **Errores**: 400 (formato), 401 (sin token), 409 (`username`, `email` o `dni` duplicado). Si el usuario autenticado ya tiene fila, responde 200 con el Usuario existente (idempotente).
 
 #### GET /usuarios
 
@@ -310,7 +293,7 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 
 - **Roles**: admin.
 - **RF**: RF-5; RN-4 (solo el admin cambia el estado).
-- **Descripción**: edición administrativa de datos y del estado del usuario. Si cambia `estadoActual`, inserta la fila en `estados_usuario` y actualiza el caché en la misma transacción.
+- **Descripción**: edición administrativa de datos y del estado del usuario. Si cambia `estadoActual`, inserta la fila en `estados_usuario` y actualiza el caché en la misma transacción. El `email` no se edita por API: su fuente es Clerk y se sincroniza con `usuarios.email` por el webhook `user.updated` (ADR-0008).
 - **Request** (al menos un campo):
 
 | Campo | Tipo | Validación |
@@ -318,12 +301,11 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 | `nombre` | string | 1–100. |
 | `apellido` | string | 1–100. |
 | `telefono` | string | ≤30. |
-| `email` | string | email válido; único. |
 | `dni` | string | ≤15; único. |
 | `estadoActual` | enum `estado_usuario` | `activo|moroso|suspendido|inactivo`. |
 
 - **Response 200**: `Usuario`.
-- **Errores**: 400, 401, 403, 404, 409 (`email` o `dni` duplicado).
+- **Errores**: 400, 401, 403, 404, 409 (`dni` duplicado).
 
 #### PATCH /usuarios/:id/rol
 
@@ -344,7 +326,7 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 
 - **Roles**: admin.
 - **RF**: RF-7.
-- **Descripción**: baja lógica: `usuarios.estado_actual = 'inactivo'` + fila en `estados_usuario`. No se borra ninguna fila (las FKs son `on delete restrict`). El usuario no puede volver a loguearse (403).
+- **Descripción**: baja lógica: `usuarios.estado_actual = 'inactivo'` + fila en `estados_usuario`. No se borra ninguna fila (las FKs son `on delete restrict`). El usuario queda `inactivo`: la API responde 403 a cualquier uso; Clerk todavía puede autenticarlo, pero los guards rechazan por estado (§2.2).
 - **Response 200**: `{ "id": "...", "estadoActual": "inactivo" }`.
 - **Errores**: 401, 403, 404.
 
@@ -352,10 +334,10 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 
 - **Roles**: autenticados.
 - **RF**: RF-6.
-- **Descripción**: edición de datos propios. No permite cambiar `username`, `dni`, `estadoActual` ni rol.
-- **Request** (al menos un campo): `nombre`, `apellido`, `telefono`, `email` (único), o `passwordActual` + `passwordNueva` (mínimo 8; `passwordNueva` exige `passwordActual` válida).
+- **Descripción**: edición de datos propios. No permite cambiar `email`, `dni`, `estadoActual` ni rol; el email y la contraseña se gestionan en el perfil de Clerk (el email se sincroniza con `usuarios.email` por el webhook `user.updated`, ADR-0008).
+- **Request** (al menos un campo): `nombre`, `apellido`, `telefono`, `username` (único).
 - **Response 200**: `Usuario`.
-- **Errores**: 400, 401, 409 (`email` duplicado), 422 (password actual incorrecta).
+- **Errores**: 400, 401, 409 (`username` duplicado).
 
 ### 5.3 Turnos
 
@@ -767,8 +749,8 @@ Fuente de la lista: `docs/CONTEXTO.md` §6.
 
 | RF | Requerimiento (resumen) | Resolución | Estado |
 |---|---|---|---|
-| RF-1 | Registro con datos personales | `POST /auth/registro` | Cubierto |
-| RF-2 | Login | `POST /auth/login` | Cubierto |
+| RF-1 | Registro con datos personales | Clerk (sign-up) + `POST /usuarios/completar-perfil` | Cubierto |
+| RF-2 | Login | Clerk (sign-in del frontend) | Cubierto |
 | RF-3 | Admin modifica roles | `PATCH /usuarios/:id/rol` | Cubierto |
 | RF-4 | Lista de usuarios | `GET /usuarios`, `GET /usuarios/:id` | Cubierto |
 | RF-5 | Admin edita usuarios | `PATCH /usuarios/:id` | Cubierto |
@@ -819,8 +801,8 @@ Fuente de la lista: `docs/CONTEXTO.md` §6.
 ## 7. Supuestos y pendientes
 
 1. **Rol por defecto**: el registro asigna `no_socio`. El alta de socio se pide por WhatsApp (RF-8) y la ejecuta el admin con `PATCH /usuarios/:id/rol`.
-2. **Sesión**: sin refresh token en v1; access token de 8 h; se vuelve a loguear al expirar. `POST /auth/logout` no invalida el token en el servidor (no hay denylist), solo documenta el descarte en el cliente (RF-46, ADR-0007). Una denylist/rotación queda como mejora futura.
-3. **Login por `username`** únicamente en v1; el login por email queda pendiente (ambos campos son únicos en `usuarios`).
+2. **Sesión**: la gestiona Clerk (session tokens renovados por su SDK). `POST /auth/logout` revoca la sesión en el servidor vía Backend API (RF-46, ADR-0008).
+3. **Login**: lo define Clerk (identificador de ingreso configurable en el proveedor). La API no expone endpoints de credenciales.
 4. **Reglas de negocio en el servicio**: RN-1, RN-2, RN-9, RN-10 y RN-11 se validan en la capa de aplicación (DB-SCHEMA §5); el contrato las expone como 422. La superposición de turnos se valida dentro de una transacción (la `unique` solo cubre inicios idénticos).
 5. **`GET /turnos/disponibilidad`** no tiene RF propio: es una decisión de diseño para cumplir CU04 (elegir cancha, día y horario disponibles).
 6. **Feriados**: no están modelados. La duración de 90 min en feriados depende de que el frontend/admin elija el `tipoTurnoId` correcto; pendiente una tabla/config de feriados.
@@ -838,4 +820,5 @@ Fuente de la lista: `docs/CONTEXTO.md` §6.
 18. **`numeroSocio`**: si el admin promueve a socio sin enviarlo, la API genera el correlativo con formato `S-0001`; el formato es un supuesto ajustable.
 19. **Cambio de estado de cancha**: pasar una cancha a `en_mantenimiento`/`inhabilitada` no cancela turnos futuros en v1; queda a criterio del admin (pendiente de política).
 20. **Zona horaria**: los campos `fecha` y `hora*` se interpretan en hora local del club sin offset; los timestamps de auditoría y pagos sí llevan offset.
-21. **Rol vigente en cada request**: los guards releen `usuarios_roles` (no confían solo en el claim `rol` del token), por lo que un cambio de rol aplica de inmediato.
+21. **Rol vigente en cada request**: los guards releen `usuarios_roles` (el session token de Clerk no lleva rol de negocio), por lo que un cambio de rol aplica de inmediato.
+22. **Baja de tarifas**: el diagrama de diseño incluye `eliminarValorDeCuota/Luz/Turno`; no se implementa DELETE. Las tarifas son versionadas append-only (`valores_cuota`, `valores_turno`, `estados_luz`) y ningún RF pide borrar: dar de baja un valor es registrar el nuevo (el anterior queda como historial). Eliminar rompería el historial de tarifas (RF-30/31) y las estadísticas financieras (RF-45).

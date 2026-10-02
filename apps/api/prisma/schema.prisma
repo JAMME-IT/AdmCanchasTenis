@@ -280,7 +280,7 @@ model turnos {
 model usuarios {
   id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   username        String            @unique(map: "uq_usuarios_username") @db.VarChar(50)
-  password_hash   String
+  clerk_user_id   String?           @unique(map: "uq_usuarios_clerk_user_id")
   email           String            @unique(map: "uq_usuarios_email") @db.VarChar(254)
   nombre          String            @db.VarChar(100)
   apellido        String            @db.VarChar(100)

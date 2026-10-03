@@ -55,6 +55,9 @@ First ticket of epic ACT-8 Reportes. Unlocks admin panel stats; base for ACT-46 
 - Branch feat/reportes created from feat/turnos.
 - Explorer map complete; contract §5.10 spot-checked.
 - DECIDED (PO 2026-10-03): usuarios counting = rol vigente + estado. sociosActivos = rol socio vigente (usuarios_roles.fecha_fin IS NULL → roles.nombre='socio') AND estado_actual='activo'; morosos = estado_actual='moroso' (any role); noSocios = resto sin rol socio vigente. Role wins over socios row on conflict (ACT-24/27 history is source of truth).
+- Writer done (6b07d23): T2–T5 implemented RED→GREEN, 36 pass, tsc clean. Commit ~480 insertions (over 400 heuristic, kept as one working unit).
+- Parent: wired reportes.service.spec.ts into apps/api test script; npm test + tsc re-verified.
+- PENDING: live Swagger/docs check (needs DB/Clerk env; Supabase public is empty per 2026-10-03 discovery) + native review per RDD.
 - T2–T5 closed on feat/reportes by `feat(api): agrega GET /reportes/estadisticas con agregaciones por estado/cancha/franja (ACT-45)` (find it via `git log --grep ACT-45`; TDD RED→GREEN, `npm test` 36 pass / `tsc --noEmit` clean, observed 2026-10-03).
 
 ## Next step

@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { CrearTurnoDto } from './dto/crear-turno.dto';
 import { TurnosController } from './turnos.controller';
-import { calcularCostoTurnoNs, TurnosService } from './turnos.service';
+import { calcularCostoTurnoNs, hoyEnArgentina, TurnosService } from './turnos.service';
 
 interface ReservaDb {
   cancha?: Record<string, unknown> | null;
@@ -274,6 +274,83 @@ describe('TurnosService.reservar (ACT-34)', () => {
     );
     assert.equal(respuesta.horaFin, '20:30');
     assert.equal(respuesta.costoTurnoNs, 12000);
+  });
+});
+
+describe('TurnosService.reservar RN-11 en horario limite ART (UTC-3 fijo)', () => {
+  const RealDate = Date;
+
+  /** Freezes `new Date()` / `Date.now()` at a fixed instant (UTC server). */
+  function fijarReloj(isoAhora: string): void {
+    const fijo = new RealDate(isoAhora).getTime();
+    class FechaFija extends RealDate {
+      constructor(...args: unknown[]) {
+        if (args.length === 0) {
+          super(fijo);
+        } else {
+          super(...(args as []));
+        }
+      }
+      static now(): number {
+        return fijo;
+      }
+    }
+    (globalThis as Record<string, unknown>).Date = FechaFija;
+  }
+
+  function restaurarReloj(): void {
+    (globalThis as Record<string, unknown>).Date = RealDate;
+  }
+
+  // now = 2026-10-01T00:30:00Z = 2026-09-30 21:30 ART: the ART date is still 09-30.
+  const AHORA_LIMITE = '2026-10-01T00:30:00.000Z';
+  const HOY_ART = '2026-09-30';
+
+  it('treats the ART calendar date as today between 21:00 and 24:00 ART', async () => {
+    fijarReloj(AHORA_LIMITE);
+    try {
+      const service = new TurnosService(reservaStub() as never);
+      const respuesta = await service.reservar(
+        authDe('socio') as never,
+        dtoBase({ fecha: HOY_ART }),
+      );
+      assert.equal(respuesta.fecha, HOY_ART);
+    } finally {
+      restaurarReloj();
+    }
+  });
+
+  it('counts the advance-booking window from the ART date, not the UTC date', async () => {
+    fijarReloj(AHORA_LIMITE);
+    try {
+      const service = new TurnosService(reservaStub() as never);
+      // +1 from ART today (09-30): allowed.
+      const manana = await service.reservar(
+        authDe('socio') as never,
+        dtoBase({ fecha: '2026-10-01' }),
+      );
+      assert.equal(manana.fecha, '2026-10-01');
+      // +2 from ART today: rejected even though it is +1 from the UTC date.
+      await assert.rejects(
+        service.reservar(authDe('socio') as never, dtoBase({ fecha: '2026-10-02' })),
+        (error: unknown) => error instanceof UnprocessableEntityException,
+      );
+    } finally {
+      restaurarReloj();
+    }
+  });
+});
+
+describe('hoyEnArgentina (regla ART: UTC-3 fijo, sin DST)', () => {
+  it('yields the ART calendar date at the 00:30 UTC boundary', () => {
+    // 00:30 UTC = 21:30 ART on the previous day.
+    const art = hoyEnArgentina(new Date('2026-10-01T00:30:00.000Z'));
+    assert.equal(art.getUTCFullYear(), 2026);
+    assert.equal(art.getUTCMonth(), 8);
+    assert.equal(art.getUTCDate(), 30);
+    // Outside the boundary window both clocks agree on the date.
+    const mediodia = hoyEnArgentina(new Date('2026-09-30T15:00:00.000Z'));
+    assert.equal(mediodia.getUTCDate(), 30);
   });
 });
 

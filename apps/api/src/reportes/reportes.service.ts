@@ -100,8 +100,8 @@ export class ReportesService {
     ahora = new Date(),
   ): Promise<FinancieroResponse> {
     const periodo = resolverPeriodo(query, ahora);
-    const diaDesde = inicioDiaUTC(periodo.desde);
-    const diaSiguienteAlHasta = inicioDiaUTC(periodo.hasta, 1);
+    const diaDesde = inicioDiaART(periodo.desde);
+    const diaSiguienteAlHasta = inicioDiaART(periodo.hasta, 1);
     const [pagosTurno, pagosLuz, lineas, cuotas, turnos, canchas, dias, rangos] =
       await Promise.all([
         this.prisma.pagos_turno.findMany({
@@ -289,8 +289,8 @@ export function contarDiasHabilitados(
   const habilitadoPorDia = new Map(dias.map((dia) => [dia.dia_semana, dia.habilitado]));
   let diasHabilitados = 0;
   for (
-    let actual = inicioDiaUTC(periodo.desde);
-    actual <= inicioDiaUTC(periodo.hasta);
+    let actual = inicioDiaART(periodo.desde);
+    actual <= inicioDiaART(periodo.hasta);
     actual = new Date(actual.getTime() + 24 * 60 * 60 * 1000)
   ) {
     const iso = actual.getUTCDay() === 0 ? 7 : actual.getUTCDay();
@@ -322,14 +322,20 @@ export function redondear2(valor: number): number {
 }
 
 /**
- * `YYYY-MM-DD` → start of that UTC day. Timestamptz columns (`fecha_pago`)
- * need full-day coverage `[desde 00:00, hasta+1 00:00)`, unlike the `@db.Date`
- * columns served by `fechaParaPrisma`: a noon-to-noon window would silently
- * drop afternoon payments on the boundary days.
+ * `YYYY-MM-DD` → that day's midnight in America/Argentina/Buenos_Aires,
+ * expressed as UTC. Timestamptz columns (`fecha_pago`) need full ART-day
+ * coverage `[desde 00:00 ART, hasta+1 00:00 ART)`, unlike the `@db.Date`
+ * columns served by `fechaParaPrisma`: UTC-midnight boundaries would
+ * misattribute payments near midnight ART on the boundary days (a 23:30 ART
+ * payment on `hasta` is 02:30 UTC the next calendar day and must count).
+ * ART is a fixed UTC-3 with no DST, so 00:00 ART is always 03:00 UTC of the
+ * same calendar day and a constant shift is correct. The weekday iteration in
+ * `contarDiasHabilitados` reuses this helper safely: 03:00 UTC falls on the
+ * same calendar date (and ISO weekday) as its ART day.
  */
-function inicioDiaUTC(fecha: string, diasExtra = 0): Date {
+function inicioDiaART(fecha: string, diasExtra = 0): Date {
   const [anio, mes, dia] = fecha.split('-').map(Number);
-  return new Date(Date.UTC(anio, mes - 1, dia + diasExtra, 0, 0, 0, 0));
+  return new Date(Date.UTC(anio, mes - 1, dia + diasExtra, 3, 0, 0, 0));
 }
 
 /**

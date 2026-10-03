@@ -19,8 +19,8 @@ Second ticket of epic ACT-8 Reportes. Together with ACT-45 it feeds the future a
 - Tests alongside behavior (extend stub-Prisma spec pattern).
 
 ## Aggregation definitions (PO-visible assumptions, confirm at review)
-- F1 ingresos.pagosTurno = Σ pagos_turno.monto_total_turno WHERE fecha_pago ∈ rango. pagosLuz likewise (pagos_luz.monto_total_luz).
-- F2 ingresos.cuotasCobradas = Σ lineas_cuota.monto WHERE fecha_pago ∈ rango AND estado = 'registrada' (anuladas excluded).
+- F1 ingresos.pagosTurno = Σ pagos_turno.monto_total_turno WHERE fecha_pago ∈ [desde 00:00 ART, hasta+1 00:00 ART) (timestamptz; ART = fixed UTC-3, no DST, so 00:00 ART = 03:00 UTC same calendar day). pagosLuz likewise (pagos_luz.monto_total_luz).
+- F2 ingresos.cuotasCobradas = Σ lineas_cuota.monto WHERE fecha_pago ∈ [desde 00:00 ART, hasta+1 00:00 ART) AND estado = 'registrada' (anuladas excluded).
 - F3 cuotas.emitidas = COUNT(cuotas) WHERE fecha_inicio ∈ rango; montoEmitido = Σ monto_total.
 - F4 cuotas.pagadas/parciales/adeudadas = COUNT by estado_actual among emitidas; pendiente/cancelada count in emitidas only (documented, confirm).
 - F5 usoCanchas.turnosTotal = COUNT(turnos) fecha ∈ rango AND estado_actual != 'cancelado'; horasOcupadas = Σ(hora_fin − hora_inicio).
@@ -63,6 +63,7 @@ odd/tasks/reportes-financiero.md
 - Parent spot check 2026-10-03: npm test green (fail 0), tsc clean, tree clean salvo untracked locales.
 - Native review: unavailable in this runtime (same as ACT-45 assessment) — no receipt claimed.
 - T1–T5 done: `obtenerFinanciero` (F1–F7) + `GET /reportes/financiero` + `financiero-response.ts` + 8 new spec cases, RED observed then GREEN. Closed by work-unit commit on feat/reportes: `feat(reportes): agrega endpoint financiero con ingresos, cuotas y uso de canchas` (npm test 50 pass, tsc clean).
+- Timezone bugfix F1/F2 (2026-10-03): `inicioDiaUTC` (UTC-midnight) → `inicioDiaART` (00:00 ART = 03:00 UTC, fixed UTC-3 no DST) for timestamptz `fecha_pago` filters; Date/Time columns untouched; estadisticas path verified — filters only Date columns + counts, no change needed. 2 new boundary specs RED→GREEN. Closed by work-unit commit on feat/reportes: `fix(reportes): corrige boundaries de fecha_pago a medianoche ART en financiero (ACT-46)` (npm test 16 pass, tsc clean).
 
 ## Next step
 Launch bounded writer; parent verifies (npm test + tsc spot check), then report.

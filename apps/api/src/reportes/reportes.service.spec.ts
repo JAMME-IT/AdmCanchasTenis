@@ -361,6 +361,57 @@ describe('ReportesService.obtenerFinanciero (ACT-46)', () => {
       (error: unknown) => error instanceof BadRequestException,
     );
   });
+
+  it('filters timestamptz fecha_pago with ART day boundaries (F1-F2 hasta edge)', async () => {
+    const recibidos: { fecha_pago?: { gte?: Date; lt?: Date } }[] = [];
+    const capturar = async (args?: { where?: { fecha_pago?: { gte?: Date; lt?: Date } } }) => {
+      recibidos.push(args?.where ?? {});
+      return [];
+    };
+    const service = new ReportesService(
+      prismaStub({
+        pagos_turno: { findMany: capturar },
+        pagos_luz: { findMany: capturar },
+        lineas_cuota: { findMany: capturar },
+      }) as never,
+    );
+    await service.obtenerFinanciero({ desde: '2026-09-01', hasta: '2026-09-30' });
+    assert.equal(recibidos.length, 3);
+    for (const where of recibidos) {
+      // desde 00:00 ART = 03:00 UTC same day; hasta+1 00:00 ART exclusive.
+      assert.equal(where.fecha_pago?.gte?.toISOString(), '2026-09-01T03:00:00.000Z');
+      assert.equal(where.fecha_pago?.lt?.toISOString(), '2026-10-01T03:00:00.000Z');
+    }
+    const { gte, lt } = recibidos[0].fecha_pago as { gte: Date; lt: Date };
+    const dentro = (fecha: Date) => fecha >= gte && fecha < lt;
+    // 23:30 ART on the hasta day is inside the range.
+    assert.equal(dentro(new Date('2026-10-01T02:30:00.000Z')), true);
+    // 00:30 ART on the hasta+1 day is outside the range.
+    assert.equal(dentro(new Date('2026-10-01T03:30:00.000Z')), false);
+  });
+
+  it('filters timestamptz fecha_pago with ART day boundaries (F1-F2 desde edge)', async () => {
+    let whereRecibido: { fecha_pago?: { gte?: Date; lt?: Date } } = {};
+    const service = new ReportesService(
+      prismaStub({
+        pagos_turno: {
+          findMany: async (args?: { where?: { fecha_pago?: { gte?: Date; lt?: Date } } }) => {
+            whereRecibido = args?.where ?? {};
+            return [];
+          },
+        },
+      }) as never,
+    );
+    await service.obtenerFinanciero({ desde: '2026-09-01', hasta: '2026-09-30' });
+    assert.equal(whereRecibido.fecha_pago?.gte?.toISOString(), '2026-09-01T03:00:00.000Z');
+    const { gte, lt } = whereRecibido.fecha_pago as unknown as { gte: Date; lt: Date };
+    const dentro = (fecha: Date) => fecha >= gte && fecha < lt;
+    // 23:30 ART on the day before desde is outside the range.
+    assert.equal(dentro(new Date('2026-09-01T02:30:00.000Z')), false);
+    // 00:30 ART on the desde day is inside the range.
+    assert.equal(dentro(new Date('2026-09-01T03:30:00.000Z')), true);
+    assert.equal(lt.toISOString(), '2026-10-01T03:00:00.000Z');
+  });
 });
 
 describe('ReportesController.financiero (ACT-46)', () => {

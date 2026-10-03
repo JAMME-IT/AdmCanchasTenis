@@ -61,7 +61,7 @@ odd/tasks/reportes-financiero.md
 ## Progress
 - ACT-46 → En curso. Writer done (387c901): T1–T4 RED→GREEN, 50 pass, tsc clean.
 - Parent spot check 2026-10-03: npm test green (fail 0), tsc clean, tree clean salvo untracked locales.
-- Parent spot check 2026-10-03: npm test 52/52 green, tsc clean. ART fix verified closed.
+- Live 2026-10-03 vs Supabase dev: ambos endpoints 200 con shape exacto; estadisticas turnos.total=3 (confirmado×3), usuarios={2,4,0} consistente con seed; financiero horasOcupadas=4.5, ingresos en cero (sin flujo de pagos en la rama — honesto, no fabricado). ocupacionPromedio=0 con 4.5h es correcto por redondeo a 2 decimales del ratio mensual (~0.004) — comportamiento intended, no bug.
 - Native review: unavailable in this runtime (same as ACT-45 assessment) — no receipt claimed.
 - T1–T5 done: `obtenerFinanciero` (F1–F7) + `GET /reportes/financiero` + `financiero-response.ts` + 8 new spec cases, RED observed then GREEN. Closed by work-unit commit on feat/reportes: `feat(reportes): agrega endpoint financiero con ingresos, cuotas y uso de canchas` (npm test 50 pass, tsc clean).
 - Timezone bugfix F1/F2 (2026-10-03): `inicioDiaUTC` (UTC-midnight) → `inicioDiaART` (00:00 ART = 03:00 UTC, fixed UTC-3 no DST) for timestamptz `fecha_pago` filters; Date/Time columns untouched; estadisticas path verified — filters only Date columns + counts, no change needed. 2 new boundary specs RED→GREEN. Closed by work-unit commit on feat/reportes: `fix(reportes): corrige boundaries de fecha_pago a medianoche ART en financiero (ACT-46)` (npm test 16 pass, tsc clean).

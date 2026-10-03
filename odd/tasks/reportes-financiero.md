@@ -59,7 +59,9 @@ odd/tasks/reportes-financiero.md
 - Delivery: single-pr standing, but flag stacked-PRs option at delivery (running total over budget).
 
 ## Progress
-- ACT-46 → En curso. Feature doc created. Awaiting writer.
+- ACT-46 → En curso. Writer done (387c901): T1–T4 RED→GREEN, 50 pass, tsc clean.
+- Parent spot check 2026-10-03: npm test green (fail 0), tsc clean, tree clean salvo untracked locales.
+- Native review: unavailable in this runtime (same as ACT-45 assessment) — no receipt claimed.
 - T1–T5 done: `obtenerFinanciero` (F1–F7) + `GET /reportes/financiero` + `financiero-response.ts` + 8 new spec cases, RED observed then GREEN. Closed by work-unit commit on feat/reportes: `feat(reportes): agrega endpoint financiero con ingresos, cuotas y uso de canchas` (npm test 50 pass, tsc clean).
 
 ## Next step

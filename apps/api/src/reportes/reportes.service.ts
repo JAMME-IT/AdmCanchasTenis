@@ -1,15 +1,23 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { esFechaValida, formatearHora, minutosDeHora } from '../turnos/disponibilidad-slots';
+import {
+  esFechaValida,
+  formatearHora,
+  minutosDeHora,
+} from '../turnos/disponibilidad-slots';
 import type { ConsultarEstadisticasDto } from './dto/consultar-estadisticas.dto';
 import type {
   EstadisticasResponse,
   PeriodoEstadisticas,
   PorEstadoTurnos,
 } from './estadisticas-response';
+import type { FinancieroResponse } from './financiero-response';
 
 /** Club timezone for the default period (UTC-3 year-round, no DST). */
 const ZONA_CLUB = 'America/Argentina/Buenos_Aires';
+
+/** Daily opening hours assumed when no `rangos_horario` rows exist (F6: 08–22). */
+const HORAS_DIARIAS_POR_DEFECTO = 14;
 
 @Injectable()
 export class ReportesService {
@@ -76,6 +84,99 @@ export class ReportesService {
           .sort((a, b) => (a.horaInicio < b.horaInicio ? -1 : 1)),
       },
       usuarios: contarUsuarios(usuarios),
+    };
+  }
+
+  /**
+   * Financial metrics (ACT-46, API contract §5.10 GET /reportes/financiero):
+   * collected income (`pagos_turno`, `pagos_luz`, registered `lineas_cuota`),
+   * issued `cuotas` bucketed by current estado, and court usage from
+   * non-cancelled `turnos` over the same periodo semantics as estadisticas.
+   * Reads only the cached `estado_actual` columns, never the history tables
+   * (DOMINIO + ADR-0004). Aggregation follows F1–F7 exactly.
+   */
+  async obtenerFinanciero(
+    query: ConsultarEstadisticasDto,
+    ahora = new Date(),
+  ): Promise<FinancieroResponse> {
+    const periodo = resolverPeriodo(query, ahora);
+    const diaDesde = inicioDiaUTC(periodo.desde);
+    const diaSiguienteAlHasta = inicioDiaUTC(periodo.hasta, 1);
+    const [pagosTurno, pagosLuz, lineas, cuotas, turnos, canchas, dias, rangos] =
+      await Promise.all([
+        this.prisma.pagos_turno.findMany({
+          where: { fecha_pago: { gte: diaDesde, lt: diaSiguienteAlHasta } },
+          select: { monto_total_turno: true },
+        }),
+        this.prisma.pagos_luz.findMany({
+          where: { fecha_pago: { gte: diaDesde, lt: diaSiguienteAlHasta } },
+          select: { monto_total_luz: true },
+        }),
+        this.prisma.lineas_cuota.findMany({
+          where: { fecha_pago: { gte: diaDesde, lt: diaSiguienteAlHasta } },
+          select: { monto: true, estado: true, fecha_pago: true },
+        }),
+        this.prisma.cuotas.findMany({
+          where: {
+            fecha_inicio: {
+              gte: fechaParaPrisma(periodo.desde),
+              lte: fechaParaPrisma(periodo.hasta),
+            },
+          },
+          select: { monto_total: true, estado_actual: true },
+        }),
+        this.prisma.turnos.findMany({
+          where: {
+            fecha: { gte: fechaParaPrisma(periodo.desde), lte: fechaParaPrisma(periodo.hasta) },
+          },
+          select: { estado_actual: true, hora_inicio: true, hora_fin: true },
+        }),
+        this.prisma.canchas.findMany({ select: { estado_actual: true } }),
+        this.prisma.dias_funcionamiento.findMany(),
+        this.prisma.rangos_horario.findMany(),
+      ]);
+
+    const ingresos = {
+      pagosTurno: redondear2(pagosTurno.reduce((total, pago) => total + aNumero(pago.monto_total_turno), 0)),
+      pagosLuz: redondear2(pagosLuz.reduce((total, pago) => total + aNumero(pago.monto_total_luz), 0)),
+      // F2: only registrada lines with a payment date inside the range count.
+      cuotasCobradas: redondear2(
+        lineas
+          .filter((linea) => linea.estado === 'registrada' && linea.fecha_pago !== null)
+          .reduce((total, linea) => total + aNumero(linea.monto), 0),
+      ),
+    };
+
+    // F3–F4: every issued cuota counts in emitidas; only the three buckets split out.
+    const cuotasAgregadas = {
+      emitidas: cuotas.length,
+      montoEmitido: redondear2(cuotas.reduce((total, cuota) => total + aNumero(cuota.monto_total), 0)),
+      pagadas: cuotas.filter((cuota) => cuota.estado_actual === 'pagada').length,
+      parciales: cuotas.filter((cuota) => cuota.estado_actual === 'parcial').length,
+      adeudadas: cuotas.filter((cuota) => cuota.estado_actual === 'adeudada').length,
+    };
+
+    // F5: cancelled bookings occupy no court time.
+    const turnosVigentes = turnos.filter((turno) => turno.estado_actual !== 'cancelado');
+    const horasOcupadas = redondear2(
+      turnosVigentes.reduce(
+        (total, turno) => total + (minutosDeHora(turno.hora_fin) - minutosDeHora(turno.hora_inicio)) / 60,
+        0,
+      ),
+    );
+
+    return {
+      periodo,
+      ingresos: {
+        ...ingresos,
+        total: redondear2(ingresos.pagosTurno + ingresos.pagosLuz + ingresos.cuotasCobradas),
+      },
+      cuotas: cuotasAgregadas,
+      usoCanchas: {
+        turnosTotal: turnosVigentes.length,
+        horasOcupadas,
+        ocupacionPromedio: calcularOcupacion(periodo, horasOcupadas, canchas, dias, rangos),
+      },
     };
   }
 }
@@ -145,6 +246,90 @@ export function contarUsuarios(
     }
   }
   return { sociosActivos, noSocios, morosos };
+}
+
+/**
+ * F6: share of the bookable capacity actually used.
+ * Capacity = courts with `estado_actual = 'disponible'` × enabled days in
+ * range × daily opening hours from `rangos_horario` (`dias_funcionamiento`
+ * decides which weekdays count; a weekday without a config row counts as
+ * enabled so missing config never zeroes the denominator). With no `rangos_horario`
+ * rows the PO-confirmed fallback is 14 h/day (08–22). Zero capacity → 0, never NaN.
+ */
+export function calcularOcupacion(
+  periodo: PeriodoEstadisticas,
+  horasOcupadas: number,
+  canchas: { estado_actual: string }[],
+  dias: { dia_semana: number; habilitado: boolean }[],
+  rangos: { hora_inicio: Date | string; hora_fin: Date | string }[],
+): number {
+  const canchasDisponibles = canchas.filter(
+    (cancha) => cancha.estado_actual === 'disponible',
+  ).length;
+  const diasHabilitados = contarDiasHabilitados(periodo, dias);
+  const horasDiarias =
+    rangos.length === 0
+      ? HORAS_DIARIAS_POR_DEFECTO
+      : rangos.reduce(
+          (total, rango) => total + (minutosDeHora(rango.hora_fin) - minutosDeHora(rango.hora_inicio)) / 60,
+          0,
+        );
+  const capacidad = canchasDisponibles * diasHabilitados * horasDiarias;
+  if (capacidad <= 0) {
+    return 0;
+  }
+  return redondear2(horasOcupadas / capacidad);
+}
+
+/** Calendar days in [desde, hasta] whose ISO weekday is enabled in config. */
+export function contarDiasHabilitados(
+  periodo: PeriodoEstadisticas,
+  dias: { dia_semana: number; habilitado: boolean }[],
+): number {
+  const habilitadoPorDia = new Map(dias.map((dia) => [dia.dia_semana, dia.habilitado]));
+  let diasHabilitados = 0;
+  for (
+    let actual = inicioDiaUTC(periodo.desde);
+    actual <= inicioDiaUTC(periodo.hasta);
+    actual = new Date(actual.getTime() + 24 * 60 * 60 * 1000)
+  ) {
+    const iso = actual.getUTCDay() === 0 ? 7 : actual.getUTCDay();
+    if (habilitadoPorDia.get(iso) ?? true) {
+      diasHabilitados += 1;
+    }
+  }
+  return diasHabilitados;
+}
+
+/**
+ * Prisma `Decimal` (Decimal.js, exposes `toNumber()`) or plain
+ * number/string stub value → number. Keeps the stub-Prisma specs free of
+ * driver types while matching the real shapes.
+ */
+export function aNumero(valor: { toNumber(): number } | number | string): number {
+  if (typeof valor === 'number') {
+    return valor;
+  }
+  if (typeof valor === 'string') {
+    return Number(valor);
+  }
+  return valor.toNumber();
+}
+
+/** F7: money and ratio boundary — 2-decimal rounding absorbing float dust. */
+export function redondear2(valor: number): number {
+  return Math.round((valor + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * `YYYY-MM-DD` → start of that UTC day. Timestamptz columns (`fecha_pago`)
+ * need full-day coverage `[desde 00:00, hasta+1 00:00)`, unlike the `@db.Date`
+ * columns served by `fechaParaPrisma`: a noon-to-noon window would silently
+ * drop afternoon payments on the boundary days.
+ */
+function inicioDiaUTC(fecha: string, diasExtra = 0): Date {
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  return new Date(Date.UTC(anio, mes - 1, dia + diasExtra, 0, 0, 0, 0));
 }
 
 /**

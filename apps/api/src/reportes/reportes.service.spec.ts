@@ -4,12 +4,18 @@ import { BadRequestException } from '@nestjs/common';
 import { ReportesController } from './reportes.controller';
 import { ReportesService } from './reportes.service';
 
-/** Minimal Prisma stub: only the read methods the statistics query uses. */
+/** Minimal Prisma stub: only the read methods the statistics queries use. */
 function prismaStub(overrides: Record<string, Record<string, unknown>> = {}) {
   return {
     turnos: { findMany: async () => [], ...overrides.turnos },
     canchas: { findMany: async () => [], ...overrides.canchas },
     usuarios: { findMany: async () => [], ...overrides.usuarios },
+    pagos_turno: { findMany: async () => [], ...overrides.pagos_turno },
+    pagos_luz: { findMany: async () => [], ...overrides.pagos_luz },
+    lineas_cuota: { findMany: async () => [], ...overrides.lineas_cuota },
+    cuotas: { findMany: async () => [], ...overrides.cuotas },
+    dias_funcionamiento: { findMany: async () => [], ...overrides.dias_funcionamiento },
+    rangos_horario: { findMany: async () => [], ...overrides.rangos_horario },
   };
 }
 
@@ -144,6 +150,7 @@ describe('ReportesService.obtenerEstadisticas (ACT-45)', () => {
 });
 
 describe('ReportesController.estadisticas (ACT-45)', () => {
+
   it('delegates to the service and returns its response untouched', async () => {
     const esperada = {
       periodo: { desde: '2026-09-01', hasta: '2026-09-30' },
@@ -163,6 +170,215 @@ describe('ReportesController.estadisticas (ACT-45)', () => {
       },
     } as never);
     const respuesta = await controller.estadisticas({ desde: '2026-09-01', hasta: '2026-09-30' });
+    assert.deepEqual(respuesta, esperada);
+    assert.deepEqual(recibida, { desde: '2026-09-01', hasta: '2026-09-30' });
+  });
+});
+
+/** Prisma `Decimal` stand-in: exposes `toNumber()` like the real driver value. */
+const DECIMAL = (valor: number) => ({ toNumber: () => valor });
+
+const DIA = (fecha: string) => new Date(`${fecha}T12:00:00Z`);
+
+const DIAS_TODOS_HABILITADOS = [1, 2, 3, 4, 5, 6, 7].map((diaSemana) => ({
+  dia_semana: diaSemana,
+  habilitado: true,
+}));
+
+describe('ReportesService.obtenerFinanciero (ACT-46)', () => {
+  it('returns zeros with the exact §5.10 shape on an empty period', async () => {
+    const service = new ReportesService(prismaStub() as never);
+    const respuesta = await service.obtenerFinanciero({ desde: '2026-09-01', hasta: '2026-09-30' });
+    assert.deepEqual(respuesta, {
+      periodo: { desde: '2026-09-01', hasta: '2026-09-30' },
+      ingresos: { pagosTurno: 0, pagosLuz: 0, cuotasCobradas: 0, total: 0 },
+      cuotas: { emitidas: 0, montoEmitido: 0, pagadas: 0, parciales: 0, adeudadas: 0 },
+      usoCanchas: { turnosTotal: 0, horasOcupadas: 0, ocupacionPromedio: 0 },
+    });
+  });
+
+  it('sums ingresos lines (F1-F2) excluding anulada lineas and unpaid lines', async () => {
+    const service = new ReportesService(
+      prismaStub({
+        pagos_turno: {
+          findMany: async () => [
+            { monto_total_turno: 100000 },
+            { monto_total_turno: DECIMAL(20000) },
+          ],
+        },
+        pagos_luz: {
+          findMany: async () => [
+            { monto_total_luz: 45000 },
+            { monto_total_luz: 3000.1 },
+            { monto_total_luz: 3000.2 },
+          ],
+        },
+        lineas_cuota: {
+          findMany: async () => [
+            { monto: 200000, estado: 'registrada', fecha_pago: DIA('2026-09-05') },
+            { monto: 100000, estado: 'registrada', fecha_pago: DIA('2026-09-20') },
+            // Anulada lineas never count as collected (F2).
+            { monto: 50000, estado: 'anulada', fecha_pago: DIA('2026-09-21') },
+            // Lines without payment date are not inside the range (F2).
+            { monto: 99999, estado: 'registrada', fecha_pago: null },
+          ],
+        },
+      }) as never,
+    );
+    const respuesta = await service.obtenerFinanciero({
+      desde: '2026-09-01',
+      hasta: '2026-09-30',
+    });
+    // 3000.1 + 3000.2 also proves F7 float-dust rounding at the boundary.
+    assert.deepEqual(respuesta.ingresos, {
+      pagosTurno: 120000,
+      pagosLuz: 51000.3,
+      cuotasCobradas: 300000,
+      total: 471000.3,
+    });
+  });
+
+  it('buckets cuotas by estado_actual among emitidas (F3-F4)', async () => {
+    const service = new ReportesService(
+      prismaStub({
+        cuotas: {
+          findMany: async () => [
+            { monto_total: 100000, estado_actual: 'pagada' },
+            { monto_total: DECIMAL(100000), estado_actual: 'pagada' },
+            { monto_total: 100000, estado_actual: 'parcial' },
+            { monto_total: 100000, estado_actual: 'adeudada' },
+            // pendiente/cancelada count in emitidas only (F4).
+            { monto_total: 100000, estado_actual: 'pendiente' },
+            { monto_total: 100000, estado_actual: 'cancelada' },
+          ],
+        },
+      }) as never,
+    );
+    const respuesta = await service.obtenerFinanciero({
+      desde: '2026-09-01',
+      hasta: '2026-09-30',
+    });
+    assert.deepEqual(respuesta.cuotas, {
+      emitidas: 6,
+      montoEmitido: 600000,
+      pagadas: 2,
+      parciales: 1,
+      adeudadas: 1,
+    });
+  });
+
+  it('counts usoCanchas excluding cancelado turnos (F5)', async () => {
+    const service = new ReportesService(
+      prismaStub({
+        turnos: {
+          findMany: async () => [
+            { estado_actual: 'finalizado', hora_inicio: HORA('08:00'), hora_fin: HORA('09:30') },
+            { estado_actual: 'confirmado', hora_inicio: HORA('10:00'), hora_fin: HORA('11:00') },
+            // Cancelled bookings occupy no court time (F5).
+            { estado_actual: 'cancelado', hora_inicio: HORA('12:00'), hora_fin: HORA('14:00') },
+          ],
+        },
+      }) as never,
+    );
+    const respuesta = await service.obtenerFinanciero({
+      desde: '2026-09-01',
+      hasta: '2026-09-30',
+    });
+    assert.deepEqual(respuesta.usoCanchas, {
+      turnosTotal: 2,
+      horasOcupadas: 2.5,
+      // No canchas configured → zero capacity → 0, never NaN (F6 guard).
+      ocupacionPromedio: 0,
+    });
+  });
+
+  it('computes ocupacionPromedio from dias + rangos config (F6)', async () => {
+    const service = new ReportesService(
+      prismaStub({
+        turnos: {
+          findMany: async () => [
+            { estado_actual: 'finalizado', hora_inicio: HORA('08:00'), hora_fin: HORA('10:00') },
+          ],
+        },
+        canchas: {
+          findMany: async () => [
+            { estado_actual: 'disponible' },
+            { estado_actual: 'disponible' },
+            { estado_actual: 'en_mantenimiento' },
+          ],
+        },
+        dias_funcionamiento: {
+          // Only Tuesday enabled: 2026-09-01 is Tuesday, 2026-09-02 is not.
+          findMany: async () => [
+            { dia_semana: 2, habilitado: true },
+            { dia_semana: 3, habilitado: false },
+          ],
+        },
+        rangos_horario: {
+          findMany: async () => [{ hora_inicio: HORA('08:00'), hora_fin: HORA('12:00') }],
+        },
+      }) as never,
+    );
+    const respuesta = await service.obtenerFinanciero({
+      desde: '2026-09-01',
+      hasta: '2026-09-02',
+    });
+    // Capacity = 2 courts × 1 enabled day × 4 h/day = 8 h; 2 / 8 = 0.25.
+    assert.equal(respuesta.usoCanchas.horasOcupadas, 2);
+    assert.equal(respuesta.usoCanchas.ocupacionPromedio, 0.25);
+  });
+
+  it('falls back to 14h/day when no rangos rows exist (F6)', async () => {
+    const service = new ReportesService(
+      prismaStub({
+        turnos: {
+          findMany: async () => [
+            { estado_actual: 'finalizado', hora_inicio: HORA('08:00'), hora_fin: HORA('15:00') },
+          ],
+        },
+        canchas: { findMany: async () => [{ estado_actual: 'disponible' }] },
+        dias_funcionamiento: { findMany: async () => DIAS_TODOS_HABILITADOS },
+        rangos_horario: { findMany: async () => [] },
+      }) as never,
+    );
+    const respuesta = await service.obtenerFinanciero({
+      desde: '2026-09-01',
+      hasta: '2026-09-01',
+    });
+    // Capacity = 1 court × 1 day × 14 h fallback = 14 h; 7 / 14 = 0.5.
+    assert.equal(respuesta.usoCanchas.horasOcupadas, 7);
+    assert.equal(respuesta.usoCanchas.ocupacionPromedio, 0.5);
+  });
+
+  it('rejects invalid dates and desde>hasta with 400 (periodo reuse)', async () => {
+    const service = new ReportesService(prismaStub() as never);
+    await assert.rejects(
+      service.obtenerFinanciero({ desde: '2026-02-30', hasta: '2026-03-01' }),
+      (error: unknown) => error instanceof BadRequestException,
+    );
+    await assert.rejects(
+      service.obtenerFinanciero({ desde: '2026-09-30', hasta: '2026-09-01' }),
+      (error: unknown) => error instanceof BadRequestException,
+    );
+  });
+});
+
+describe('ReportesController.financiero (ACT-46)', () => {
+  it('delegates to the service and returns its response untouched', async () => {
+    const esperada = {
+      periodo: { desde: '2026-09-01', hasta: '2026-09-30' },
+      ingresos: { pagosTurno: 0, pagosLuz: 0, cuotasCobradas: 0, total: 0 },
+      cuotas: { emitidas: 0, montoEmitido: 0, pagadas: 0, parciales: 0, adeudadas: 0 },
+      usoCanchas: { turnosTotal: 0, horasOcupadas: 0, ocupacionPromedio: 0 },
+    };
+    let recibida: unknown;
+    const controller = new ReportesController({
+      obtenerFinanciero: async (query: unknown) => {
+        recibida = query;
+        return esperada;
+      },
+    } as never);
+    const respuesta = await controller.financiero({ desde: '2026-09-01', hasta: '2026-09-30' });
     assert.deepEqual(respuesta, esperada);
     assert.deepEqual(recibida, { desde: '2026-09-01', hasta: '2026-09-30' });
   });

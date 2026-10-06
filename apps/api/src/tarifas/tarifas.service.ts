@@ -47,7 +47,9 @@ export class TarifasService {
       where: { fecha_cambio: { lte: new Date() } },
       orderBy: { fecha_cambio: 'desc' },
     });
-    const luz = await this.prisma.luz.findFirst();
+    const luz = await this.prisma.luz.findFirst({
+      orderBy: { created_at: 'desc' },
+    });
 
     let luzResponse = null;
     if (luz) {

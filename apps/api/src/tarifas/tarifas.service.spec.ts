@@ -114,5 +114,58 @@ describe('TarifasService (ACT-42)', () => {
       });
       expect(resultado.luz).toBeNull();
     });
+
+    it('devuelve la vigente de turno, luz y cuota cuando existen', async () => {
+      prisma.valores_turno.findFirst.mockResolvedValue({
+        id: '6426f33f-0a7b-404a-8cd5-1d3e7f19f5d2',
+        costo_x_hora: 4500,
+        fecha_cambio: new Date('2026-09-01T00:00:00-03:00'),
+      });
+      prisma.valores_cuota.findFirst.mockResolvedValue({
+        id: '9f8e7d6c-aaaa-bbbb-cccc-ddddeeeefff0',
+        precio: 16000,
+        fecha_cambio: new Date('2026-09-01T00:00:00-03:00'),
+      });
+      prisma.luz.findFirst.mockResolvedValue({
+        id: 'aabbccdd-1111-2222-3333-444455556666',
+        costo_x_hora: 4000,
+        franja_horario_inicio: '18:30:00',
+        franja_horario_fin: '22:00:00',
+        created_at: new Date('2026-08-01T00:00:00-03:00'),
+      });
+      prisma.estados_luz.findFirst.mockResolvedValue({
+        fecha: new Date('2026-09-01T00:00:00-03:00'),
+      });
+
+      const resultado = await service.obtenerVigentes();
+
+      expect(prisma.luz.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { created_at: 'desc' } }),
+      );
+      expect(resultado.luz).toEqual({
+        id: 'aabbccdd-1111-2222-3333-444455556666',
+        costoXHora: 4000,
+        franjaHorarioInicio: '18:30',
+        franjaHorarioFin: '22:00',
+        fechaCambio: '2026-09-01T00:00:00-03:00',
+      });
+    });
+
+    it('usa created_at de luz como fechaCambio si no hay historial en estados_luz', async () => {
+      prisma.valores_turno.findFirst.mockResolvedValue(null);
+      prisma.valores_cuota.findFirst.mockResolvedValue(null);
+      prisma.luz.findFirst.mockResolvedValue({
+        id: 'aabbccdd-1111-2222-3333-444455556666',
+        costo_x_hora: 4000,
+        franja_horario_inicio: '18:30',
+        franja_horario_fin: '22:00',
+        created_at: new Date('2026-08-01T00:00:00-03:00'),
+      });
+      prisma.estados_luz.findFirst.mockResolvedValue(null);
+
+      const resultado = await service.obtenerVigentes();
+
+      expect(resultado.luz?.fechaCambio).toBe('2026-08-01T00:00:00-03:00');
+    });
   });
 });

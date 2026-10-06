@@ -53,4 +53,29 @@ arrancando por el ticket ACT-42 (Tarifas de turno y cuota) con TDD estricto.
 | Tarea | Estado | Evidencia |
 |---|---|---|
 | TAR-1 | ✅ cerrada (RED) | `Cannot find module './tarifas.service'` (suite fails, contract define) |
-| TAR-2+ | ✅ GREEN | `npm test --workspace=api` → 1 suite, 4 tests, 4 passed (13.3s) |
+| TAR-2+ | ✅ GREEN | `npm test --workspace=api` → 4 passed (commit 6b345a7) |
+| TAR-3 (review reliability) | ✅ corregida | 22/22 tests + build OK; sin recibo nativo (runtime no admite captura) |
+
+## Hallazgos de review (lente review-reliability, lineage review-54bf024203864cc1)
+
+La captura nativa no fue admisible en este runtime (transporte rechazó el relay; y la
+admisión rechaza `proof_refs` tipo `changed-hunk:` fuera del repo congelado). El usuario
+eligió corregir sin recibo nativo. Estado por hallazgo:
+
+| ID | Sev | Hallazgo | Resolución |
+|---|---|---|---|
+| R3-001 | CRITICAL | Tests dependían de la TZ del host (verde solo en GMT-0300) | ✅ `formatearFechaCambio` usa offset fijo del club (UTC-03:00); tests de determinismo agregados (`tarifa-response.spec.ts`) |
+| R3-002 | CRITICAL | Jest sin guarda contra `.only` (suite parcial pasaría verde) | ✅ `ci: true` en `jest.config.js` (equivale a forbidOnly) |
+| R3-003 | WARNING | `fechaCambio` usaba la TZ del servidor, no la del club | ✅ mismo fix que R3-001: offset fijo del club |
+| R3-004 | WARNING (falso positivo) | El INSERT no setea `fecha_cambio`; dependería de un default invisible | ✅ Verificado: `valores_turno`/`valores_cuota` tienen `fecha_cambio timestamptz not null default now()` (migración líneas 176/231) y el comentario confirma "vigente = mayor fecha_cambio <= now()". No es defecto. |
+| R3-005 | WARNING | Criterio 4 (400 con valores inválidos) sin cobertura | ✅ `dto/actualizar-tarifa.dto.spec.ts`: negativos, borde cero, >2 decimales, faltante, no numérico |
+| R3-006 | WARNING | Rama `luz` sin tests; `findFirst` sin orden (no determinista) | ✅ 2 tests de rama luz + `orderBy: { created_at: 'desc' }` |
+| R3-007 | SUGGESTION | `aNumero`/`aHora` sin casos Decimal/TIME degenerados | ✅ `aNumero` prefiere `toNumber()` de Prisma Decimal; tests de Decimal y TIME |
+
+## Defecto adicional descubierto (no del review)
+
+`npm run build --workspace=api` **fallaba**: `tsc -p tsconfig.json` compilaba los
+`.spec.ts` y sin los tipos de Jest en `types` daba TS2593/TS2304. El CI hace
+`db:generate` + `build`, así que el commit 6b345a7 habría roto CI.
+Fix: `apps/api/tsconfig.build.json` (extiende el tsconfig y excluye `**/*.spec.ts`)
+y script `build` apuntando a él. Verificado: build limpio.

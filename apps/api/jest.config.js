@@ -5,6 +5,7 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.spec.ts'],
   clearMocks: true,
+  ci: true,
   moduleNameMapper: {
     '^@adm/shared$': '<rootDir>/../../packages/shared/src/index.ts',
   },

@@ -4,7 +4,7 @@
   "private": true,
   "description": "AdmCanchasTenis API (NestJS)",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "start:dev": "ts-node src/main.ts",
     "db:generate": "prisma generate",

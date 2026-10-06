@@ -50,9 +50,20 @@ interface FilaLuz {
   created_at: Date;
 }
 
-/** Decimal (Prisma) o number → number JSON. */
+/**
+ * Decimal (Prisma) o number → number JSON.
+ * Prisma Decimal expone `toNumber()`; se prefiere para no depender de la
+ * coerción implícita de `Number()` (que no está garantizada en todas las
+ * versiones/adapters de Decimal).
+ */
 function aNumero(valor: unknown): number {
-  return typeof valor === 'number' ? valor : Number(valor);
+  if (typeof valor === 'number') {
+    return valor;
+  }
+  if (valor !== null && typeof valor === 'object' && typeof (valor as { toNumber?: unknown }).toNumber === 'function') {
+    return (valor as { toNumber: () => number }).toNumber();
+  }
+  return Number(valor);
 }
 
 /**
@@ -63,19 +74,24 @@ function aHora(valor: unknown): string {
 }
 
 /**
- * Timestamp ISO 8601 con offset local del servidor (contrato §1:
- * `2026-09-01T00:00:00-03:00`, sin milisegundos). NO se usa toISOString()
- * porque produce `.000Z` y pierde el offset local del club.
+ * Offset fijo de la zona del club (America/Argentina/Buenos_Aires, UTC-03:00,
+ * sin horario de verano). El contrato §1 exige el offset del club en las
+ * respuestas, NO el del host: serializar con la TZ del proceso volvería la
+ * salida dependiente del entorno de despliegue.
+ */
+const CLUB_UTC_OFFSET_MINUTES = -180;
+
+/**
+ * Timestamp ISO 8601 con el offset fijo del club (contrato §1:
+ * `2026-09-01T00:00:00-03:00`, sin milisegundos). Determinista: el mismo
+ * instante produce la misma cadena en cualquier host/TZ.
  */
 export function formatearFechaCambio(fecha: Date): string {
   const pad = (n: number): string => String(n).padStart(2, '0');
-  const offsetMin = -fecha.getTimezoneOffset();
-  const signo = offsetMin >= 0 ? '+' : '-';
-  const abs = Math.abs(offsetMin);
-  const offset = `${signo}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
-  const local = `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}`;
-  const hora = `${pad(fecha.getHours())}:${pad(fecha.getMinutes())}:${pad(fecha.getSeconds())}`;
-  return `${local}T${hora}${offset}`;
+  const club = new Date(fecha.getTime() + CLUB_UTC_OFFSET_MINUTES * 60_000);
+  const local = `${club.getUTCFullYear()}-${pad(club.getUTCMonth() + 1)}-${pad(club.getUTCDate())}`;
+  const hora = `${pad(club.getUTCHours())}:${pad(club.getUTCMinutes())}:${pad(club.getUTCSeconds())}`;
+  return `${local}T${hora}-03:00`;
 }
 
 export function toTarifaTurnoResponse(fila: FilaValoresTurno): TarifaTurnoResponse {

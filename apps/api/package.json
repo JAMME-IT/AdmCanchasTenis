@@ -12,6 +12,7 @@
     "db:status": "prisma migrate status",
     "db:studio": "prisma studio",
     "db:health": "ts-node scripts/db-health.ts",
+    "test": "jest",
     "cuotas:generar": "ts-node src/cuotas/generar-cuotas.cli.ts"
   },
   "dependencies": {
@@ -33,9 +34,12 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.14.0",
     "@types/pg": "^8.23.1",
+    "jest": "^30.5.2",
     "prisma": "^7.10.0",
+    "ts-jest": "^29.4.14",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
   }

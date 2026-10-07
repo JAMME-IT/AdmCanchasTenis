@@ -116,6 +116,9 @@ Monorepo actual (`AdmCanchasTenis`):
 ## 11. Cómo correr (dev)
 
 1. `npm install`
+2. Terminal 1: `npm run dev:api` (API en :3000)
+3. Terminal 2: `npm run dev:web` (web en :5173)
+4. Referencia interactiva de la API (Scalar): `http://localhost:3000/api/docs` (spec OpenAPI en `/api/docs.json`).
 2. `npm run db:seed` (deja la base lista para demo: admin inicial, canchas, días, franja horaria y tarifas vigentes; es idempotente, se puede repetir). El admin de demo es `admin+clerk_test@admcanchastenis.dev`; si Clerk pide un código OTP en dev, es `424242`
 3. Terminal 1: `npm run dev:api` (API en :3000)
 4. Terminal 2: `npm run dev:web` (web en :5173)

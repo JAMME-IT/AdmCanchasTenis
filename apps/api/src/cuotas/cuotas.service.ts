@@ -1,6 +1,37 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import type { RegistrarPagoCuotaDto } from './dto/registrar-pago-cuota.dto';
+
+export type EstadoCuota = 'pendiente' | 'pagada' | 'parcial' | 'adeudada' | 'cancelada';
+
+export interface LineaCuotaPagada {
+  id: string;
+  numeroLinea: number;
+  monto: number;
+  fechaPago: string;
+  estado: string;
+}
+
+export interface RegistrarPagoResult {
+  cuota: {
+    id: string;
+    socioId: string;
+    montoTotal: number;
+    totalPagado: number;
+    saldo: number;
+    estadoActual: EstadoCuota;
+  };
+  linea: LineaCuotaPagada;
+}
 
 export interface MonthlyFeesResult {
   periodo: string;
@@ -132,5 +163,106 @@ export class CuotasService {
       generadas,
       omitidas,
     };
+  }
+
+  /**
+   * Payment registration (ACT-40, API contract §5.7 POST /cuotas/:id/pagos):
+   * inserts a partial/total payment as a `lineas_cuota` row, recalculates
+   * `totalPagado`, updates `cuotas.estado_actual` and appends to
+   * `estados_cuota` — all atomically in one transaction (RF-21, RN-3).
+   */
+  async registrarPago(
+    cuotaId: string,
+    dto: RegistrarPagoCuotaDto,
+    now: Date = new Date(),
+  ): Promise<RegistrarPagoResult> {
+    const monto = Number(dto.monto);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      throw new BadRequestException('monto debe ser mayor a 0');
+    }
+    let fechaPago = now;
+    if (dto.fechaPago !== undefined) {
+      const parsed = new Date(dto.fechaPago);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new BadRequestException('fechaPago debe ser un timestamp valido');
+      }
+      if (parsed.getTime() > now.getTime()) {
+        throw new BadRequestException('fechaPago no puede ser futura');
+      }
+      fechaPago = parsed;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const cuota = await tx.cuotas.findUnique({
+        where: { id: cuotaId },
+        include: { lineas_cuota: true },
+      });
+      if (!cuota) {
+        throw new NotFoundException('Cuota inexistente');
+      }
+      if (cuota.estado_actual === 'cancelada') {
+        throw new ConflictException('La cuota esta cancelada');
+      }
+
+      const registradas = cuota.lineas_cuota.filter((l) => l.estado === 'registrada');
+      const totalPagado = registradas.reduce((acc, l) => acc + Number(l.monto), 0);
+      const montoTotal = Number(cuota.monto_total);
+      const saldo = Math.round((montoTotal - totalPagado) * 100) / 100;
+      if (monto - saldo > 1e-9) {
+        throw new UnprocessableEntityException('monto mayor al saldo pendiente');
+      }
+
+      const maxLinea = registradas.reduce((max, l) => Math.max(max, l.numero_linea), 0);
+      const linea = await tx.lineas_cuota.create({
+        data: {
+          cuota_id: cuota.id,
+          numero_linea: maxLinea + 1,
+          fecha_pago: fechaPago,
+          monto,
+          estado: 'registrada',
+        },
+      });
+
+      const nuevoTotal = Math.round((totalPagado + monto) * 100) / 100;
+      const nuevoSaldo = Math.round((montoTotal - nuevoTotal) * 100) / 100;
+      let nuevoEstado: EstadoCuota;
+      if (nuevoSaldo <= 1e-9) {
+        nuevoEstado = 'pagada';
+      } else if (nuevoTotal > 1e-9) {
+        nuevoEstado = 'parcial';
+      } else {
+        const vencimiento = new Date(cuota.fecha_vencimiento);
+        vencimiento.setHours(0, 0, 0, 0);
+        const hoy = new Date(now);
+        hoy.setHours(0, 0, 0, 0);
+        nuevoEstado = vencimiento.getTime() < hoy.getTime() ? 'adeudada' : 'pendiente';
+      }
+
+      await tx.cuotas.update({
+        where: { id: cuota.id },
+        data: { estado_actual: nuevoEstado },
+      });
+      await tx.estados_cuota.create({
+        data: { cuota_id: cuota.id, valor_estado: nuevoEstado },
+      });
+
+      return {
+        cuota: {
+          id: cuota.id,
+          socioId: cuota.socio_id,
+          montoTotal,
+          totalPagado: nuevoTotal,
+          saldo: Math.max(0, nuevoSaldo),
+          estadoActual: nuevoEstado,
+        },
+        linea: {
+          id: linea.id,
+          numeroLinea: linea.numero_linea,
+          monto: Number(linea.monto),
+          fechaPago: new Date(linea.fecha_pago ?? fechaPago).toISOString(),
+          estado: linea.estado,
+        },
+      };
+    });
   }
 }

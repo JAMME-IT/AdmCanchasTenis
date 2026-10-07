@@ -343,11 +343,28 @@ function fechaParaPrisma(fecha: string): Date {
   return new Date(Date.UTC(anio, mes - 1, dia, 12));
 }
 
-/** Whole days from the local today to a valid `YYYY-MM-DD` date (RN-11). */
+/** Whole days from the ART today to a valid `YYYY-MM-DD` date (RN-11). */
 function diferenciaEnDias(fecha: string, hoy = new Date()): number {
   const [anio, mes, dia] = fecha.split('-').map(Number);
-  const ms = Date.UTC(anio, mes - 1, dia) - Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const hoyART = hoyEnArgentina(hoy);
+  const ms =
+    Date.UTC(anio, mes - 1, dia) -
+    Date.UTC(hoyART.getUTCFullYear(), hoyART.getUTCMonth(), hoyART.getUTCDate());
   return Math.round(ms / 86400000);
+}
+
+/**
+ * Project rule: ALL business-day logic uses Argentina time
+ * (America/Argentina/Buenos_Aires, fixed UTC-3, no DST). Shifting the instant
+ * back 3 h and reading UTC getters yields the ART calendar date without
+ * ICU/timezone data. A server-local `new Date()` is wrong here: on a UTC
+ * host the local date flips at 21:00 ART, moving the RN-11 window off by one.
+ */
+export const ARGENTINA_UTC_OFFSET_MS = 3 * 3600 * 1000;
+
+/** Instant shifted so UTC getters read the Argentina (UTC-3) calendar date. */
+export function hoyEnArgentina(ahora = new Date()): Date {
+  return new Date(ahora.getTime() - ARGENTINA_UTC_OFFSET_MS);
 }
 
 /** Minutes since midnight → `Date` for a `@db.Time` column (midnight-based, UTC). */

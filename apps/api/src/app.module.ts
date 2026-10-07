@@ -7,12 +7,13 @@ import { ClerkAuthGuard } from './auth/clerk-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { CuotasModule } from './cuotas/cuotas.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ReportesModule } from './reportes/reportes.module';
 import { TurnosModule } from './turnos/turnos.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, AuthModule, TurnosModule, UsuariosModule, WebhooksModule, CuotasModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, AuthModule, TurnosModule, UsuariosModule, WebhooksModule, CuotasModule, ReportesModule],
   controllers: [AppController],
   providers: [
     { provide: APP_GUARD, useClass: ClerkAuthGuard },

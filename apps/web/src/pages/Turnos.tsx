@@ -21,8 +21,38 @@ function formatoARS(valor: number): string {
   }).format(valor);
 }
 
-// Referential rate while the club publishes official tariffs (clearly labeled).
-const TARIFA_REFERENCIA_HORA = 18000;
+const API_ORIGIN = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+
+// TEMPORARY: hardcoded dev-DB tipoTurno IDs until backend exposes GET listing — swap this constant, TODO.
+const TIPOS_TURNO_PROVISORIOS = [
+  { id: '016a91be-5bc3-4b73-ab3e-e671a2faf0fa', minutos: 60, etiqueta: '60 min' },
+  { id: 'e7d99191-7ed9-4bb6-8188-f5abc9078db8', minutos: 90, etiqueta: '90 min' },
+] as const;
+
+// Minimal shape of POST /turnos success used by this page (amounts come from the server).
+interface ReservaTurnoOk {
+  id: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  costoTurnoNs: number;
+  cargoLuzCompartido: number | null;
+  avisos: string[];
+}
+
+// Pull the real API message out of a Nest error body (string or string[]).
+function mensajeErrorApi(cuerpo: unknown, fallback: string): string {
+  if (cuerpo !== null && typeof cuerpo === 'object' && 'message' in cuerpo) {
+    const mensaje = (cuerpo as { message?: unknown }).message;
+    if (Array.isArray(mensaje)) {
+      return mensaje.map(String).join(', ');
+    }
+    if (typeof mensaje === 'string' && mensaje.length > 0) {
+      return mensaje;
+    }
+  }
+  return fallback;
+}
 
 export default function Turnos(): JSX.Element {
   const { getToken } = useAuth();
@@ -30,6 +60,13 @@ export default function Turnos(): JSX.Element {
   const [token, setToken] = useState<string | null>(null);
   const [fecha, setFecha] = useState<string>(() => hoyART());
   const [seleccionado, setSeleccionado] = useState<SlotTurno | null>(null);
+  // Provisional booking form: duration defaults to 60 min, party defaults to 4/0.
+  const [tipoTurnoId, setTipoTurnoId] = useState<string>(TIPOS_TURNO_PROVISORIOS[0].id);
+  const [cantidadPersonas, setCantidadPersonas] = useState<number>(4);
+  const [cantidadNoSocios, setCantidadNoSocios] = useState<number>(0);
+  const [reservando, setReservando] = useState(false);
+  const [errorReserva, setErrorReserva] = useState<string | null>(null);
+  const [reservaOk, setReservaOk] = useState<ReservaTurnoOk | null>(null);
 
   // Lazily fetch the Clerk token on first render.
   useMemo(() => {
@@ -42,10 +79,78 @@ export default function Turnos(): JSX.Element {
     })();
   }, [getToken]);
 
+  // Clear the booking form outcome whenever the context changes.
+  function reiniciarReserva(): void {
+    setErrorReserva(null);
+    setReservaOk(null);
+    setReservando(false);
+  }
+
   // Reset the selection whenever the day changes.
   function cambiarFecha(valor: string): void {
     setFecha(valor);
     setSeleccionado(null);
+    reiniciarReserva();
+  }
+
+  // Pick a slot from the grid and reset the previous booking outcome.
+  function elegirSlot(slot: SlotTurno): void {
+    setSeleccionado(slot);
+    reiniciarReserva();
+  }
+
+  // POST /turnos with the Clerk token; amounts and horaFin come back from the server.
+  async function confirmarReserva(): Promise<void> {
+    if (!seleccionado || reservando) {
+      return;
+    }
+    setReservando(true);
+    setErrorReserva(null);
+    setReservaOk(null);
+    try {
+      const response = await fetch(`${API_ORIGIN}/api/turnos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          canchaId: seleccionado.canchaId,
+          fecha,
+          horaInicio: seleccionado.horaInicio,
+          tipoTurnoId,
+          cantidadPersonas,
+          cantidadNoSocios,
+          requiereLuz: seleccionado.requiereLuz,
+        }),
+      });
+      let cuerpo: unknown = null;
+      try {
+        cuerpo = await response.json();
+      } catch {
+        cuerpo = null;
+      }
+      if (!response.ok) {
+        throw new Error(mensajeErrorApi(cuerpo, `Error ${response.status}`));
+      }
+      const data = cuerpo as ReservaTurnoOk;
+      setReservaOk({
+        id: String(data.id ?? ''),
+        fecha: String(data.fecha ?? fecha),
+        horaInicio: String(data.horaInicio ?? seleccionado.horaInicio),
+        horaFin: String(data.horaFin ?? ''),
+        costoTurnoNs: Number(data.costoTurnoNs ?? 0),
+        cargoLuzCompartido:
+          data.cargoLuzCompartido === null || data.cargoLuzCompartido === undefined
+            ? null
+            : Number(data.cargoLuzCompartido),
+        avisos: Array.isArray(data.avisos) ? data.avisos.map(String) : [],
+      });
+    } catch (error) {
+      setErrorReserva(error instanceof Error ? error.message : 'No se pudo confirmar la reserva.');
+    } finally {
+      setReservando(false);
+    }
   }
 
   return (
@@ -75,8 +180,8 @@ export default function Turnos(): JSX.Element {
           </h1>
           <p style={{ margin: 0, maxWidth: '65ch' }}>
             Mirá la disponibilidad real del día y tocá un horario libre para ver el detalle.
-            La hora que ves es hora del club (ART). La confirmación se habilita cuando el club
-            publique tarifas y tipos de turno.
+            La hora que ves es hora del club (ART). La reserva es provisoria: usa los tipos
+            de turno de la base de desarrollo hasta que la API exponga el listado oficial.
           </p>
         </header>
 
@@ -107,7 +212,7 @@ export default function Turnos(): JSX.Element {
               fecha={fecha}
               token={token}
               seleccionado={seleccionado}
-              onSeleccionar={setSeleccionado}
+              onSeleccionar={elegirSlot}
             />
           </section>
 
@@ -146,19 +251,83 @@ export default function Turnos(): JSX.Element {
                       {seleccionado.requiereLuz ? 'Sí, con cargo compartido' : 'No hace falta'}
                     </dd>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-                    <dt>Referencia</dt>
-                    <dd style={{ margin: 0, fontWeight: 600 }}>{formatoARS(TARIFA_REFERENCIA_HORA)} / hora</dd>
-                  </div>
                 </dl>
-                {/* Sparse purple accent (under 5%): selected-day marker only. */}
+                {/* Sparse purple accent (under 5%): provisional notice only. */}
                 <p style={{ fontSize: '0.85rem', color: '#68457A', margin: '0 0 1rem' }}>
-                  Valor referencial. El importe final lo confirma el club al habilitar la reserva.
+                  El horario de fin real lo confirma el servidor según la duración elegida.
+                  El importe lo calcula el servidor; acá solo mostramos lo que devuelve la API.
                 </p>
-                <BloqueoTemporal motivo="Reserva pendiente" />
+
+                <fieldset style={{ border: '1px solid #8A9A93', borderRadius: '0.75rem', padding: '0.75rem', margin: '0 0 1rem' }}>
+                  <legend style={{ fontWeight: 700, padding: '0 0.4rem' }}>
+                    Duración · Provisorios
+                  </legend>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {TIPOS_TURNO_PROVISORIOS.map((tipo) => (
+                      <label
+                        key={tipo.id}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minHeight: '44px', cursor: 'pointer' }}
+                      >
+                        <input
+                          type="radio"
+                          name="duracion-turno"
+                          value={tipo.id}
+                          checked={tipoTurnoId === tipo.id}
+                          onChange={() => setTipoTurnoId(tipo.id)}
+                        />
+                        {tipo.etiqueta}
+                      </label>
+                    ))}
+                  </div>
+                  <p style={{ fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
+                    Tipos provisorios de la base de desarrollo. Si la base se reseed y el ID
+                    ya no existe, la API lo informa y lo ves acá abajo.
+                  </p>
+                </fieldset>
+
+                <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <label style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>
+                    Personas
+                    <input
+                      type="number"
+                      min={1}
+                      value={cantidadPersonas}
+                      onChange={(event) => setCantidadPersonas(Number(event.target.value))}
+                      style={{
+                        minHeight: '44px',
+                        borderRadius: '0.75rem',
+                        border: '1px solid #8A9A93',
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: '#FFFFFF',
+                        color: '#384543',
+                      }}
+                    />
+                  </label>
+                  <label style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>
+                    No socios
+                    <input
+                      type="number"
+                      min={0}
+                      max={cantidadPersonas}
+                      value={cantidadNoSocios}
+                      onChange={(event) => setCantidadNoSocios(Number(event.target.value))}
+                      style={{
+                        minHeight: '44px',
+                        borderRadius: '0.75rem',
+                        border: '1px solid #8A9A93',
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: '#FFFFFF',
+                        color: '#384543',
+                      }}
+                    />
+                  </label>
+                </div>
+
+                <BloqueoTemporal motivo="Reserva provisoria" />
                 <button
                   type="button"
-                  disabled
+                  disabled={reservando}
+                  onClick={() => void confirmarReserva()}
                   style={{
                     marginTop: '0.75rem',
                     width: '100%',
@@ -169,21 +338,53 @@ export default function Turnos(): JSX.Element {
                     borderRadius: '0.75rem',
                     padding: '0.7rem 1rem',
                     fontWeight: 700,
-                    cursor: 'not-allowed',
-                    opacity: 0.75,
+                    cursor: reservando ? 'wait' : 'pointer',
+                    opacity: reservando ? 0.75 : 1,
                   }}
                 >
-                  Confirmar reserva
+                  {reservando ? 'Reservando…' : 'Confirmar reserva'}
                 </button>
-                <p style={{ fontSize: '0.9rem', marginBottom: 0 }}>
-                  Falta que la API exponga tipos de turno y tarifas para confirmar con tu sesión.
-                </p>
+
+                {errorReserva && (
+                  <p role="alert" style={{ fontSize: '0.9rem', color: '#9B2C2C', marginBottom: 0 }}>
+                    No se pudo confirmar: {errorReserva}
+                  </p>
+                )}
+
+                {reservaOk && (
+                  <div
+                    role="status"
+                    style={{
+                      marginTop: '1rem',
+                      border: '1px solid #328161',
+                      borderRadius: '0.75rem',
+                      padding: '0.75rem',
+                      backgroundColor: '#F5F3EF',
+                    }}
+                  >
+                    <p style={{ margin: '0 0 0.5rem', fontWeight: 700 }}>
+                      Listo, tu turno quedó confirmado de {reservaOk.horaInicio} a {reservaOk.horaFin} ART.
+                    </p>
+                    <p style={{ margin: '0 0 0.5rem', fontVariantNumeric: 'tabular-nums' }}>
+                      Costo no socios: {formatoARS(reservaOk.costoTurnoNs)}
+                      {reservaOk.cargoLuzCompartido !== null &&
+                        ` · Luz compartida: ${formatoARS(reservaOk.cargoLuzCompartido)}`}
+                    </p>
+                    {reservaOk.avisos.length > 0 && (
+                      <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.9rem' }}>
+                        {reservaOk.avisos.map((aviso) => (
+                          <li key={aviso}>{aviso}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <>
                 <p style={{ marginTop: 0 }}>
                   Todavía no elegiste horario. Tocá un bloque libre de la grilla y acá ves el
-                  resumen con precio estimado en ARS.
+                  resumen para confirmar tu reserva provisoria.
                 </p>
                 <BloqueoTemporal motivo="Sin selección" />
               </>

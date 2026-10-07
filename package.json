@@ -10,6 +10,7 @@
   "scripts": {
     "dev:api": "npm run start:dev --workspace=api",
     "dev:web": "npm run dev --workspace=web",
+    "db:seed": "npm run db:seed --workspace=api",
     "build": "npm run build --workspaces --if-present"
   },
   "engines": {

@@ -12,7 +12,8 @@
     "db:status": "prisma migrate status",
     "db:studio": "prisma studio",
     "db:health": "ts-node scripts/db-health.ts",
-    "cuotas:generar": "ts-node src/cuotas/generar-cuotas.cli.ts"
+    "cuotas:generar": "ts-node src/cuotas/generar-cuotas.cli.ts",
+    "db:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@adm/shared": "*",

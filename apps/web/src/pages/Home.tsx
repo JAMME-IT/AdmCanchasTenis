@@ -199,13 +199,15 @@ export default function Home(): JSX.Element {
           <h2 style={{ marginTop: 0 }}>Panel del club</h2>
           <p>Estas funciones están en preparación y todavía no se conectan.</p>
           <div style={gridStyle}>
-            <article style={disabledCardStyle}>
-              <BloqueoTemporal motivo="API pendiente" />
+            <article style={cardStyle}>
               <h3>Turnos y reserva</h3>
-              <p>Falta conectar la API de turnos para reservar cancha.</p>
-              <button type="button" disabled style={buttonPrimary}>
-                Reservar turno
-              </button>
+              <p>Mirá la disponibilidad real del día y elegí tu horario.</p>
+              <Link
+                to="/turnos"
+                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
+              >
+                Ver turnos
+              </Link>
             </article>
             <article style={disabledCardStyle}>
               <BloqueoTemporal motivo="API pendiente" />

@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Ingresar from './pages/Ingresar';
 import Registro from './pages/Registro';
 import CompletarPerfil from './pages/CompletarPerfil';
+import Turnos from './pages/Turnos';
 
 function RequireSession({ children }: { children: JSX.Element }): JSX.Element {
   const { isLoaded, isSignedIn } = useAuth();
@@ -27,6 +28,14 @@ export default function App(): JSX.Element {
         element={
           <RequireSession>
             <CompletarPerfil />
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/turnos"
+        element={
+          <RequireSession>
+            <Turnos />
           </RequireSession>
         }
       />

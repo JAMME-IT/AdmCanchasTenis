@@ -125,7 +125,7 @@ export default function Home(): JSX.Element {
       <main style={pageStyle}>
         <div style={shellStyle}>
           <section style={cardStyle}>
-            <h1>AdmCanchasTenis</h1>
+            <h1>Tenis Ranch Club</h1>
             <p>Gestión simple del club: tu sesión, tu perfil y el estado de la API.</p>
             <p>
               <Link to="/ingresar">Ingresar</Link> {'·'} <Link to="/registro">Crear cuenta</Link>
@@ -146,7 +146,7 @@ export default function Home(): JSX.Element {
         {/* Connected header: session controls stay active. */}
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h1 style={{ margin: 0 }}>AdmCanchasTenis</h1>
+            <h1 style={{ margin: 0 }}>Tenis Ranch Club</h1>
             <p style={{ margin: '0.25rem 0 0' }}>Gestión simple del club.</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

@@ -5,6 +5,8 @@ apps/api/src/generated/
 .env.*
 !.env.example
 coverage/
+test-results/
+playwright-report/
 *.log
 .DS_Store
 vite.config.ts.timestamp-*

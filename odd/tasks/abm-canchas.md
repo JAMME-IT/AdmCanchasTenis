@@ -57,6 +57,7 @@ Cerrar el branch `4_ABMCanchas` con el ABM de canchas funcionando (ACT-28 en cur
 ## Progress
 - 2026-10-10: creado. Branch `4_ABMCanchas` fast-forwardeado a `origin/main` (76f5b6e). Alcance fijado desde Jira ACT-28/ACT-29 + contrato §5.5. Patrones mapeados (explorer).
 - 2026-10-10: T1–T4 implementados test-first (RED: módulo/DTOs ausentes; GREEN por tarea). Spec `canchas.service.spec.ts` con 15 tests (listado 3, alta 3, edición 4, cambio de estado 5). Suite completa del workspace `api` en verde y build OK.
+- 2026-10-10: review nativa (RDD on, tier medium, `slice_budget_reached`) — consent otorgado; `review start` creó la transacción (lente `review-reliability`). La captura del lente fue rechazada por el transporte de review de OpenCode (`opencode_review_transport_relay_refused`, `binding_mismatch`) dos veces, pasando el binding exacto del proveedor. El STATUS de la misma línea quedó en `collect` sin PASS. Con decisión del usuario: no se reportó el defecto y se declinó el candidato (`action: declined`, `consent: declined_this_candidate`). Se aplicó la vía RDD off-path (tier medium: writer self-verification + spot check del parent).
 
 ## Route declaration
 - T1–T3: delegated direct — un writer (2+ archivos no triviales). Trigger: writer/preparation.
@@ -74,6 +75,9 @@ Cerrar el branch `4_ABMCanchas` con el ABM de canchas funcionando (ACT-28 en cur
 - `TZ=America/Argentina/Buenos_Aires npm test --workspace api`: PASS — specs previos + `canchas.service.spec` (15/15), sin fallos; exit 0.
 - `npm run build --workspace api`: exit 0 (tsc sin errores).
 - Nota entorno: el workspace no tenía dependencias instaladas (`@nestjs/schedule` faltante rompía `cuotas-pagos.spec`); se resolvió con `npm ci` en la raíz (sin cambios de lockfile).
+- 2026-10-10 (spot check del parent, independiente): `TZ=America/Argentina/Buenos_Aires npm test --workspace api` → exit 0; `canchas` 15/15, suite completa sin fallos.
+- Review nativa: NO completable en este runtime (el transporte OpenCode rechazó el relay). Sin PASS inventado; candidato declinado por decisión del usuario. Pendiente: re-correr la review en un runtime soportado (claude-code/codex) cuando esté disponible.
 
 ## Next step
-- Revisar el candidato (T1–T4) y, si la review lo pide, priorizar foco (single-pr).
+- Decisión humana: `push` de `4_ABMCanchas` (31 commits ahead de `origin/4_ABMCanchas`) y apertura de PR. Opcional: re-correr la review nativa en un runtime soportado o cuando el transporte se arregle.
+- Actualizar Jira: ACT-28/ACT-29 a En revisión/Listo según corresponda.

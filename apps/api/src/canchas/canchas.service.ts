@@ -4,11 +4,13 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import type { AuthContext } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 import { toCanchaResponse, type CanchaResponse } from './cancha-response';
 import type { ActualizarCanchaDto } from './dto/actualizar-cancha.dto';
+import type { CambiarEstadoCanchaDto } from './dto/cambiar-estado-cancha.dto';
 import type { CrearCanchaDto } from './dto/crear-cancha.dto';
 import type { ListarCanchasDto } from './dto/listar-canchas.dto';
 
@@ -94,6 +96,40 @@ export class CanchasService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Operational state change (ACT-28, API contract §5.5 PATCH /canchas/:id/estado,
+   * RF-17): appends the `estados_cancha` row (with `motivo`) and refreshes the
+   * `canchas.estado_actual` cache in the same transaction (historial + cache,
+   * ADR-0004). `motivo` is mandatory unless the target state is `disponible`;
+   * a no-op transition is 422. Future bookings are not cancelled here.
+   */
+  async cambiarEstado(id: string, dto: CambiarEstadoCanchaDto): Promise<CanchaResponse> {
+    const motivo = dto.motivo?.trim();
+    if (dto.estado !== 'disponible' && !motivo) {
+      throw new BadRequestException('motivo es obligatorio cuando el estado no es disponible');
+    }
+
+    const existente = await this.prisma.canchas.findUnique({ where: { id } });
+    if (!existente) {
+      throw new NotFoundException('Cancha inexistente');
+    }
+    if (existente.estado_actual === dto.estado) {
+      throw new UnprocessableEntityException('La cancha ya se encuentra en ese estado');
+    }
+
+    const actualizada = await this.prisma.$transaction(async (tx) => {
+      await tx.estados_cancha.create({
+        data: {
+          cancha_id: id,
+          valor_state: dto.estado,
+          ...(motivo ? { motivo } : {}),
+        },
+      });
+      return tx.canchas.update({ where: { id }, data: { estado_actual: dto.estado } });
+    });
+    return toCanchaResponse(actualizada);
   }
 }
 

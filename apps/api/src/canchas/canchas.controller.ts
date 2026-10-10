@@ -14,6 +14,7 @@ import type { CanchaResponse } from './cancha-response';
 import { CanchaSchema } from './cancha-response.schema';
 import { CanchasService } from './canchas.service';
 import { ActualizarCanchaDto } from './dto/actualizar-cancha.dto';
+import { CambiarEstadoCanchaDto } from './dto/cambiar-estado-cancha.dto';
 import { CrearCanchaDto } from './dto/crear-cancha.dto';
 import { ListarCanchasDto } from './dto/listar-canchas.dto';
 
@@ -60,5 +61,17 @@ export class CanchasController {
     @Body() dto: ActualizarCanchaDto,
   ): Promise<CanchaResponse> {
     return this.canchas.actualizar(id, dto);
+  }
+
+  /** Operational state change with history and motivo (ACT-28, RF-17). */
+  @Patch(':id/estado')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Cambia el estado operativo de la cancha con motivo (admin)' })
+  @ApiOkResponse({ type: CanchaSchema })
+  async cambiarEstado(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: CambiarEstadoCanchaDto,
+  ): Promise<CanchaResponse> {
+    return this.canchas.cambiarEstado(id, dto);
   }
 }

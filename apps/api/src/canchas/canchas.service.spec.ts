@@ -5,10 +5,12 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import type { AuthContext } from '../auth/auth.types';
 import { CanchasService } from './canchas.service';
 import { ActualizarCanchaDto } from './dto/actualizar-cancha.dto';
+import { CambiarEstadoCanchaDto } from './dto/cambiar-estado-cancha.dto';
 import { CrearCanchaDto } from './dto/crear-cancha.dto';
 import { ListarCanchasDto } from './dto/listar-canchas.dto';
 
@@ -199,6 +201,70 @@ describe('CanchasService.actualizar (ACT-28)', () => {
     await assert.rejects(
       () => service.actualizar('cancha-1', dtoActualizar({ nroCancha: 9 })),
       ConflictException,
+    );
+  });
+});
+
+const dtoEstado = (overrides: Partial<CambiarEstadoCanchaDto> = {}) =>
+  Object.assign(new CambiarEstadoCanchaDto(), {
+    estado: 'en_mantenimiento',
+    motivo: 'Riego',
+    ...overrides,
+  });
+
+describe('CanchasService.cambiarEstado (ACT-28)', () => {
+  it('appends the historial row and refreshes the cache in one transaction', async () => {
+    const { prisma, updates, estadosCreados } = crudStub({ existente: { ...CANCHA_FILA } });
+    const service = new CanchasService(prisma as never);
+    const res = await service.cambiarEstado(
+      'cancha-1',
+      dtoEstado({ estado: 'inhabilitada', motivo: 'Reforma' }),
+    );
+    assert.equal(res.estadoActual, 'inhabilitada');
+    assert.deepEqual(estadosCreados[0], {
+      cancha_id: 'cancha-1',
+      valor_state: 'inhabilitada',
+      motivo: 'Reforma',
+    });
+    assert.deepEqual(updates[0], { estado_actual: 'inhabilitada' });
+  });
+
+  it('accepts disponible without motivo', async () => {
+    const { prisma, estadosCreados } = crudStub({
+      existente: { ...CANCHA_FILA, estado_actual: 'inhabilitada' },
+    });
+    const service = new CanchasService(prisma as never);
+    const res = await service.cambiarEstado('cancha-1', dtoEstado({ estado: 'disponible', motivo: undefined }));
+    assert.equal(res.estadoActual, 'disponible');
+    assert.deepEqual(estadosCreados[0], { cancha_id: 'cancha-1', valor_state: 'disponible' });
+  });
+
+  it('throws 400 when motivo is missing for a non-disponible state', async () => {
+    const { prisma } = crudStub({ existente: { ...CANCHA_FILA } });
+    const service = new CanchasService(prisma as never);
+    await assert.rejects(
+      () => service.cambiarEstado('cancha-1', dtoEstado({ estado: 'en_mantenimiento', motivo: undefined })),
+      BadRequestException,
+    );
+  });
+
+  it('throws 422 when the state equals the current one', async () => {
+    const { prisma } = crudStub({
+      existente: { ...CANCHA_FILA, estado_actual: 'inhabilitada' },
+    });
+    const service = new CanchasService(prisma as never);
+    await assert.rejects(
+      () => service.cambiarEstado('cancha-1', dtoEstado({ estado: 'inhabilitada', motivo: 'x' })),
+      UnprocessableEntityException,
+    );
+  });
+
+  it('throws 404 on a missing court', async () => {
+    const { prisma } = crudStub();
+    const service = new CanchasService(prisma as never);
+    await assert.rejects(
+      () => service.cambiarEstado('no-existe', dtoEstado()),
+      NotFoundException,
     );
   });
 });

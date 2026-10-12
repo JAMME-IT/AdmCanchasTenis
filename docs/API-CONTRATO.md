@@ -100,7 +100,7 @@ Formato NestJS estándar:
 | `GET /turnos`, `PATCH /turnos/:id/estado`, `PATCH /turnos/:id/pago` | — | Si | — | — |
 | `POST /pagos-turno`, `GET /pagos-turno` | — | Si | — | — |
 | `GET /canchas` | — | Si | Si | Si |
-| `PATCH /canchas/:id/estado` | — | Si | — | — |
+| `POST /canchas`, `PATCH /canchas/:id`, `PATCH /canchas/:id/estado` | — | Si | — | — |
 | `GET /config/rangos-horario`, `GET /config/dias-funcionamiento` | — | Si | Si | Si |
 | `PUT /config/rangos-horario`, `PUT /config/dias-funcionamiento` | — | Si | — | — |
 | `GET /cuotas`, `POST /cuotas/:id/pagos` | — | Si | — | — |
@@ -506,6 +506,38 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 - **Query**: `conEstados` (boolean, opcional, solo admin, por defecto `false`): agrega el historial `estados: [{ valorState, fechaCambio, motivo }]` (vista admin con estados).
 - **Response 200**: array de `Cancha` (con `estados` cuando `conEstados=true`).
 - **Errores**: 400, 401, 403 (`conEstados` con rol no admin).
+
+#### POST /canchas
+
+- **Roles**: admin.
+- **RF**: soporte de RF-12 (elegir cancha) y del ABM de canchas (ACT-28).
+- **Descripción**: alta de cancha: crea la fila con `estado_actual = disponible` y su fila inicial en `estados_cancha` (`disponible`, sin motivo) en la misma transacción (ADR-0004).
+- **Request**:
+
+| Campo | Tipo | Oblig. | Validación |
+|---|---|---|---|
+| `nroCancha` | int | Si | ≥ 1; único (`uq_canchas_nro`). |
+| `superficie` | enum `superficie_cancha` | Si | `dura\|polvo_de_ladrillo\|cesped`. |
+| `iluminacion` | boolean | No | Por defecto `true`. |
+
+- **Response 201**: `Cancha`.
+- **Errores**: 400, 401, 403, 409 (`nroCancha` duplicado).
+
+#### PATCH /canchas/:id
+
+- **Roles**: admin.
+- **RF**: soporte de RF-12 (elegir cancha) y del ABM de canchas (ACT-28).
+- **Descripción**: edición de datos de una cancha; no toca el estado operativo (ver `PATCH /canchas/:id/estado`). Requiere al menos un campo.
+- **Request**:
+
+| Campo | Tipo | Oblig. | Validación |
+|---|---|---|---|
+| `nroCancha` | int | Cond. | ≥ 1; único (`uq_canchas_nro`); al menos un campo en total. |
+| `superficie` | enum `superficie_cancha` | Cond. | `dura\|polvo_de_ladrillo\|cesped`. |
+| `iluminacion` | boolean | Cond. | Al menos un campo en total. |
+
+- **Response 200**: `Cancha`.
+- **Errores**: 400 (cuerpo vacío), 401, 403, 404, 409 (`nroCancha` duplicado).
 
 #### PATCH /canchas/:id/estado
 

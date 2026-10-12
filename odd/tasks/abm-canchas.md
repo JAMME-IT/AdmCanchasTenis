@@ -78,6 +78,14 @@ Cerrar el branch `4_ABMCanchas` con el ABM de canchas funcionando (ACT-28 en cur
 - 2026-10-10 (spot check del parent, independiente): `TZ=America/Argentina/Buenos_Aires npm test --workspace api` → exit 0; `canchas` 15/15, suite completa sin fallos.
 - Review nativa: NO completable en este runtime (el transporte OpenCode rechazó el relay). Sin PASS inventado; candidato declinado por decisión del usuario. Pendiente: re-correr la review en un runtime soportado (claude-code/codex) cuando esté disponible.
 
+## Manual verification (2026-10-12)
+- Bloqueo de entorno resuelto: `apps/api/.env` tenía `DATABASE_URL` apuntando a una MySQL local de otro proyecto (`localhost:3307/db_crud`) y, además, existía una variable de entorno de Windows (scope Usuario) `DATABASE_URL` que pisaba el `.env` (dotenv no sobreescribe variables preexistentes). Corregido: `.env` con Supabase (pooler 6543/5432) y variable de entorno eliminada.
+- E2E por HTTP contra la API local (server `ts-node src/main.ts` + token admin de Clerk):
+  - `GET /api/canchas` -> `200` con las 3 canchas (dura, polvo_de_ladrillo, cesped), todas `disponible`, en forma camelCase del contrato.
+  - `GET /api/canchas?conEstados=true` -> `200` con el historial `estados: [{ valorState, fechaCambio, motivo }]`.
+- Verificación de DB con proceso limpio: `canchas.count = 3`, `findMany` OK.
+- **Pruebas superadas**: unit (15/15) + build (exit 0) + verificación manual E2E (GET y GET con historial) OK.
+
 ## Next step
-- Decisión humana: `push` de `4_ABMCanchas` (31 commits ahead de `origin/4_ABMCanchas`) y apertura de PR. Opcional: re-correr la review nativa en un runtime soportado o cuando el transporte se arregle.
+- Merge a `main` (merge commit estilo equipo) y push.
 - Actualizar Jira: ACT-28/ACT-29 a En revisión/Listo según corresponda.

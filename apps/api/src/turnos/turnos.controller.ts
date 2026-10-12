@@ -1,13 +1,14 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { AuthContext } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/decorators/current-auth.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { DisponibilidadSchema } from './disponibilidad-response.schema';
 import type { DisponibilidadResponse } from './disponibilidad-response';
+import type { CancelarTurnoDto } from './dto/cancelar-turno.dto';
 import { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import { CrearTurnoDto } from './dto/crear-turno.dto';
-import type { ReservarTurnoResponse } from './turno-response';
+import type { ReservarTurnoResponse, TurnoResponse } from './turno-response';
 import { TurnosService } from './turnos.service';
 
 @ApiTags('Turnos')
@@ -37,5 +38,18 @@ export class TurnosController {
     @Body() dto: CrearTurnoDto,
   ): Promise<ReservarTurnoResponse> {
     return this.turnos.reservar(auth, dto);
+  }
+
+  /** Cancelacion con regla de 1 hora de anticipacion (ACT-35, RF-14/RF-40, RN-1). */
+  @Post(':id/cancelar')
+  @Roles('admin', 'socio', 'no_socio')
+  @ApiOperation({ summary: 'Cancela un turno (hasta 1 hora antes del inicio)' })
+  @ApiOkResponse({ description: 'Turno cancelado con estadoActual = cancelado' })
+  async cancelar(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentAuth() auth: AuthContext,
+    @Body() dto: CancelarTurnoDto,
+  ): Promise<TurnoResponse> {
+    return this.turnos.cancelar(auth, id, dto);
   }
 }

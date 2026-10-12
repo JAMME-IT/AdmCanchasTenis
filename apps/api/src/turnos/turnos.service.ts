@@ -19,9 +19,10 @@ import {
   minutosDeHora,
 } from './disponibilidad-slots';
 import type { DisponibilidadResponse } from './disponibilidad-response';
+import type { CancelarTurnoDto } from './dto/cancelar-turno.dto';
 import type { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import type { CrearTurnoDto } from './dto/crear-turno.dto';
-import { toTurnoResponse, type ReservarTurnoResponse } from './turno-response';
+import { toTurnoResponse, type ReservarTurnoResponse, type TurnoResponse } from './turno-response';
 
 @Injectable()
 export class TurnosService {
@@ -265,6 +266,51 @@ export class TurnosService {
   }
 
   /**
+   * Cancelacion (ACT-35, API contract §5.3 POST /turnos/:id/cancelar,
+   * RF-14/RF-40, RN-1): solo el dueno del turno o un admin puede cancelar un
+   * turno `confirmado`, hasta 1 hora antes del inicio. La actualizacion del
+   * cache `turnos.estado_actual` y la transicion en `estados_turno` (con
+   * motivo y snapshot combinado) ocurren en una sola transaccion Prisma.
+   */
+  async cancelar(auth: AuthContext, id: string, dto: CancelarTurnoDto): Promise<TurnoResponse> {
+    if (!auth.usuario || !auth.rol) {
+      throw new ForbiddenException('Solo usuarios registrados pueden cancelar turnos');
+    }
+    const turno = await this.prisma.turnos.findUnique({ where: { id } });
+    if (!turno) {
+      throw new NotFoundException('Turno inexistente');
+    }
+    if (turno.usuario_id !== auth.usuario.id && auth.rol !== 'admin') {
+      throw new ForbiddenException('No puede cancelar el turno de otro usuario');
+    }
+    if (turno.estado_actual !== 'confirmado') {
+      throw new ConflictException('El turno ya no esta en un estado cancelable');
+    }
+    const inicio = instanteDeInicioEnArgentina(turno.fecha, turno.hora_inicio);
+    if (Date.now() + UNA_HORA_MS > inicio) {
+      throw new UnprocessableEntityException('Solo se puede cancelar hasta 1 hora antes del inicio');
+    }
+
+    const cancelado = await this.prisma.$transaction(async (tx) => {
+      const turnoActualizado = await tx.turnos.update({
+        where: { id },
+        data: { estado_actual: 'cancelado', updated_at: new Date() },
+      });
+      await tx.estados_turno.create({
+        data: {
+          turno_id: turno.id,
+          valor_estado: 'cancelado',
+          valor_estado_pago: turno.estado_pago,
+          motivo: dto.motivo,
+        },
+      });
+      return turnoActualizado;
+    });
+
+    return toTurnoResponse(cancelado);
+  }
+
+  /**
    * Debt cap (RN-9): a socio with 2+ `adeudada` cuotas may hold a single
    * active booking (`confirmado`/`iniciado`) until the debt is cleared.
    * Finished history does not count: the rule limits exposure, it does not
@@ -367,6 +413,22 @@ export function hoyEnArgentina(ahora = new Date()): Date {
   return new Date(ahora.getTime() - ARGENTINA_UTC_OFFSET_MS);
 }
 
+/**
+ * Instante (epoch ms) de inicio del turno compuesto en hora local del club
+ * (ART, UTC-3 fijo, sin DST): `fecha` es `YYYY-MM-DD` y `horaInicio` es
+ * `HH:MM` o un `Date` de `@db.Time` (RN-1, ACT-35).
+ */
+export function instanteDeInicioEnArgentina(fecha: Date | string, horaInicio: string | Date): number {
+  const [anio, mes, dia] = (typeof fecha === 'string' ? fecha : fecha.toISOString().slice(0, 10))
+    .split('-')
+    .map(Number);
+  const minutos = minutosDeHora(horaInicio);
+  return (
+    Date.UTC(anio, mes - 1, dia, Math.floor(minutos / 60), minutos % 60) +
+    ARGENTINA_UTC_OFFSET_MS
+  );
+}
+
 /** Minutes since midnight → `Date` for a `@db.Time` column (midnight-based, UTC). */
 function horaDesdeMinutos(minutos: number): Date {
   return new Date(Date.UTC(1970, 0, 1, Math.floor(minutos / 60), minutos % 60));
@@ -413,3 +475,6 @@ const MAX_DIAS_ANTICIPACION = 1;
 /** RN-9: debt cap kicks in at 2+ `adeudada` cuotas, capped at 1 active booking. */
 const MIN_CUOTAS_ADEUDADAS_RN9 = 2;
 const MAX_TURNOS_VIGENTES_CON_DEUDA = 1;
+
+/** RN-1: cancelacion permitida hasta 1 hora antes del inicio del turno. */
+const UNA_HORA_MS = 60 * 60 * 1000;

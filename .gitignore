@@ -9,5 +9,6 @@ coverage/
 .DS_Store
 vite.config.ts.timestamp-*
 *.tsbuildinfo
+.codegraph/
 .engram/
 .atl/

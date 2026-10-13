@@ -9,12 +9,13 @@ import { CanchasModule } from './canchas/canchas.module';
 import { CuotasModule } from './cuotas/cuotas.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReportesModule } from './reportes/reportes.module';
+import { TarifasModule } from './tarifas/tarifas.module';
 import { TurnosModule } from './turnos/turnos.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, AuthModule, TurnosModule, UsuariosModule, WebhooksModule, CuotasModule, ReportesModule, CanchasModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, AuthModule, TurnosModule, UsuariosModule, WebhooksModule, CuotasModule, ReportesModule, CanchasModule, TarifasModule],
   controllers: [AppController],
   providers: [
     { provide: APP_GUARD, useClass: ClerkAuthGuard },

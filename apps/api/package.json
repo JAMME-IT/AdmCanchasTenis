@@ -14,7 +14,7 @@
     "db:health": "ts-node scripts/db-health.ts",
     "cuotas:generar": "ts-node src/cuotas/generar-cuotas.cli.ts",
     "db:seed": "ts-node prisma/seed.ts",
-    "test": "ts-node --transpile-only src/turnos/disponibilidad-slots.spec.ts && ts-node --transpile-only src/turnos/turnos.service.spec.ts && ts-node --transpile-only src/turnos/turnos-reserva.spec.ts && ts-node --transpile-only src/reportes/reportes.service.spec.ts && ts-node --transpile-only src/cuotas/cuotas-pagos.spec.ts && ts-node --transpile-only src/canchas/canchas.service.spec.ts && ts-node --transpile-only src/turnos/turnos-estado.spec.ts && ts-node --transpile-only src/turnos/turnos-mios.spec.ts"
+    "test": "ts-node --transpile-only src/turnos/disponibilidad-slots.spec.ts && ts-node --transpile-only src/turnos/turnos.service.spec.ts && ts-node --transpile-only src/turnos/turnos-reserva.spec.ts && ts-node --transpile-only src/turnos/turnos-cancelacion.spec.ts && ts-node --transpile-only src/turnos/turnos-estado.spec.ts && ts-node --transpile-only src/turnos/turnos-mios.spec.ts && ts-node --transpile-only src/reportes/reportes.service.spec.ts && ts-node --transpile-only src/cuotas/cuotas-pagos.spec.ts && ts-node --transpile-only src/canchas/canchas.service.spec.ts"
   },
   "dependencies": {
     "@adm/shared": "*",

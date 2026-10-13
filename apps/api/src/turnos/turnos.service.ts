@@ -21,6 +21,7 @@ import {
 import { transicionPermitida } from './estados-turno';
 import type { DisponibilidadResponse } from './disponibilidad-response';
 import type { ActualizarEstadoTurnoDto } from './dto/actualizar-estado-turno.dto';
+import type { CancelarTurnoDto } from './dto/cancelar-turno.dto';
 import type { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import type { ConsultarHistorialDto } from './dto/consultar-historial.dto';
 import type { ConsultarMisTurnosDto } from './dto/consultar-mis-turnos.dto';
@@ -36,7 +37,7 @@ import {
   type ReservarTurnoResponse,
   type TurnoResponse,
 } from './turno-response';
-import { hoyEnArgentina } from './fecha-turno';
+import { hoyEnArgentina, instanteDeInicioEnArgentina, UNA_HORA_MS } from './fecha-turno';
 
 /**
  * Public ART-time surface kept on the service for its existing importers
@@ -414,6 +415,51 @@ export class TurnosService {
       return turnoActualizado;
     });
     return toTurnoResponse(actualizado);
+  }
+
+  /**
+   * Cancelacion (ACT-35, API contract §5.3 POST /turnos/:id/cancelar,
+   * RF-14/RF-40, RN-1): solo el dueno del turno o un admin puede cancelar un
+   * turno `confirmado`, hasta 1 hora antes del inicio. La actualizacion del
+   * cache `turnos.estado_actual` y la transicion en `estados_turno` (con
+   * motivo y snapshot combinado) ocurren en una sola transaccion Prisma.
+   */
+  async cancelar(auth: AuthContext, id: string, dto: CancelarTurnoDto): Promise<TurnoResponse> {
+    if (!auth.usuario || !auth.rol) {
+      throw new ForbiddenException('Solo usuarios registrados pueden cancelar turnos');
+    }
+    const turno = await this.prisma.turnos.findUnique({ where: { id } });
+    if (!turno) {
+      throw new NotFoundException('Turno inexistente');
+    }
+    if (turno.usuario_id !== auth.usuario.id && auth.rol !== 'admin') {
+      throw new ForbiddenException('No puede cancelar el turno de otro usuario');
+    }
+    if (turno.estado_actual !== 'confirmado') {
+      throw new ConflictException('El turno ya no esta en un estado cancelable');
+    }
+    const inicio = instanteDeInicioEnArgentina(turno.fecha, turno.hora_inicio);
+    if (Date.now() + UNA_HORA_MS > inicio) {
+      throw new UnprocessableEntityException('Solo se puede cancelar hasta 1 hora antes del inicio');
+    }
+
+    const cancelado = await this.prisma.$transaction(async (tx) => {
+      const turnoActualizado = await tx.turnos.update({
+        where: { id },
+        data: { estado_actual: 'cancelado', updated_at: new Date() },
+      });
+      await tx.estados_turno.create({
+        data: {
+          turno_id: turno.id,
+          valor_estado: 'cancelado',
+          valor_estado_pago: turno.estado_pago,
+          motivo: dto.motivo,
+        },
+      });
+      return turnoActualizado;
+    });
+
+    return toTurnoResponse(cancelado);
   }
 
   /**

@@ -6,6 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { DisponibilidadSchema } from './disponibilidad-response.schema';
 import type { DisponibilidadResponse } from './disponibilidad-response';
 import { ActualizarEstadoTurnoDto } from './dto/actualizar-estado-turno.dto';
+import type { CancelarTurnoDto } from './dto/cancelar-turno.dto';
 import { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import { ConsultarHistorialDto } from './dto/consultar-historial.dto';
 import { ConsultarMisTurnosDto } from './dto/consultar-mis-turnos.dto';
@@ -81,5 +82,18 @@ export class TurnosController {
     @Body() dto: ActualizarEstadoTurnoDto,
   ): Promise<TurnoResponse> {
     return this.turnos.cambiarEstado(id, dto);
+  }
+
+  /** Cancelacion con regla de 1 hora de anticipacion (ACT-35, RF-14/RF-40, RN-1). */
+  @Post(':id/cancelar')
+  @Roles('admin', 'socio', 'no_socio')
+  @ApiOperation({ summary: 'Cancela un turno (hasta 1 hora antes del inicio)' })
+  @ApiOkResponse({ description: 'Turno cancelado con estadoActual = cancelado' })
+  async cancelar(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentAuth() auth: AuthContext,
+    @Body() dto: CancelarTurnoDto,
+  ): Promise<TurnoResponse> {
+    return this.turnos.cancelar(auth, id, dto);
   }
 }

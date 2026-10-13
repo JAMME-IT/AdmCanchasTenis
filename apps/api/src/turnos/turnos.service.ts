@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthContext } from '../auth/auth.types';
-import type { Prisma } from '../generated/prisma/client';
+import type { estado_turno, Prisma } from '../generated/prisma/client';
 import {
   construirSlots,
   diaSemanaISODeFecha,
@@ -22,12 +22,33 @@ import { transicionPermitida } from './estados-turno';
 import type { DisponibilidadResponse } from './disponibilidad-response';
 import type { ActualizarEstadoTurnoDto } from './dto/actualizar-estado-turno.dto';
 import type { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
+import type { ConsultarHistorialDto } from './dto/consultar-historial.dto';
+import type { ConsultarMisTurnosDto } from './dto/consultar-mis-turnos.dto';
 import type { CrearTurnoDto } from './dto/crear-turno.dto';
+import {
+  toMiTurnoResponse,
+  toTurnoConCanchaResponse,
+  type MiTurnoResponse,
+  type TurnoConCanchaResponse,
+} from './mis-turno-response';
 import {
   toTurnoResponse,
   type ReservarTurnoResponse,
   type TurnoResponse,
 } from './turno-response';
+import { hoyEnArgentina } from './fecha-turno';
+
+/**
+ * Public ART-time surface kept on the service for its existing importers
+ * (`turnos-reserva.spec.ts`, `turnos-mios.spec.ts`). The implementation lives
+ * in the pure `fecha-turno` module so pure mappers can use it without a cycle.
+ */
+export {
+  ARGENTINA_UTC_OFFSET_MS,
+  hoyEnArgentina,
+  instanteDeInicioEnArgentina,
+  UNA_HORA_MS,
+} from './fecha-turno';
 
 @Injectable()
 export class TurnosService {
@@ -100,6 +121,82 @@ export class TurnosService {
     });
 
     return { fecha: query.fecha, duracionMinutos, slots };
+  }
+
+  /**
+   * Current bookings of the authenticated user (ACT-38, API contract §5.3
+   * GET /turnos/mios, RF-36/CU24): `confirmado`/`iniciado` rows, optionally
+   * narrowed to one exact day or one state, ordered by date and start time.
+   * Each item carries the expanded court and the RN-1 `puedeCancelar` flag.
+   */
+  async obtenerMios(auth: AuthContext, query: ConsultarMisTurnosDto): Promise<MiTurnoResponse[]> {
+    if (!auth.usuario) {
+      throw new ForbiddenException('Se requiere un usuario registrado');
+    }
+    if (query.fecha !== undefined && !esFechaValida(query.fecha)) {
+      throw new BadRequestException('fecha debe ser un dia calendario valido (YYYY-MM-DD)');
+    }
+    const estados: estado_turno[] = query.estadoActual
+      ? [query.estadoActual]
+      : ['confirmado', 'iniciado'];
+
+    const where: Prisma.turnosWhereInput = {
+      usuario_id: auth.usuario.id,
+      estado_actual: { in: estados },
+    };
+    if (query.fecha) {
+      where.fecha = fechaParaPrisma(query.fecha);
+    }
+
+    const turnos = await this.prisma.turnos.findMany({
+      where,
+      include: { canchas: { select: { id: true, nro_cancha: true } } },
+      orderBy: [{ fecha: 'asc' }, { hora_inicio: 'asc' }],
+    });
+    return turnos.map((turno) => toMiTurnoResponse(turno));
+  }
+
+  /**
+   * Descending booking history of the authenticated user (ACT-38, API contract
+   * §5.3 GET /turnos/mios/historial, RF-18/CU5): defaults to `finalizado` and
+   * also serves `no_asistio`/`cancelado`, with an inclusive `desde`/`hasta`
+   * range over `turnos.fecha`. No RN-1 flag here: the contract does not ask.
+   */
+  async obtenerHistorial(
+    auth: AuthContext,
+    query: ConsultarHistorialDto,
+  ): Promise<TurnoConCanchaResponse[]> {
+    if (!auth.usuario) {
+      throw new ForbiddenException('Se requiere un usuario registrado');
+    }
+    if (query.desde !== undefined && !esFechaValida(query.desde)) {
+      throw new BadRequestException('desde debe ser un dia calendario valido (YYYY-MM-DD)');
+    }
+    if (query.hasta !== undefined && !esFechaValida(query.hasta)) {
+      throw new BadRequestException('hasta debe ser un dia calendario valido (YYYY-MM-DD)');
+    }
+    if (query.desde && query.hasta && query.desde > query.hasta) {
+      throw new BadRequestException('desde no puede ser posterior a hasta');
+    }
+    const estados: estado_turno[] = query.estadoActual ? [query.estadoActual] : ['finalizado'];
+
+    const where: Prisma.turnosWhereInput = {
+      usuario_id: auth.usuario.id,
+      estado_actual: { in: estados },
+    };
+    if (query.desde || query.hasta) {
+      where.fecha = {
+        ...(query.desde ? { gte: fechaParaPrisma(query.desde) } : {}),
+        ...(query.hasta ? { lte: fechaParaPrisma(query.hasta) } : {}),
+      };
+    }
+
+    const turnos = await this.prisma.turnos.findMany({
+      where,
+      include: { canchas: { select: { id: true, nro_cancha: true } } },
+      orderBy: [{ fecha: 'desc' }, { hora_inicio: 'desc' }],
+    });
+    return turnos.map((turno) => toTurnoConCanchaResponse(turno));
   }
 
   /**
@@ -406,20 +503,6 @@ function diferenciaEnDias(fecha: string, hoy = new Date()): number {
     Date.UTC(anio, mes - 1, dia) -
     Date.UTC(hoyART.getUTCFullYear(), hoyART.getUTCMonth(), hoyART.getUTCDate());
   return Math.round(ms / 86400000);
-}
-
-/**
- * Project rule: ALL business-day logic uses Argentina time
- * (America/Argentina/Buenos_Aires, fixed UTC-3, no DST). Shifting the instant
- * back 3 h and reading UTC getters yields the ART calendar date without
- * ICU/timezone data. A server-local `new Date()` is wrong here: on a UTC
- * host the local date flips at 21:00 ART, moving the RN-11 window off by one.
- */
-export const ARGENTINA_UTC_OFFSET_MS = 3 * 3600 * 1000;
-
-/** Instant shifted so UTC getters read the Argentina (UTC-3) calendar date. */
-export function hoyEnArgentina(ahora = new Date()): Date {
-  return new Date(ahora.getTime() - ARGENTINA_UTC_OFFSET_MS);
 }
 
 /** Minutes since midnight → `Date` for a `@db.Time` column (midnight-based, UTC). */

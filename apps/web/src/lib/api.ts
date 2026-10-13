@@ -43,13 +43,19 @@ export interface Turno {
   updatedAt: string;
 }
 
-export interface TurnoConCancha {
+/** Expanded court summary (`cancha: { id, nroCancha }`, API contract §5.3). */
+export interface CanchaResumen {
   id: string;
   nroCancha: number;
 }
 
-export interface MiTurno extends Turno {
-  cancha: TurnoConCancha;
+/** Turno plus the expanded court, shared by GET /turnos/mios[/historial]. */
+export interface TurnoConCanchaResponse extends Turno {
+  cancha: CanchaResumen;
+}
+
+/** GET /turnos/mios item: expanded booking plus the server-computed `puedeCancelar`. */
+export interface MiTurno extends TurnoConCanchaResponse {
   puedeCancelar: boolean;
 }
 
@@ -120,7 +126,10 @@ export const api = {
     request<{ message: string }>('/auth/logout', { method: 'POST', token }),
   misTurnos: (token: string | null): Promise<MiTurno[]> =>
     request<MiTurno[]>('/turnos/mios', { token }),
-  historialTurnos: (token: string | null, params?: HistorialParams): Promise<MiTurno[]> => {
+  historialTurnos: (
+    token: string | null,
+    params?: HistorialParams,
+  ): Promise<TurnoConCanchaResponse[]> => {
     const query = new URLSearchParams();
     if (params?.estadoActual) {
       query.set('estadoActual', params.estadoActual);
@@ -132,8 +141,8 @@ export const api = {
       query.set('hasta', params.hasta);
     }
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
-    return request<MiTurno[]>(`/turnos/mios/historial${suffix}`, { token });
+    return request<TurnoConCanchaResponse[]>(`/turnos/mios/historial${suffix}`, { token });
   },
-  cancelarTurno: (token: string | null, id: string, motivo: string): Promise<MiTurno> =>
-    request<MiTurno>(`/turnos/${id}/cancelar`, { method: 'POST', token, body: { motivo } }),
+  cancelarTurno: (token: string | null, id: string, motivo: string): Promise<Turno> =>
+    request<Turno>(`/turnos/${id}/cancelar`, { method: 'POST', token, body: { motivo } }),
 };

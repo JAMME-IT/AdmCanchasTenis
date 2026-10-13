@@ -169,6 +169,10 @@ export default function Turnos(): JSX.Element {
           <Link to="/" style={{ color: '#328161', fontWeight: 600 }}>
             ← Volver al inicio
           </Link>
+          {' · '}
+          <Link to="/mis-turnos" style={{ color: '#328161', fontWeight: 600 }}>
+            Ver mis turnos
+          </Link>
         </p>
 
         <header style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -377,6 +381,11 @@ export default function Turnos(): JSX.Element {
                         ))}
                       </ul>
                     )}
+                    <p style={{ margin: '0.5rem 0 0' }}>
+                      <Link to="/mis-turnos" style={{ color: '#328161', fontWeight: 600 }}>
+                        Ver mis turnos
+                      </Link>
+                    </p>
                   </div>
                 )}
               </>

@@ -35,4 +35,10 @@ test.describe('Acceso a Tenis Ranch Club', () => {
       page.getByText('¿Ya tenés una cuenta?').first(),
     ).toBeVisible();
   });
+
+  test('/mis-turnos sin sesión redirige al login', async ({ page }) => {
+    await page.goto('/mis-turnos');
+    await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+    await expect(page).toHaveURL(/\/ingresar/);
+  });
 });

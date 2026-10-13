@@ -24,6 +24,42 @@ export interface CompletarPerfilBody {
   dni: string;
 }
 
+export interface Turno {
+  id: string;
+  usuarioId: string;
+  canchaId: string;
+  tipoTurnoId: string;
+  valorTurnoId: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  cantidadPersonas: number;
+  cantidadNoSocios: number;
+  costoTurnoNs: number;
+  requiereLuz: boolean;
+  estadoActual: string;
+  estadoPago: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TurnoConCancha {
+  id: string;
+  nroCancha: number;
+}
+
+export interface MiTurno extends Turno {
+  cancha: TurnoConCancha;
+  puedeCancelar: boolean;
+}
+
+export type EstadoHistorial = 'finalizado' | 'no_asistio' | 'cancelado';
+
+export interface HistorialParams {
+  estadoActual?: EstadoHistorial;
+  desde?: string;
+  hasta?: string;
+}
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -82,4 +118,22 @@ export const api = {
     request<Usuario>('/usuarios/completar-perfil', { method: 'POST', token, body }),
   logout: (token: string | null): Promise<{ message: string }> =>
     request<{ message: string }>('/auth/logout', { method: 'POST', token }),
+  misTurnos: (token: string | null): Promise<MiTurno[]> =>
+    request<MiTurno[]>('/turnos/mios', { token }),
+  historialTurnos: (token: string | null, params?: HistorialParams): Promise<MiTurno[]> => {
+    const query = new URLSearchParams();
+    if (params?.estadoActual) {
+      query.set('estadoActual', params.estadoActual);
+    }
+    if (params?.desde) {
+      query.set('desde', params.desde);
+    }
+    if (params?.hasta) {
+      query.set('hasta', params.hasta);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<MiTurno[]>(`/turnos/mios/historial${suffix}`, { token });
+  },
+  cancelarTurno: (token: string | null, id: string, motivo: string): Promise<MiTurno> =>
+    request<MiTurno>(`/turnos/${id}/cancelar`, { method: 'POST', token, body: { motivo } }),
 };

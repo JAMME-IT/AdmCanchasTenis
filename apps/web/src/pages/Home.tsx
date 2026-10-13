@@ -209,6 +209,16 @@ export default function Home(): JSX.Element {
                 Ver turnos
               </Link>
             </article>
+            <article style={cardStyle}>
+              <h3>Mis turnos</h3>
+              <p>Revisá tus turnos vigentes, cancelá o mirá tu historial.</p>
+              <Link
+                to="/mis-turnos"
+                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
+              >
+                Ver mis turnos
+              </Link>
+            </article>
             <article style={disabledCardStyle}>
               <BloqueoTemporal motivo="API pendiente" />
               <h3>Panel admin</h3>

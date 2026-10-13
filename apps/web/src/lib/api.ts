@@ -24,6 +24,48 @@ export interface CompletarPerfilBody {
   dni: string;
 }
 
+export interface Turno {
+  id: string;
+  usuarioId: string;
+  canchaId: string;
+  tipoTurnoId: string;
+  valorTurnoId: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  cantidadPersonas: number;
+  cantidadNoSocios: number;
+  costoTurnoNs: number;
+  requiereLuz: boolean;
+  estadoActual: string;
+  estadoPago: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Expanded court summary (`cancha: { id, nroCancha }`, API contract §5.3). */
+export interface CanchaResumen {
+  id: string;
+  nroCancha: number;
+}
+
+/** Turno plus the expanded court, shared by GET /turnos/mios[/historial]. */
+export interface TurnoConCanchaResponse extends Turno {
+  cancha: CanchaResumen;
+}
+
+/** GET /turnos/mios item: expanded booking plus the server-computed `puedeCancelar`. */
+export interface MiTurno extends TurnoConCanchaResponse {
+  puedeCancelar: boolean;
+}
+
+export type EstadoHistorial = 'finalizado' | 'no_asistio' | 'cancelado';
+
+export interface HistorialParams {
+  estadoActual?: EstadoHistorial;
+  desde?: string;
+  hasta?: string;
+}
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -82,4 +124,25 @@ export const api = {
     request<Usuario>('/usuarios/completar-perfil', { method: 'POST', token, body }),
   logout: (token: string | null): Promise<{ message: string }> =>
     request<{ message: string }>('/auth/logout', { method: 'POST', token }),
+  misTurnos: (token: string | null): Promise<MiTurno[]> =>
+    request<MiTurno[]>('/turnos/mios', { token }),
+  historialTurnos: (
+    token: string | null,
+    params?: HistorialParams,
+  ): Promise<TurnoConCanchaResponse[]> => {
+    const query = new URLSearchParams();
+    if (params?.estadoActual) {
+      query.set('estadoActual', params.estadoActual);
+    }
+    if (params?.desde) {
+      query.set('desde', params.desde);
+    }
+    if (params?.hasta) {
+      query.set('hasta', params.hasta);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<TurnoConCanchaResponse[]>(`/turnos/mios/historial${suffix}`, { token });
+  },
+  cancelarTurno: (token: string | null, id: string, motivo: string): Promise<Turno> =>
+    request<Turno>(`/turnos/${id}/cancelar`, { method: 'POST', token, body: { motivo } }),
 };

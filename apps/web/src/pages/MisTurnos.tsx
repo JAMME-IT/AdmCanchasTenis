@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
-import { ApiError, api, type EstadoHistorial, type MiTurno } from '../lib/api';
+import { ApiError, api, type EstadoHistorial, type MiTurno, type TurnoConCanchaResponse } from '../lib/api';
 
 // Palette: refined green #384543, whisper white #F5F3EF,
 // peridot #328161, serene gray #8A9A93.
@@ -42,7 +42,7 @@ export default function MisTurnos(): JSX.Element {
   const { getToken } = useAuth();
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('vigentes');
-  const [turnos, setTurnos] = useState<MiTurno[]>([]);
+  const [turnos, setTurnos] = useState<Array<MiTurno | TurnoConCanchaResponse>>([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<EstadoHistorial>('finalizado');
@@ -324,7 +324,7 @@ export default function MisTurnos(): JSX.Element {
                 </div>
 
                 {tab === 'vigentes' &&
-                  (turno.puedeCancelar ? (
+                  ('puedeCancelar' in turno && turno.puedeCancelar ? (
                     cancelandoId === turno.id ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <label style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>

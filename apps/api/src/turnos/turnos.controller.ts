@@ -1,13 +1,14 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { AuthContext } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/decorators/current-auth.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { DisponibilidadSchema } from './disponibilidad-response.schema';
 import type { DisponibilidadResponse } from './disponibilidad-response';
+import { ActualizarEstadoTurnoDto } from './dto/actualizar-estado-turno.dto';
 import { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import { CrearTurnoDto } from './dto/crear-turno.dto';
-import type { ReservarTurnoResponse } from './turno-response';
+import type { ReservarTurnoResponse, TurnoResponse } from './turno-response';
 import { TurnosService } from './turnos.service';
 
 @ApiTags('Turnos')
@@ -37,5 +38,17 @@ export class TurnosController {
     @Body() dto: CrearTurnoDto,
   ): Promise<ReservarTurnoResponse> {
     return this.turnos.reservar(auth, dto);
+  }
+
+  /** Lifecycle transition of a booking (ACT-36, CU22; `cancelado` only via POST /turnos/:id/cancelar). */
+  @Patch(':id/estado')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Aplica una transicion del ciclo de vida del turno (admin)' })
+  @ApiOkResponse({ description: 'Turno con el estado del ciclo de vida actualizado' })
+  async cambiarEstado(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: ActualizarEstadoTurnoDto,
+  ): Promise<TurnoResponse> {
+    return this.turnos.cambiarEstado(id, dto);
   }
 }

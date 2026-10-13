@@ -18,10 +18,16 @@ import {
   haySolapamiento,
   minutosDeHora,
 } from './disponibilidad-slots';
+import { transicionPermitida } from './estados-turno';
 import type { DisponibilidadResponse } from './disponibilidad-response';
+import type { ActualizarEstadoTurnoDto } from './dto/actualizar-estado-turno.dto';
 import type { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import type { CrearTurnoDto } from './dto/crear-turno.dto';
-import { toTurnoResponse, type ReservarTurnoResponse } from './turno-response';
+import {
+  toTurnoResponse,
+  type ReservarTurnoResponse,
+  type TurnoResponse,
+} from './turno-response';
 
 @Injectable()
 export class TurnosService {
@@ -262,6 +268,55 @@ export class TurnosService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Turn lifecycle transition (ACT-36, API contract §5.3 PATCH /turnos/:id/estado,
+   * CU22): applies the transition and appends the combined
+   * `(valorEstado, valorEstadoPago)` snapshot to `estados_turno` in the same
+   * transaction (historial + cache, DB-SCHEMA decision 1). A missing turno is
+   * 404; a no-op (`estado` equal to the current one), a table-forbidden
+   * transition or `cancelado` as destination is 422. `cancelado` is
+   * deliberately unreachable here: it only exists via POST /turnos/:id/cancelar,
+   * which enforces RN-1 and the `motivo`. Admin-only route (@Roles guard), so
+   * no ownership check is needed.
+   */
+  async cambiarEstado(id: string, dto: ActualizarEstadoTurnoDto): Promise<TurnoResponse> {
+    const turno = await this.prisma.turnos.findUnique({ where: { id } });
+    if (!turno) {
+      throw new NotFoundException('Turno inexistente');
+    }
+    if (turno.estado_actual === dto.estado) {
+      throw new UnprocessableEntityException('El turno ya se encuentra en ese estado');
+    }
+    if (dto.estado === 'cancelado') {
+      throw new UnprocessableEntityException(
+        'El estado cancelado solo se alcanza por POST /turnos/:id/cancelar',
+      );
+    }
+    if (!transicionPermitida(turno.estado_actual ?? '', dto.estado)) {
+      throw new UnprocessableEntityException('Transicion no permitida');
+    }
+
+    const motivo = dto.motivo;
+    const actualizado = await this.prisma.$transaction(async (tx) => {
+      const turnoActualizado = await tx.turnos.update({
+        where: { id },
+        data: { estado_actual: dto.estado, updated_at: new Date() },
+      });
+      await tx.estados_turno.create({
+        data: {
+          turno_id: id,
+          valor_estado: dto.estado,
+          // Snapshot of the payment axis BEFORE the transition: this endpoint
+          // never changes `estado_pago`, so the combined history stays accurate.
+          valor_estado_pago: turno.estado_pago,
+          ...(motivo ? { motivo } : {}),
+        },
+      });
+      return turnoActualizado;
+    });
+    return toTurnoResponse(actualizado);
   }
 
   /**

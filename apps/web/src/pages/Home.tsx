@@ -219,6 +219,16 @@ export default function Home(): JSX.Element {
                 Ver mis turnos
               </Link>
             </article>
+            <article style={cardStyle}>
+              <h3>Mis cuotas</h3>
+              <p>Mirá tus cuotas con lo pagado, el saldo y cada pago.</p>
+              <Link
+                to="/mis-cuotas"
+                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
+              >
+                Ver mis cuotas
+              </Link>
+            </article>
             <article style={disabledCardStyle}>
               <BloqueoTemporal motivo="API pendiente" />
               <h3>Panel admin</h3>

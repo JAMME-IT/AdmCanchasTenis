@@ -21,6 +21,7 @@ import {
 import { transicionPermitida } from './estados-turno';
 import type { DisponibilidadResponse } from './disponibilidad-response';
 import type { ActualizarEstadoTurnoDto } from './dto/actualizar-estado-turno.dto';
+import type { ActualizarEstadoPagoTurnoDto } from './dto/actualizar-estado-pago-turno.dto';
 import type { CancelarTurnoDto } from './dto/cancelar-turno.dto';
 import type { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import type { ConsultarHistorialDto } from './dto/consultar-historial.dto';
@@ -465,6 +466,37 @@ export class TurnosService {
           // never changes `estado_pago`, so the combined history stays accurate.
           valor_estado_pago: turno.estado_pago,
           ...(motivo ? { motivo } : {}),
+        },
+      });
+      return turnoActualizado;
+    });
+    return toTurnoResponse(actualizado);
+  }
+
+  /**
+   * Corrección manual del estado de pago (ACT-54, API contract §5.3 PATCH /turnos/:id/pago):
+   * actualiza `turnos.estado_pago` e inserta la transición combinada en `estados_turno`.
+   * Solo admin. 404 si el turno no existe, 422 si el estado es igual al actual.
+   */
+  async cambiarEstadoPago(id: string, dto: ActualizarEstadoPagoTurnoDto): Promise<TurnoResponse> {
+    const turno = await this.prisma.turnos.findUnique({ where: { id } });
+    if (!turno) {
+      throw new NotFoundException('Turno inexistente');
+    }
+    if (turno.estado_pago === dto.estadoPago) {
+      throw new UnprocessableEntityException('El turno ya tiene ese estado de pago');
+    }
+
+    const actualizado = await this.prisma.$transaction(async (tx) => {
+      const turnoActualizado = await tx.turnos.update({
+        where: { id },
+        data: { estado_pago: dto.estadoPago, updated_at: new Date() },
+      });
+      await tx.estados_turno.create({
+        data: {
+          turno_id: id,
+          valor_estado: turno.estado_actual,
+          valor_estado_pago: dto.estadoPago,
         },
       });
       return turnoActualizado;

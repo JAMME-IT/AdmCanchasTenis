@@ -21,11 +21,13 @@ import {
 import { transicionPermitida } from './estados-turno';
 import type { DisponibilidadResponse } from './disponibilidad-response';
 import type { ActualizarEstadoTurnoDto } from './dto/actualizar-estado-turno.dto';
+import type { ActualizarEstadoPagoTurnoDto } from './dto/actualizar-estado-pago-turno.dto';
 import type { CancelarTurnoDto } from './dto/cancelar-turno.dto';
 import type { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import type { ConsultarHistorialDto } from './dto/consultar-historial.dto';
 import type { ConsultarMisTurnosDto } from './dto/consultar-mis-turnos.dto';
 import type { CrearTurnoDto } from './dto/crear-turno.dto';
+import type { ListarTurnosAdminDto } from './dto/listar-turnos-admin.dto';
 import {
   toMiTurnoResponse,
   toTurnoConCanchaResponse,
@@ -37,6 +39,7 @@ import {
   type ReservarTurnoResponse,
   type TurnoResponse,
 } from './turno-response';
+import { toTurnoAdminResponse, type TurnoAdminFila, type TurnoAdminResponse } from './admin-turno-response';
 import { hoyEnArgentina, instanteDeInicioEnArgentina, UNA_HORA_MS } from './fecha-turno';
 
 /**
@@ -198,6 +201,59 @@ export class TurnosService {
       orderBy: [{ fecha: 'desc' }, { hora_inicio: 'desc' }],
     });
     return turnos.map((turno) => toTurnoConCanchaResponse(turno));
+  }
+
+  /**
+   * Admin listing (ACT-37, API contract §5.3 GET /turnos, RF-36/RF-37/RF-38):
+   * all bookings with optional text search on user name/surname (ILIKE), exact
+   * date filter, and inclusive date range. Ordered by date and start time
+   * descending (most recent first). Only admin role can access.
+   */
+  async listarAdmin(query: ListarTurnosAdminDto): Promise<TurnoAdminResponse[]> {
+    if (query.fecha !== undefined && !esFechaValida(query.fecha)) {
+      throw new BadRequestException('fecha debe ser un dia calendario valido (YYYY-MM-DD)');
+    }
+    if (query.desde !== undefined && !esFechaValida(query.desde)) {
+      throw new BadRequestException('desde debe ser un dia calendario valido (YYYY-MM-DD)');
+    }
+    if (query.hasta !== undefined && !esFechaValida(query.hasta)) {
+      throw new BadRequestException('hasta debe ser un dia calendario valido (YYYY-MM-DD)');
+    }
+    if (query.desde && query.hasta && query.desde > query.hasta) {
+      throw new BadRequestException('desde no puede ser posterior a hasta');
+    }
+
+    const where: Prisma.turnosWhereInput = {};
+
+    const busqueda = query.busqueda?.trim();
+    if (busqueda) {
+      where.usuarios = {
+        OR: [
+          { nombre: { contains: busqueda, mode: 'insensitive' } },
+          { apellido: { contains: busqueda, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    if (query.fecha) {
+      where.fecha = fechaParaPrisma(query.fecha);
+    } else if (query.desde || query.hasta) {
+      where.fecha = {
+        ...(query.desde ? { gte: fechaParaPrisma(query.desde) } : {}),
+        ...(query.hasta ? { lte: fechaParaPrisma(query.hasta) } : {}),
+      };
+    }
+
+    const turnos = await this.prisma.turnos.findMany({
+      where,
+      include: {
+        usuarios: { select: { id: true, nombre: true, apellido: true } },
+        canchas: { select: { id: true, nro_cancha: true } },
+      },
+      orderBy: [{ fecha: 'desc' }, { hora_inicio: 'desc' }],
+    });
+
+    return turnos.map((turno) => toTurnoAdminResponse(turno as TurnoAdminFila));
   }
 
   /**
@@ -410,6 +466,37 @@ export class TurnosService {
           // never changes `estado_pago`, so the combined history stays accurate.
           valor_estado_pago: turno.estado_pago,
           ...(motivo ? { motivo } : {}),
+        },
+      });
+      return turnoActualizado;
+    });
+    return toTurnoResponse(actualizado);
+  }
+
+  /**
+   * Corrección manual del estado de pago (ACT-54, API contract §5.3 PATCH /turnos/:id/pago):
+   * actualiza `turnos.estado_pago` e inserta la transición combinada en `estados_turno`.
+   * Solo admin. 404 si el turno no existe, 422 si el estado es igual al actual.
+   */
+  async cambiarEstadoPago(id: string, dto: ActualizarEstadoPagoTurnoDto): Promise<TurnoResponse> {
+    const turno = await this.prisma.turnos.findUnique({ where: { id } });
+    if (!turno) {
+      throw new NotFoundException('Turno inexistente');
+    }
+    if (turno.estado_pago === dto.estadoPago) {
+      throw new UnprocessableEntityException('El turno ya tiene ese estado de pago');
+    }
+
+    const actualizado = await this.prisma.$transaction(async (tx) => {
+      const turnoActualizado = await tx.turnos.update({
+        where: { id },
+        data: { estado_pago: dto.estadoPago, updated_at: new Date() },
+      });
+      await tx.estados_turno.create({
+        data: {
+          turno_id: id,
+          valor_estado: turno.estado_actual,
+          valor_estado_pago: dto.estadoPago,
         },
       });
       return turnoActualizado;

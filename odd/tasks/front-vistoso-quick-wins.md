@@ -12,11 +12,11 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - S7: "mandale rosca con eso en una rama nueva" — trabajo en feat/front-vistoso-quick-wins, verificado con build y tsc antes de avisar.
 
 ## Tasks
-- T0 (S7, route: inline, status: pending, commit: -): commitear fix carry-over import PrismaService en tarifas (boot API).
-- T1 (S1+S2, route: delegated, status: pending, commit: -): fundación (tokens, Layout, index.html, App, CompletarPerfil).
-- T2 (S3+S6, route: delegated, status: pending, commit: -): feedback y estados (skeletons, retry, pills, progreso, sin debug card).
-- T3 (S5, route: delegated, status: pending, commit: -): unificación api (lib/api + Turnos).
-- T4 (S7, route: inline, status: pending, commit: -): seam check (web build, api tsc, RED/GREEN donde aplique).
+- T0 (S7, route: inline, status: done, commit: 32e1be6): commitear fix carry-over import PrismaService en tarifas (boot API).
+- T1 (S1+S2, route: delegated, status: done, commit: 9c89fb0): fundación (tokens, Layout, index.html, App, CompletarPerfil).
+- T2 (S3+S6, route: delegated, status: done, commit: fbad35e): feedback y estados (skeletons, retry, pills, progreso, sin debug card).
+- T3 (S5, route: delegated, status: done, commit: dd8c672): unificación api (lib/api + Turnos).
+- T4 (S7, route: inline, status: done, commit: -): seam check (web build + api tsc verdes).
 
 ## Log
 - L1 (2026-10-18, usuario): "Que nos está faltando para armar un frontend un poco más vistoso?"

@@ -73,6 +73,26 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           outline-offset: 3px;
           border-radius: 4px;
         }
+        .layout-bar-link {
+          flex: 1 1 auto;
+          max-width: 12rem;
+          text-align: center;
+        }
+        @media (max-width: 56rem) {
+          .layout-bar {
+            flex-direction: column;
+            align-items: stretch !important;
+          }
+          .layout-bar-nav {
+            justify-content: stretch !important;
+          }
+          .layout-bar-link {
+            max-width: none;
+          }
+          .layout-bar-actions {
+            justify-content: flex-end;
+          }
+        }
         @media (prefers-reduced-motion: reduce) {
           .layout * {
             transition: none !important;
@@ -91,13 +111,13 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
         }}
       >
         <div
+          className="layout-bar"
           style={{
             maxWidth: tokens.shell.maxWidth,
             margin: '0 auto',
             padding: `${tokens.spacing.sm} ${tokens.spacing.lg}`,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             gap: tokens.spacing.md,
             flexWrap: 'wrap',
           }}
@@ -105,7 +125,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           <Link
             to="/"
             aria-label="Tenis Ranch Club — Inicio"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none', flex: 'none' }}
           >
             <span
               aria-hidden="true"
@@ -133,7 +153,45 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             </span>
           </Link>
           {isSignedIn && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacing.sm }}>
+            <nav
+              aria-label="Principal"
+              className="layout-nav layout-bar-nav"
+              style={{
+                flex: '1 1 24rem',
+                display: 'flex',
+                gap: tokens.spacing.xs,
+                justifyContent: 'center',
+              }}
+            >
+              {NAV.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className="layout-bar-link"
+                  style={({ isActive }) => ({
+                    minHeight: '44px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: tokens.radius.pill,
+                    padding: '0.5rem 1rem',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    color: tokens.colors.whisper,
+                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+                    border: isActive
+                      ? `1px solid ${tokens.colors.whisper}`
+                      : '1px solid transparent',
+                  })}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          )}
+          {isSignedIn && (
+            <div className="layout-bar-actions" style={{ display: 'flex', alignItems: 'center', gap: tokens.spacing.sm, flex: 'none' }}>
               <button
                 type="button"
                 onClick={() => void signOutEverywhere()}
@@ -154,44 +212,6 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             </div>
           )}
         </div>
-        {isSignedIn && (
-          <nav
-            aria-label="Principal"
-            className="layout-nav"
-            style={{
-              maxWidth: tokens.shell.maxWidth,
-              margin: '0 auto',
-              padding: `0 ${tokens.spacing.lg} ${tokens.spacing.sm}`,
-              display: 'flex',
-              gap: tokens.spacing.xs,
-              flexWrap: 'wrap',
-            }}
-          >
-            {NAV.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                style={({ isActive }) => ({
-                  minHeight: '44px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  borderRadius: tokens.radius.pill,
-                  padding: '0.5rem 1rem',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  color: tokens.colors.whisper,
-                  backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-                  border: isActive
-                    ? `1px solid ${tokens.colors.whisper}`
-                    : '1px solid transparent',
-                })}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-        )}
       </header>
 
       <main

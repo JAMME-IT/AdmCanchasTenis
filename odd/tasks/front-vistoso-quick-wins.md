@@ -11,6 +11,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - S6: "un frontend un poco más vistoso" — pills con colores por estado + barra de progreso en MisCuotas + mostrar fechaPago.
 - S7: "mandale rosca con eso en una rama nueva" — trabajo en feat/front-vistoso-quick-wins, verificado con build y tsc antes de avisar.
 - S8: "Haceme algo de Admin" — panel admin en /admin con turnos (filtros), pagos y reportes del backend, gated por rol, card viva en Home.
+- S9: "Que directamente la primera pantalla sea el login de por sí" — hero afuera, invitados a /ingresar.
 
 ## Tasks
 - T0 (S7, route: inline, status: done, commit: 32e1be6): commitear fix carry-over import PrismaService en tarifas (boot API).
@@ -23,9 +24,12 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T7 (S8, route: inline, status: done, commit: -): panel admin (turnos con filtros, pagos, reportes) + ruta /admin + card viva en Home.
 - T8 (S1, route: inline, status: done, commit: c85f18a): Mi perfil flama (avatar iniciales, pills rol/estado, chip socio).
 - T9 (S1, route: inline, status: done, commit: -): dropdown Turnos CSS puro (hover + focus-within, puente anti-cierre, sub-lista fija en mobile) + link Admin en nav.
+- T10 (S1, route: inline, status: revertido): hero Wimbledon revertido a pedido.
+- T11 (S9, route: inline, status: done, commit: -): invitados en / van a /ingresar (redirect; Clerk es path-based) + e2e.
 
 ## Log
 - L1 (2026-10-18, usuario): "Que nos está faltando para armar un frontend un poco más vistoso?"
 - L2 (2026-10-18, usuario): "Dale, mandale rosca con eso en una rama nueva"
 - L3: rama feat/front-vistoso-quick-wins creada desde main 3bf9707; trae fix sin commitear de tarifas (de T0).
 - L4 (2026-10-18, usuario): "Haceme algo de Admin"
+- L5 (2026-10-18, usuario): "Que directamente la primera pantalla sea el login de por sí"

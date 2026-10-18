@@ -21,17 +21,27 @@ function RequireSession({ children }: { children: JSX.Element }): JSX.Element {
   return children;
 }
 
+// La primera pantalla es el login: invitados van a /ingresar
+// (el widget de Clerk es path-based y solo renderiza ahi).
+function HomeRoute(): JSX.Element {
+  const { isLoaded, isSignedIn } = useAuth();
+  if (!isLoaded) {
+    return <p>Loading session...</p>;
+  }
+  if (!isSignedIn) {
+    return <Navigate to="/ingresar" replace />;
+  }
+  return (
+    <Layout>
+      <Home />
+    </Layout>
+  );
+}
+
 export default function App(): JSX.Element {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <Layout>
-            <Home />
-          </Layout>
-        }
-      />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/ingresar/*" element={<Ingresar />} />
       <Route path="/registro/*" element={<Registro />} />
       <Route

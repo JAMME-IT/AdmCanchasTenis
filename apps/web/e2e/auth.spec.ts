@@ -4,11 +4,11 @@ import { test, expect } from '@playwright/test';
 // (roles y textos propios en voseo), sin sleeps: Playwright
 // reintenta los expects hasta el timeout por defecto.
 test.describe('Acceso a Tenis Ranch Club', () => {
-  test('la home muestra la marca del club', async ({ page }) => {
+  test('la home redirige al login directamente', async ({ page }) => {
     await page.goto('/');
-    await expect(
-      page.getByRole('heading', { name: 'Tenis Ranch Club' }),
-    ).toBeVisible();
+    // Sin sesión, la primera pantalla es el login.
+    await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+    await expect(page).toHaveURL(/\/ingresar/);
   });
 
   test('/ingresar muestra el login en español', async ({ page }) => {

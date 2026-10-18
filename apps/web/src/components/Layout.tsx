@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
 import { api } from '../lib/api';
-import { useSignOut } from '../lib/useSignOut';
 import { tokens } from '../styles/tokens';
 
 // Navegacion principal del club: misma en todas las paginas con sesion.
@@ -38,7 +37,6 @@ const API_DOT: Record<ApiState, string> = {
 // navegacion principal, contenido centrado y pie con el estado de la API.
 export default function Layout({ children }: { children: ReactNode }): JSX.Element {
   const { isSignedIn } = useAuth();
-  const signOutEverywhere = useSignOut();
   const [apiState, setApiState] = useState<ApiState>('checking');
   // Menu mobile (disclosure ARIA, no dialogo): el estado abierto vive en
   // React y el CSS anima desde ese estado. En desktop se ignora.
@@ -466,23 +464,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             </nav>
           )}
           {isSignedIn && (
-            <div className="layout-bar-actions" style={{ display: 'flex', alignItems: 'center', gap: tokens.spacing.sm, flex: 'none' }}>
-              <button
-                type="button"
-                onClick={() => void signOutEverywhere()}
-                style={{
-                  minHeight: '44px',
-                  backgroundColor: 'transparent',
-                  color: tokens.colors.whisper,
-                  border: `1px solid ${tokens.colors.whisper}`,
-                  borderRadius: tokens.radius.md,
-                  padding: '0.6rem 1rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Cerrar sesión
-              </button>
+            <div className="layout-bar-actions" style={{ display: 'flex', alignItems: 'center', flex: 'none' }}>
               <UserButton />
             </div>
           )}

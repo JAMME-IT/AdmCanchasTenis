@@ -1,21 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
 import { api } from '../lib/api';
 import { tokens } from '../styles/tokens';
 
-// Navegacion principal del club: misma en todas las paginas con sesion.
-// Turnos es un dropdown CSS puro (hover + focus-within, sin JS).
 const NAV = [
   { to: '/', label: 'Inicio', end: true },
-  { to: '/mis-cuotas', label: 'Mis cuotas', end: false },
-  { to: '/admin', label: 'Admin', end: false },
-] as const;
-
-// Items del dropdown de Turnos.
-const TURNOS_MENU = [
-  { to: '/turnos', label: 'Reservar turno', hint: 'Disponibilidad del día' },
-  { to: '/mis-turnos', label: 'Mis turnos', hint: 'Vigentes e historial' },
+  { to: '/turnos', label: 'Turnos' },
+  { to: '/mis-turnos', label: 'Mis turnos' },
+  { to: '/mis-cuotas', label: 'Mis cuotas' },
+  { to: '/admin', label: 'Admin' },
 ] as const;
 
 type ApiState = 'checking' | 'ok' | 'down';
@@ -32,38 +26,21 @@ const API_DOT: Record<ApiState, string> = {
   down: tokens.colors.error,
 };
 
-// Layout comun: cabecera con la marca del club (mismo motivo que
-// AuthMarca: verde fairway, franjas de corte y pelota en CSS puro),
-// navegacion principal, contenido centrado y pie con el estado de la API.
 export default function Layout({ children }: { children: ReactNode }): JSX.Element {
   const { isSignedIn } = useAuth();
-  const location = useLocation();
-  const turnosActivo =
-    location.pathname === '/turnos' || location.pathname === '/mis-turnos';
   const [apiState, setApiState] = useState<ApiState>('checking');
-  // Menu mobile (disclosure ARIA, no dialogo): el estado abierto vive en
-  // React y el CSS anima desde ese estado. En desktop se ignora.
-  const [menuAbierto, setMenuAbierto] = useState(false);
-  // Navbar sticky que se compacta al scrollear (observa un sentinel de 60px).
-  const [encogido, setEncogido] = useState(false);
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
-  const menuPanelRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [shrunk, setShrunk] = useState(false);
+  const menuDisclosureRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const progresoRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
     void api.health().then(
-      () => {
-        if (active) {
-          setApiState('ok');
-        }
-      },
-      () => {
-        if (active) {
-          setApiState('down');
-        }
-      },
+      () => active && setApiState('ok'),
+      () => active && setApiState('down'),
     );
     return () => {
       active = false;
@@ -72,49 +49,44 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel) {
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setEncogido(!entry.isIntersecting);
-      },
-      { threshold: 0 },
-    );
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setShrunk(!entry.isIntersecting);
+    });
     observer.observe(sentinel);
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
+    const progress = progressRef.current;
+    if (!progress || CSS.supports('animation-timeline: scroll()')) return;
+
     let ticking = false;
-    const actualizar = () => {
+    const update = () => {
+      const documentHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const value = documentHeight > 0 ? Math.min(window.scrollY / documentHeight, 1) : 0;
+      progress.style.scale = `${value} 1`;
       ticking = false;
-      const barra = progresoRef.current;
-      if (!barra) {
-        return;
-      }
-      const maximo = document.documentElement.scrollHeight - window.innerHeight;
-      const avance = maximo > 0 ? window.scrollY / maximo : 0;
-      barra.style.transform = `scaleX(${avance})`;
     };
     const onScroll = () => {
-      if (!ticking) {
-        ticking = true;
-        window.requestAnimationFrame(actualizar);
-      }
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(update);
     };
-    actualizar();
+
+    update();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-    };
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
     <div
+      className="layout-root"
       style={{
+        position: 'relative',
         fontFamily: tokens.fonts.body,
         backgroundColor: tokens.colors.whisper,
         color: tokens.colors.musgo,
@@ -124,456 +96,351 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
       }}
     >
       <style>{`
-        .layout-nav a:focus-visible,
+        @keyframes layout-reading-progress {
+          from { scale: 0 1; }
+          to { scale: 1 1; }
+        }
+        .layout-root,
+        .layout-root *,
+        .layout-root *::before,
+        .layout-root *::after {
+          box-sizing: border-box;
+        }
+        .layout-sentinel {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 1px;
+          height: 60px;
+          pointer-events: none;
+        }
+        .layout-progress {
+          position: fixed;
+          inset: 0 0 auto;
+          z-index: 50;
+          height: 3px;
+          scale: 0 1;
+          transform-origin: left center;
+          background: linear-gradient(90deg, ${tokens.colors.peridot}, ${tokens.colors.fairway});
+        }
+        @supports (animation-timeline: scroll()) {
+          .layout-progress {
+            animation: layout-reading-progress linear both;
+            animation-timeline: scroll(root);
+          }
+        }
+        .layout-header {
+          position: sticky;
+          top: 0;
+          z-index: 40;
+          background: rgba(255, 255, 255, 0.88);
+          -webkit-backdrop-filter: blur(16px);
+          backdrop-filter: blur(16px);
+          border-bottom: 1px solid ${tokens.colors.sereno};
+          transition: box-shadow 300ms ease-out, border-color 300ms ease-out;
+        }
+        .layout-header[data-shrunk] {
+          border-bottom-color: rgba(50, 129, 97, 0.28);
+          box-shadow: 0 8px 30px -12px rgba(56, 69, 67, 0.28);
+        }
+        .layout-bar {
+          width: 100%;
+          max-width: ${tokens.shell.maxWidth};
+          height: 72px;
+          margin: 0 auto;
+          padding: 0 ${tokens.shell.gutter};
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: clamp(0.75rem, 2vw, 1.5rem);
+          transition: height 300ms ease-out;
+        }
+        .layout-header[data-shrunk] .layout-bar {
+          height: 52px;
+        }
+        .layout-brand {
+          display: inline-flex;
+          flex: none;
+          align-items: center;
+          gap: 0.6rem;
+          color: ${tokens.colors.musgo};
+          text-decoration: none;
+          transform-origin: left center;
+          transition: transform 300ms ease-out;
+        }
+        .layout-header[data-shrunk] .layout-brand {
+          transform: scale(0.9);
+        }
+        .layout-brand-name {
+          font-family: ${tokens.fonts.display};
+          font-size: 1.05rem;
+          line-height: 1.1;
+          font-weight: 400;
+          letter-spacing: 0.02em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        .layout-brand-ball {
+          width: 16px;
+          height: 16px;
+          flex: none;
+          border-radius: 50%;
+          background: radial-gradient(circle at 35% 30%, #F8F86A 0%, ${tokens.colors.pelota} 45%, #C6C61F 100%);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+        }
+        .layout-desktop-nav {
+          display: flex;
+          flex: 1 1 auto;
+          align-items: center;
+          justify-content: center;
+          gap: 0.25rem;
+          min-width: 0;
+        }
+        .layout-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 40px;
+          padding: 0 0.85rem;
+          border-radius: 0.65rem;
+          color: #5A6661;
+          font-size: 0.9rem;
+          font-weight: 600;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: background-color 150ms ease, color 150ms ease;
+        }
+        .layout-link:hover,
+        .layout-link[aria-current="page"] {
+          background-color: ${tokens.colors.whisper};
+          color: ${tokens.colors.musgo};
+        }
+        .layout-link[aria-current="page"] {
+          color: ${tokens.colors.peridot};
+        }
+        @media (min-width: 56.001rem) {
+          .layout-header[data-shrunk] .layout-desktop-nav .layout-link {
+            min-height: 36px;
+            padding-inline: 0.7rem;
+          }
+        }
+        .layout-actions {
+          display: flex;
+          flex: none;
+          align-items: center;
+        }
+        .layout-mobile-disclosure {
+          display: none;
+        }
+        .layout-focus:focus-visible,
         .layout-header :focus-visible,
         .layout-footer :focus-visible {
           outline: 2px solid ${tokens.colors.peridot};
           outline-offset: 3px;
-          border-radius: 4px;
-        }
-        .layout-bar-link {
-          flex: 1 1 auto;
-          max-width: 12rem;
-          text-align: center;
-          min-height: 2.25rem;
-          font-size: 0.78rem;
-          letter-spacing: 0.04em;
-        }
-        /* Menu hamburguesa mobile: el panel anima con grid-rows desde
-           la clase menu-abierto (una sola fuente de verdad con el estado).
-           En desktop el boton se oculta y el panel es transparente. */
-        .nav-menu-btn {
-          display: none;
-        }
-        .nav-menu-panel,
-        .nav-menu-inner {
-          display: contents;
-        }
-        .nav-burger {
-          display: inline-flex;
-          flex-direction: column;
-          gap: 3px;
-        }
-        .nav-burger i {
-          display: block;
-          width: 1rem;
-          height: 2px;
-          border-radius: 2px;
-          background: currentColor;
-          transition: transform 0.2s ease, opacity 0.2s ease;
-        }
-        .menu-abierto .nav-burger i:nth-child(1) {
-          transform: translateY(5px) rotate(45deg);
-        }
-        .menu-abierto .nav-burger i:nth-child(2) {
-          opacity: 0;
-        }
-        .menu-abierto .nav-burger i:nth-child(3) {
-          transform: translateY(-5px) rotate(-45deg);
-        }
-        .nav-dd {
-          position: relative;
-          flex: 1 1 auto;
-          max-width: 12rem;
-          display: flex;
-        }
-        .nav-dd-trigger {
-          flex: 1 1 auto;
-        }
-        .nav-chevron {
-          transition: transform 0.18s ease;
-        }
-        .nav-dd:hover .nav-chevron,
-        .nav-dd:focus-within .nav-chevron {
-          transform: rotate(180deg);
-        }
-        .nav-panel {
-          position: absolute;
-          top: 100%;
-          left: 50%;
-          z-index: 40;
-          min-width: 15rem;
-          margin-top: 0.6rem;
-          padding: 0.4rem;
-          border-radius: 1rem;
-          border: 1px solid ${tokens.colors.sereno};
-          background-color: ${tokens.colors.blanco};
-          box-shadow: 0 24px 60px -24px rgba(56, 69, 67, 0.35);
-          opacity: 0;
-          visibility: hidden;
-          transform: translate(-50%, 6px);
-          transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
-        }
-        .nav-panel-link:hover {
-          background-color: ${tokens.colors.whisper};
-        }
-        .nav-classic-link:hover {
-          color: ${tokens.colors.musgo};
-        }
-        .nav-panel::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          right: 0;
-          top: -12px;
-          height: 12px;
-        }
-        .nav-dd:hover .nav-panel,
-        .nav-dd:focus-within .nav-panel {
-          opacity: 1;
-          visibility: visible;
-          transform: translate(-50%, 0);
-        }
-        /* Sticky encogido al scrollear: solo visual, sin tocar focos ni areas. */
-        .layout-header *,
-        .layout-header *::before,
-        .layout-header *::after {
-          box-sizing: border-box;
-        }
-        .layout-header {
-          transition: box-shadow 0.3s ease-out, border-color 0.3s ease-out;
-        }
-        .layout-header.encogido {
-          border-bottom-color: ${tokens.colors.peridot};
-          box-shadow: 0 8px 30px -12px rgba(56, 69, 67, 0.35);
-        }
-        .layout-bar {
-          min-height: 72px;
-          transition: min-height 0.3s ease-out;
-        }
-        .layout-header.encogido .layout-bar {
-          min-height: 52px;
-          padding-top: 0.35rem !important;
-          padding-bottom: 0.35rem !important;
-        }
-        .layout-bar-marca {
-          transition: transform 0.3s ease-out;
-          transform-origin: left center;
-        }
-        .layout-header.encogido .layout-bar-marca {
-          transform: scale(0.9);
         }
         @media (max-width: 56rem) {
           .layout-bar {
-            flex-direction: row;
-            flex-wrap: wrap;
-            align-items: center;
-          }
-          .layout-bar-marca {
-            flex: 1 1 100%;
-          }
-          .layout-bar-nav {
-            flex-direction: column !important;
-            align-items: stretch !important;
-            justify-content: flex-start !important;
-            flex: 1 1 auto !important;
-          }
-          .layout-bar-link {
-            max-width: none;
-            min-height: 44px;
-            font-size: 0.85rem;
-            justify-content: flex-start;
-            text-align: left;
-          }
-          .nav-dd {
-            max-width: none;
-            flex-direction: column;
-          }
-          /* En mobile el panel queda fijo como sub-lista indentada,
-             sin tarjeta flotante. */
-          .nav-panel {
-            position: static;
-            transform: none;
-            opacity: 1;
-            visibility: visible;
-            min-width: 0;
-            margin-top: 0;
-            padding: 0 0 0 1rem;
-            border: none;
-            border-radius: 0;
-            background: transparent;
-            box-shadow: none;
-            transition: none;
-          }
-          .nav-panel::before {
-            display: none;
-          }
-          .layout-bar-actions {
-            justify-content: flex-end;
-          }
-          .nav-menu-btn {
-            display: inline-flex;
-            align-items: center;
-            align-self: flex-start;
             gap: 0.5rem;
-            min-height: 44px;
-            border-radius: 0.75rem;
-            border: 1px solid ${tokens.colors.sereno};
-            background: transparent;
-            color: ${tokens.colors.musgo};
-            padding: 0.6rem 1rem;
-            font-weight: 700;
-            cursor: pointer;
           }
-          .nav-menu-panel {
-            display: grid;
-            grid-template-rows: 0fr;
-            opacity: 0;
-            transition: grid-template-rows 0.25s ease, opacity 0.2s ease;
+          .layout-brand {
             flex: 1 1 auto;
             min-width: 0;
           }
-          .menu-abierto .nav-menu-panel {
+          .layout-brand-name {
+            overflow: hidden;
+            font-size: clamp(0.82rem, 4vw, 1.05rem);
+            text-overflow: ellipsis;
+          }
+          .layout-desktop-nav {
+            display: none;
+          }
+          .layout-mobile-disclosure {
+            display: block;
+            flex: none;
+          }
+          .layout-desktop-actions {
+            display: none;
+          }
+          .layout-mobile-topline {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+          .layout-menu-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0 0.8rem;
+            border: 1px solid ${tokens.colors.sereno};
+            border-radius: 0.7rem;
+            background: transparent;
+            color: ${tokens.colors.musgo};
+            font: inherit;
+            font-size: 0.875rem;
+            font-weight: 700;
+            cursor: pointer;
+          }
+          .layout-menu-button:hover {
+            background-color: ${tokens.colors.whisper};
+          }
+          .layout-burger {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 3px;
+          }
+          .layout-burger span {
+            width: 16px;
+            height: 2px;
+            border-radius: 2px;
+            background: currentColor;
+            transition: transform 180ms ease, opacity 180ms ease;
+          }
+          .layout-mobile-disclosure[data-open="true"] .layout-burger span:first-child {
+            transform: translateY(5px) rotate(45deg);
+          }
+          .layout-mobile-disclosure[data-open="true"] .layout-burger span:nth-child(2) {
+            opacity: 0;
+          }
+          .layout-mobile-disclosure[data-open="true"] .layout-burger span:last-child {
+            transform: translateY(-5px) rotate(-45deg);
+          }
+          .layout-mobile-panel {
+            display: grid;
+            grid-template-rows: 0fr;
+            opacity: 0;
+            visibility: hidden;
+            transition: grid-template-rows 250ms ease, opacity 200ms ease, visibility 200ms;
+          }
+          .layout-mobile-disclosure[data-open="true"] .layout-mobile-panel {
             grid-template-rows: 1fr;
             opacity: 1;
+            visibility: visible;
           }
-          .nav-menu-inner {
-            display: flex;
-            flex-direction: column;
+          .layout-mobile-panel-inner {
             min-height: 0;
             overflow: hidden;
-            gap: 0.25rem;
+          }
+          .layout-mobile-links {
+            display: grid;
+            gap: 0.2rem;
+            margin: 0;
+            padding: 0.5rem 0 0.8rem;
+            list-style: none;
+          }
+          .layout-mobile-links .layout-link {
+            justify-content: flex-start;
+            min-height: 44px;
+            padding: 0 0.85rem;
           }
         }
         @media (prefers-reduced-motion: reduce) {
-          .layout * {
-            transition: none !important;
-            animation: none !important;
+          .layout-root *,
+          .layout-root *::before,
+          .layout-root *::after {
+            scroll-behavior: auto !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
           }
         }
       `}</style>
 
-      <div ref={sentinelRef} aria-hidden="true" style={{ height: '60px', width: '1px' }} />
-      <div
-        ref={progresoRef}
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '3px',
-          zIndex: 50,
-          transformOrigin: 'left',
-          transform: 'scaleX(0)',
-          background: `linear-gradient(to right, ${tokens.colors.peridot}, ${tokens.colors.fairway})`,
-        }}
-      />
-      <header
-        className={`layout-header${encogido ? ' encogido' : ''}`}
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          backgroundColor: 'rgba(255, 255, 255, 0.85)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          borderBottom: `1px solid ${tokens.colors.sereno}`,
-          color: tokens.colors.musgo,
-        }}
-      >
-        <div
-          className="layout-bar"
-          style={{
-            maxWidth: tokens.shell.maxWidth,
-            margin: '0 auto',
-            padding: `${tokens.spacing.sm} ${tokens.shell.gutter}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: tokens.spacing.md,
-            flexWrap: 'wrap',
-          }}
-        >
-          <Link
-            to="/"
-            aria-label="Tenis Ranch Club — Inicio"
-            className="layout-bar-marca"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none', flex: 'none' }}
-          >
-            <span
-              aria-hidden="true"
-              style={{
-                width: '16px',
-                height: '16px',
-                borderRadius: '50%',
-                flex: 'none',
-                background: `radial-gradient(circle at 35% 30%, #F8F86A 0%, ${tokens.colors.pelota} 45%, #C6C61F 100%)`,
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.4)',
-              }}
-            />
-            <span
-              style={{
-                fontFamily: tokens.fonts.display,
-                fontWeight: 400,
-                textTransform: 'uppercase',
-                letterSpacing: '0.02em',
-                fontSize: '1.05rem',
-                lineHeight: 1.1,
-                color: tokens.colors.musgo,
-              }}
-            >
-              Tenis Ranch Club
-            </span>
+      <div ref={sentinelRef} className="layout-sentinel" aria-hidden="true" />
+      <div ref={progressRef} className="layout-progress" aria-hidden="true" />
+
+      <header className="layout-header" data-shrunk={shrunk ? '' : undefined}>
+        <nav className="layout-bar" aria-label="Principal">
+          <Link to="/" aria-label="Tenis Ranch Club — Inicio" className="layout-brand layout-focus">
+            <span aria-hidden="true" className="layout-brand-ball" />
+            <span className="layout-brand-name">Tenis Ranch Club</span>
           </Link>
-          {true && (
-            <nav
-              aria-label="Principal"
-              className={`layout-nav layout-bar-nav${menuAbierto ? ' menu-abierto' : ''}`}
-              style={{
-                flex: '1 1 24rem',
-                display: 'flex',
-                gap: tokens.spacing.xs,
-                justifyContent: 'center',
-              }}
-            >
-              <button
-                type="button"
-                ref={menuBtnRef}
-                aria-expanded={menuAbierto}
-                aria-controls="nav-menu-panel"
-                onClick={() => setMenuAbierto((abierto) => !abierto)}
-                className="nav-menu-btn"
-              >
-                <span aria-hidden="true" className="nav-burger">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                Menú
-              </button>
-              <div
-                id="nav-menu-panel"
-                ref={menuPanelRef}
-                className="nav-menu-panel"
-                onClick={() => setMenuAbierto(false)}
-                onBlur={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                    setMenuAbierto(false);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    setMenuAbierto(false);
-                    menuBtnRef.current?.focus();
-                    return;
-                  }
-                  const links = Array.from(
-                    menuPanelRef.current?.querySelectorAll('a') ?? [],
-                  );
-                  const actual = links.indexOf(document.activeElement as HTMLAnchorElement);
-                  if (actual < 0) {
-                    return;
-                  }
-                  const siguiente: Record<string, number> = {
-                    ArrowDown: actual + 1,
-                    ArrowUp: actual - 1,
-                    Home: 0,
-                    End: links.length - 1,
-                  };
-                  const destino = siguiente[event.key];
-                  if (destino === undefined) {
-                    return;
-                  }
-                  event.preventDefault();
-                  links[(destino + links.length) % links.length].focus();
-                }}
-              >
-                <div className="nav-menu-inner">
-              <div className="nav-dd">
-                <Link
-                  to="/turnos"
-                  aria-haspopup="true"
-                  className="layout-bar-link nav-dd-trigger nav-classic-link"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.3rem',
-                    padding: '0.5rem 0.25rem',
-                    fontWeight: turnosActivo ? 700 : 600,
-                    textDecoration: 'none',
-                    color: turnosActivo ? tokens.colors.musgo : '#5A6661',
-                    borderBottom: turnosActivo
-                      ? `2px solid ${tokens.colors.peridot}`
-                      : '2px solid transparent',
-                  }}
-                >
-                  Turnos
-                  <svg
-                    className="nav-chevron"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    aria-hidden="true"
-                  >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </Link>
-                <ul
-                  aria-label="Turnos"
-                  className="nav-panel"
-                  style={{ listStyle: 'none', margin: 0 }}
-                >
-                  {TURNOS_MENU.map((item) => (
-                    <li key={item.to}>
-                      <NavLink
-                        to={item.to}
-                        className="nav-panel-link"
-                        style={({ isActive }) => ({
-                          display: 'flex',
-                          flexDirection: 'column',
-                          minHeight: '44px',
-                          justifyContent: 'center',
-                          borderRadius: '0.75rem',
-                          padding: '0.5rem 0.85rem',
-                          textDecoration: 'none',
-                          color: tokens.colors.musgo,
-                          backgroundColor: isActive ? tokens.colors.whisper : 'transparent',
-                          fontWeight: isActive ? 700 : 400,
-                        })}
-                      >
-                        <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{item.label}</span>
-                        <span style={{ fontSize: '0.75rem', opacity: 0.75 }}>{item.hint}</span>
-                      </NavLink>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+
+          {isSignedIn && (
+            <div className="layout-desktop-nav">
               {NAV.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.end}
-                  className="layout-bar-link nav-classic-link"
-                  style={({ isActive }) => ({
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0.5rem 0.25rem',
-                    fontWeight: isActive ? 700 : 600,
-                    textDecoration: 'none',
-                    color: isActive ? tokens.colors.musgo : '#5A6661',
-                    borderBottom: isActive
-                      ? `2px solid ${tokens.colors.peridot}`
-                      : '2px solid transparent',
-                  })}
+                  end={'end' in item ? item.end : false}
+                  className="layout-link layout-focus"
                 >
                   {item.label}
                 </NavLink>
               ))}
+            </div>
+          )}
+
+          {isSignedIn && (
+            <div
+              ref={menuDisclosureRef}
+              className="layout-mobile-disclosure"
+              data-open={menuOpen}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  closeMenu();
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && menuOpen) {
+                  closeMenu();
+                  menuButtonRef.current?.focus();
+                }
+              }}
+            >
+              <div className="layout-mobile-topline">
+                <button
+                  ref={menuButtonRef}
+                  type="button"
+                  className="layout-menu-button layout-focus"
+                  aria-expanded={menuOpen}
+                  aria-controls="layout-mobile-panel"
+                  onClick={() => setMenuOpen((open) => !open)}
+                >
+                  <span className="layout-burger" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  <span>Menú</span>
+                </button>
+                <div className="layout-actions">
+                  <UserButton />
                 </div>
               </div>
-            </nav>
+              <div
+                id="layout-mobile-panel"
+                className="layout-mobile-panel"
+                aria-hidden={!menuOpen}
+              >
+                <div className="layout-mobile-panel-inner">
+                  <ul className="layout-mobile-links">
+                    {NAV.map((item) => (
+                      <li key={item.to}>
+                        <NavLink
+                          to={item.to}
+                          end={'end' in item ? item.end : false}
+                          className="layout-link layout-focus"
+                          onClick={closeMenu}
+                        >
+                          {item.label}
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
           )}
+
           {isSignedIn && (
-            <div className="layout-bar-actions" style={{ display: 'flex', alignItems: 'center', flex: 'none' }}>
+            <div className="layout-actions layout-desktop-actions">
               <UserButton />
             </div>
           )}
-        </div>
+        </nav>
       </header>
 
       <main
@@ -588,10 +455,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
         {children}
       </main>
 
-      <footer
-        className="layout-footer"
-        style={{ borderTop: `1px solid ${tokens.colors.sereno}` }}
-      >
+      <footer className="layout-footer" style={{ borderTop: `1px solid ${tokens.colors.sereno}` }}>
         <div
           style={{
             maxWidth: tokens.shell.maxWidth,

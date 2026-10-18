@@ -1,16 +1,23 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
+import { BottomNavigation, BottomNavigationAction, Paper, ThemeProvider, createTheme } from '@mui/material';
+import { CalendarDays, History, Home, ReceiptText, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { api } from '../lib/api';
 import { tokens } from '../styles/tokens';
 
-const NAV = [
-  { to: '/', label: 'Inicio', end: true },
-  { to: '/turnos', label: 'Turnos' },
-  { to: '/mis-turnos', label: 'Mis turnos' },
-  { to: '/mis-cuotas', label: 'Mis cuotas' },
-  { to: '/admin', label: 'Admin' },
-] as const;
+const NAV: ReadonlyArray<{
+  to: string;
+  label: string;
+  end?: boolean;
+  icon: LucideIcon;
+}> = [
+  { to: '/', label: 'Inicio', end: true, icon: Home },
+  { to: '/turnos', label: 'Turnos', icon: CalendarDays },
+  { to: '/mis-turnos', label: 'Mis turnos', icon: History },
+  { to: '/mis-cuotas', label: 'Mis cuotas', icon: ReceiptText },
+  { to: '/admin', label: 'Admin', icon: ShieldCheck },
+];
 
 type ApiState = 'checking' | 'ok' | 'down';
 
@@ -26,15 +33,23 @@ const API_DOT: Record<ApiState, string> = {
   down: tokens.colors.error,
 };
 
-// Layout comun: cabecera blanca de alto fijo con la marca, navegacion
-// centrada en desktop y hamburguesa disclosure en mobile, contenido
+// Tema MUI solo para el dock mobile: verde del club en el item activo.
+const temaMui = createTheme({
+  palette: {
+    primary: { main: tokens.colors.peridot },
+    text: { secondary: '#5A6661' },
+  },
+  typography: { fontFamily: tokens.fonts.body },
+});
+
+// Layout comun: cabecera blanca de alto fijo con la marca y navegacion
+// centrada en desktop, dock inferior con tabs en mobile, contenido
 // centrado y pie con el estado de la API.
 export default function Layout({ children }: { children: ReactNode }): JSX.Element {
   const { isSignedIn } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [apiState, setApiState] = useState<ApiState>('checking');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const menuPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,7 +62,10 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
     };
   }, []);
 
-  const closeMenu = () => setMenuOpen(false);
+  const dockValue =
+    NAV.find((item) =>
+      item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
+    )?.to ?? false;
 
   return (
     <div
@@ -147,9 +165,10 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           flex: none;
           align-items: center;
         }
-        .layout-mobile-topline,
-        .layout-mobile-panel {
-          display: none;
+        .layout-actions {
+          display: flex;
+          flex: none;
+          align-items: center;
         }
         .layout-focus:focus-visible,
         .layout-header :focus-visible,
@@ -162,81 +181,25 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           .layout-desktop-actions {
             display: none;
           }
-          .layout-mobile-topline {
+          .layout-footer {
+            /* El dock fixed tapa el pie: reservamos su alto. */
+            padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+          }
+        }
+        /* Dock inferior mobile (MUI BottomNavigation). */
+        .layout-dock {
+          display: none;
+        }
+        @media (max-width: 56rem) {
+          .layout-dock {
             display: flex;
-            flex: none;
-            align-items: center;
-            gap: 0.5rem;
-          }
-          .layout-menu-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            min-width: 44px;
-            min-height: 44px;
-            padding: 0 0.8rem;
-            border: 1px solid ${tokens.colors.sereno};
-            border-radius: 0.7rem;
-            background: transparent;
-            color: ${tokens.colors.musgo};
-            font: inherit;
-            font-size: 0.875rem;
-            font-weight: 700;
-            cursor: pointer;
-          }
-          .layout-menu-button:hover {
-            background-color: ${tokens.colors.whisper};
-          }
-          .layout-burger {
-            display: inline-flex;
-            flex-direction: column;
-            gap: 3px;
-          }
-          .layout-burger span {
-            width: 16px;
-            height: 2px;
-            border-radius: 2px;
-            background: currentColor;
-            transition: transform 180ms ease, opacity 180ms ease;
-          }
-          .layout-bar.menu-abierto .layout-burger span:first-child {
-            transform: translateY(5px) rotate(45deg);
-          }
-          .layout-bar.menu-abierto .layout-burger span:nth-child(2) {
-            opacity: 0;
-          }
-          .layout-bar.menu-abierto .layout-burger span:last-child {
-            transform: translateY(-5px) rotate(-45deg);
-          }
-          /* El panel ocupa su propia fila completa debajo de la marca. */
-          .layout-mobile-panel {
-            display: grid;
-            flex: 1 1 100%;
-            grid-template-rows: 0fr;
-            opacity: 0;
-            visibility: hidden;
-            transition: grid-template-rows 250ms ease, opacity 200ms ease, visibility 200ms;
-          }
-          .layout-bar.menu-abierto .layout-mobile-panel {
-            grid-template-rows: 1fr;
-            opacity: 1;
-            visibility: visible;
-          }
-          .layout-mobile-panel-inner {
-            min-height: 0;
-            overflow: hidden;
-          }
-          .layout-mobile-links {
-            display: grid;
-            gap: 0.2rem;
-            margin: 0;
-            padding: 0.4rem 0 0.8rem;
-            list-style: none;
-          }
-          .layout-mobile-links .layout-link {
-            justify-content: flex-start;
-            min-height: 44px;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 45;
+            border-radius: 0;
+            padding-bottom: env(safe-area-inset-bottom);
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -250,10 +213,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
       `}</style>
 
       <header className="layout-header">
-        <nav
-          className={`layout-bar${menuOpen ? ' menu-abierto' : ''}`}
-          aria-label="Principal"
-        >
+        <nav className="layout-bar" aria-label="Principal">
           <Link to="/" aria-label="Tenis Ranch Club — Inicio" className="layout-brand layout-focus">
             <span aria-hidden="true" className="layout-brand-ball" />
             <span className="layout-brand-name">Tenis Ranch Club</span>
@@ -274,80 +234,9 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             </div>
           )}
 
-          {isSignedIn && (
-            <div className="layout-mobile-topline">
-              <button
-                ref={menuButtonRef}
-                type="button"
-                className="layout-menu-button layout-focus"
-                aria-expanded={menuOpen}
-                aria-controls="layout-mobile-panel"
-                onClick={() => setMenuOpen((open) => !open)}
-              >
-                <span aria-hidden="true" className="layout-burger">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-                <span>Menú</span>
-              </button>
-              <div className="layout-actions">
-                <UserButton />
-              </div>
-            </div>
-          )}
-
-          {isSignedIn && (
-            <div
-              id="layout-mobile-panel"
-              ref={menuPanelRef}
-              className="layout-mobile-panel"
-              data-open={menuOpen}
-              aria-hidden={!menuOpen}
-              onClick={closeMenu}
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                  closeMenu();
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape' && menuOpen) {
-                  closeMenu();
-                  menuButtonRef.current?.focus();
-                  return;
-                }
-                const links = Array.from(menuPanelRef.current?.querySelectorAll('a') ?? []);
-                const actual = links.indexOf(document.activeElement as HTMLAnchorElement);
-                if (actual < 0) return;
-                const siguiente: Record<string, number> = {
-                  ArrowDown: actual + 1,
-                  ArrowUp: actual - 1,
-                  Home: 0,
-                  End: links.length - 1,
-                };
-                const destino = siguiente[event.key];
-                if (destino === undefined) return;
-                event.preventDefault();
-                links[(destino + links.length) % links.length].focus();
-              }}
-            >
-              <div className="layout-mobile-panel-inner">
-                <ul className="layout-mobile-links">
-                  {NAV.map((item) => (
-                    <li key={item.to}>
-                      <NavLink
-                        to={item.to}
-                        end={'end' in item ? item.end : false}
-                        className="layout-link layout-focus"
-                      >
-                        {item.label}
-                      </NavLink>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
+          <div className="layout-actions">
+            <UserButton />
+          </div>
         </nav>
       </header>
 
@@ -362,6 +251,34 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
       >
         {children}
       </main>
+
+      {isSignedIn && (
+        <ThemeProvider theme={temaMui}>
+          <Paper
+            component="nav"
+            className="layout-dock"
+            aria-label="Navegación mobile"
+            elevation={8}
+            sx={{ bgcolor: 'rgba(255,255,255,0.96)' }}
+          >
+            <BottomNavigation
+              showLabels
+              value={dockValue}
+              onChange={(_event, value: string) => navigate(value)}
+              sx={{ width: '100%', bgcolor: 'transparent' }}
+            >
+              {NAV.map((item) => (
+                <BottomNavigationAction
+                  key={item.to}
+                  value={item.to}
+                  label={item.label}
+                  icon={<item.icon size={20} strokeWidth={2} />}
+                />
+              ))}
+            </BottomNavigation>
+          </Paper>
+        </ThemeProvider>
+      )}
 
       <footer className="layout-footer" style={{ borderTop: `1px solid ${tokens.colors.sereno}` }}>
         <div

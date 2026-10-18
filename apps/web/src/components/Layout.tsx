@@ -177,25 +177,35 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             align-items: stretch !important;
           }
           .layout-bar-nav {
-            justify-content: stretch !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            justify-content: flex-start !important;
           }
           .layout-bar-link {
             max-width: none;
             min-height: 44px;
             font-size: 0.85rem;
+            justify-content: flex-start;
+            text-align: left;
           }
           .nav-dd {
             max-width: none;
             flex-direction: column;
           }
-          /* En mobile el panel queda fijo como sub-lista (sin hover en tactil). */
+          /* En mobile el panel queda fijo como sub-lista indentada,
+             sin tarjeta flotante. */
           .nav-panel {
             position: static;
             transform: none;
             opacity: 1;
             visibility: visible;
             min-width: 0;
-            margin-top: 0.25rem;
+            margin-top: 0;
+            padding: 0 0 0 1rem;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
             transition: none;
           }
           .nav-panel::before {
@@ -207,6 +217,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           .nav-menu-btn {
             display: inline-flex;
             align-items: center;
+            align-self: flex-start;
             gap: 0.5rem;
             min-height: 44px;
             border-radius: 0.75rem;
@@ -222,7 +233,8 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             grid-template-rows: 0fr;
             opacity: 0;
             transition: grid-template-rows 0.25s ease, opacity 0.2s ease;
-            flex-basis: 100%;
+            flex: 1 1 auto;
+            min-width: 0;
           }
           .menu-abierto .nav-menu-panel {
             grid-template-rows: 1fr;
@@ -233,6 +245,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             flex-direction: column;
             min-height: 0;
             overflow: hidden;
+            gap: 0.25rem;
           }
         }
         @media (prefers-reduced-motion: reduce) {

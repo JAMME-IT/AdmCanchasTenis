@@ -13,6 +13,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - S8: "Haceme algo de Admin" — panel admin en /admin con turnos (filtros), pagos y reportes del backend, gated por rol, card viva en Home.
 - S9: "Que directamente la primera pantalla sea el login de por sí" — hero afuera, invitados a /ingresar.
 - S10: "Mira quiero que revises el navbar actual y me lo dejes bonito. Tanto en Desktop como en mobile. Volve a revisar para que quede así y borra cualquier rastro de este navbar anterior." — sticky nav de 72px a 52px, frosted, progress bar, nav de desktop y disclosure hamburger mobile; eliminar dropdown y estilos anteriores.
+- S11: "no quiero que se agrande ni achique al hacer scroll ni que tenga como esa barra de carga dependiendo del scroll tampoco. Mira como queda un poco raro en mobile al tocar el menu hamburguesa." — header de alto fijo sin shrink ni progreso; panel mobile full-width en su propia fila.
 
 ## Tasks
 - T0 (S7, route: inline, status: done, commit: 32e1be6): commitear fix carry-over import PrismaService en tarifas (boot API).
@@ -32,6 +33,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T16 (S1, route: inline, status: superseded-by-T18): apariencia previa del navbar retirada.
 - T17 (S1, route: inline, status: superseded-by-T18): shrink/progress reimplementados dentro del nuevo navbar.
 - T18 (S10, route: inline, status: done, commit: 0426bf2): rehacer nav con desktop links sencillos + hamburguesa disclosure mobile; scroll-driven progress con fallback y borrar estilos/dropdown heredados. Build + e2e 8/8; capturas visuales desktop/mobile revisadas.
+- T19 (S11, route: inline, status: done, commit: -): sin shrink ni barra de progreso (header fijo 64px); panel mobile abre full-width en su propia fila (fix height->min-height) verificado con screenshot.
 - T14 (S1, route: inline, status: superseded-by-T18): header mobile de dos filas reemplazado por una fila con hamburger.
 - T15 (S1, route: inline, status: done, commit: -): fuera botón Cerrar sesión del navbar (Clerk ya lo trae).
 
@@ -42,3 +44,4 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - L4 (2026-10-18, usuario): "Haceme algo de Admin"
 - L5 (2026-10-18, usuario): "Que directamente la primera pantalla sea el login de por sí"
 - L6 (2026-10-18, usuario): "Mira quiero que revises el navbar actual y me lo dejes bonito. Tanto en Desktop como en mobile. Volve a revisar para que quede así y borra cualquier rastro de este navbar anterior."
+- L7 (2026-10-18, usuario): "no quiero que se agrande ni achique al hacer scroll ni que tenga como esa barra de carga dependiendo del scroll tampoco. Mira como queda un poco raro en mobile al tocar el menu hamburguesa."

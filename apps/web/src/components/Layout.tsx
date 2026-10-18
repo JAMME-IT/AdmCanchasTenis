@@ -26,15 +26,15 @@ const API_DOT: Record<ApiState, string> = {
   down: tokens.colors.error,
 };
 
+// Layout comun: cabecera blanca de alto fijo con la marca, navegacion
+// centrada en desktop y hamburguesa disclosure en mobile, contenido
+// centrado y pie con el estado de la API.
 export default function Layout({ children }: { children: ReactNode }): JSX.Element {
   const { isSignedIn } = useAuth();
   const [apiState, setApiState] = useState<ApiState>('checking');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [shrunk, setShrunk] = useState(false);
-  const menuDisclosureRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
+  const menuPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,46 +47,12 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
     };
   }, []);
 
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(([entry]) => {
-      setShrunk(!entry.isIntersecting);
-    });
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const progress = progressRef.current;
-    if (!progress || CSS.supports('animation-timeline: scroll()')) return;
-
-    let ticking = false;
-    const update = () => {
-      const documentHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const value = documentHeight > 0 ? Math.min(window.scrollY / documentHeight, 1) : 0;
-      progress.style.scale = `${value} 1`;
-      ticking = false;
-    };
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(update);
-    };
-
-    update();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
   const closeMenu = () => setMenuOpen(false);
 
   return (
     <div
       className="layout-root"
       style={{
-        position: 'relative',
         fontFamily: tokens.fonts.body,
         backgroundColor: tokens.colors.whisper,
         color: tokens.colors.musgo,
@@ -96,89 +62,39 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
       }}
     >
       <style>{`
-        @keyframes layout-reading-progress {
-          from { scale: 0 1; }
-          to { scale: 1 1; }
-        }
         .layout-root,
         .layout-root *,
         .layout-root *::before,
         .layout-root *::after {
           box-sizing: border-box;
         }
-        .layout-sentinel {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 1px;
-          height: 60px;
-          pointer-events: none;
-        }
-        .layout-progress {
-          position: fixed;
-          inset: 0 0 auto;
-          z-index: 50;
-          height: 3px;
-          scale: 0 1;
-          transform-origin: left center;
-          background: linear-gradient(90deg, ${tokens.colors.peridot}, ${tokens.colors.fairway});
-        }
-        @supports (animation-timeline: scroll()) {
-          .layout-progress {
-            animation: layout-reading-progress linear both;
-            animation-timeline: scroll(root);
-          }
-        }
         .layout-header {
           position: sticky;
           top: 0;
           z-index: 40;
-          background: rgba(255, 255, 255, 0.88);
-          -webkit-backdrop-filter: blur(16px);
-          backdrop-filter: blur(16px);
+          background: rgba(255, 255, 255, 0.92);
+          -webkit-backdrop-filter: blur(14px);
+          backdrop-filter: blur(14px);
           border-bottom: 1px solid ${tokens.colors.sereno};
-          transition: box-shadow 300ms ease-out, border-color 300ms ease-out;
-        }
-        .layout-header[data-shrunk] {
-          border-bottom-color: rgba(50, 129, 97, 0.28);
-          box-shadow: 0 8px 30px -12px rgba(56, 69, 67, 0.28);
         }
         .layout-bar {
           width: 100%;
           max-width: ${tokens.shell.maxWidth};
-          height: 72px;
+          height: 64px;
           margin: 0 auto;
           padding: 0 ${tokens.shell.gutter};
           display: flex;
           align-items: center;
-          justify-content: space-between;
           gap: clamp(0.75rem, 2vw, 1.5rem);
-          transition: height 300ms ease-out;
-        }
-        .layout-header[data-shrunk] .layout-bar {
-          height: 52px;
         }
         .layout-brand {
           display: inline-flex;
-          flex: none;
+          flex: 1 1 auto;
+          min-width: 0;
           align-items: center;
           gap: 0.6rem;
           color: ${tokens.colors.musgo};
           text-decoration: none;
-          transform-origin: left center;
-          transition: transform 300ms ease-out;
-        }
-        .layout-header[data-shrunk] .layout-brand {
-          transform: scale(0.9);
-        }
-        .layout-brand-name {
-          font-family: ${tokens.fonts.display};
-          font-size: 1.05rem;
-          line-height: 1.1;
-          font-weight: 400;
-          letter-spacing: 0.02em;
-          text-transform: uppercase;
-          white-space: nowrap;
         }
         .layout-brand-ball {
           width: 16px;
@@ -188,18 +104,26 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           background: radial-gradient(circle at 35% 30%, #F8F86A 0%, ${tokens.colors.pelota} 45%, #C6C61F 100%);
           box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
         }
+        .layout-brand-name {
+          font-family: ${tokens.fonts.display};
+          font-size: 1.05rem;
+          line-height: 1.1;
+          font-weight: 400;
+          letter-spacing: 0.02em;
+          text-transform: uppercase;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
         .layout-desktop-nav {
           display: flex;
-          flex: 1 1 auto;
+          flex: none;
           align-items: center;
-          justify-content: center;
           gap: 0.25rem;
-          min-width: 0;
         }
         .layout-link {
           display: inline-flex;
           align-items: center;
-          justify-content: center;
           min-height: 40px;
           padding: 0 0.85rem;
           border-radius: 0.65rem;
@@ -210,26 +134,21 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           white-space: nowrap;
           transition: background-color 150ms ease, color 150ms ease;
         }
-        .layout-link:hover,
-        .layout-link[aria-current="page"] {
+        .layout-link:hover {
           background-color: ${tokens.colors.whisper};
           color: ${tokens.colors.musgo};
         }
         .layout-link[aria-current="page"] {
+          background-color: ${tokens.colors.whisper};
           color: ${tokens.colors.peridot};
-        }
-        @media (min-width: 56.001rem) {
-          .layout-header[data-shrunk] .layout-desktop-nav .layout-link {
-            min-height: 36px;
-            padding-inline: 0.7rem;
-          }
         }
         .layout-actions {
           display: flex;
           flex: none;
           align-items: center;
         }
-        .layout-mobile-disclosure {
+        .layout-mobile-topline,
+        .layout-mobile-panel {
           display: none;
         }
         .layout-focus:focus-visible,
@@ -239,30 +158,13 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           outline-offset: 3px;
         }
         @media (max-width: 56rem) {
-          .layout-bar {
-            gap: 0.5rem;
-          }
-          .layout-brand {
-            flex: 1 1 auto;
-            min-width: 0;
-          }
-          .layout-brand-name {
-            overflow: hidden;
-            font-size: clamp(0.82rem, 4vw, 1.05rem);
-            text-overflow: ellipsis;
-          }
-          .layout-desktop-nav {
-            display: none;
-          }
-          .layout-mobile-disclosure {
-            display: block;
-            flex: none;
-          }
+          .layout-desktop-nav,
           .layout-desktop-actions {
             display: none;
           }
           .layout-mobile-topline {
             display: flex;
+            flex: none;
             align-items: center;
             gap: 0.5rem;
           }
@@ -298,23 +200,25 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             background: currentColor;
             transition: transform 180ms ease, opacity 180ms ease;
           }
-          .layout-mobile-disclosure[data-open="true"] .layout-burger span:first-child {
+          .layout-bar.menu-abierto .layout-burger span:first-child {
             transform: translateY(5px) rotate(45deg);
           }
-          .layout-mobile-disclosure[data-open="true"] .layout-burger span:nth-child(2) {
+          .layout-bar.menu-abierto .layout-burger span:nth-child(2) {
             opacity: 0;
           }
-          .layout-mobile-disclosure[data-open="true"] .layout-burger span:last-child {
+          .layout-bar.menu-abierto .layout-burger span:last-child {
             transform: translateY(-5px) rotate(-45deg);
           }
+          /* El panel ocupa su propia fila completa debajo de la marca. */
           .layout-mobile-panel {
             display: grid;
+            flex: 1 1 100%;
             grid-template-rows: 0fr;
             opacity: 0;
             visibility: hidden;
             transition: grid-template-rows 250ms ease, opacity 200ms ease, visibility 200ms;
           }
-          .layout-mobile-disclosure[data-open="true"] .layout-mobile-panel {
+          .layout-bar.menu-abierto .layout-mobile-panel {
             grid-template-rows: 1fr;
             opacity: 1;
             visibility: visible;
@@ -327,32 +231,29 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             display: grid;
             gap: 0.2rem;
             margin: 0;
-            padding: 0.5rem 0 0.8rem;
+            padding: 0.4rem 0 0.8rem;
             list-style: none;
           }
           .layout-mobile-links .layout-link {
             justify-content: flex-start;
             min-height: 44px;
-            padding: 0 0.85rem;
           }
         }
         @media (prefers-reduced-motion: reduce) {
           .layout-root *,
           .layout-root *::before,
           .layout-root *::after {
-            scroll-behavior: auto !important;
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
             transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
           }
         }
       `}</style>
 
-      <div ref={sentinelRef} className="layout-sentinel" aria-hidden="true" />
-      <div ref={progressRef} className="layout-progress" aria-hidden="true" />
-
-      <header className="layout-header" data-shrunk={shrunk ? '' : undefined}>
-        <nav className="layout-bar" aria-label="Principal">
+      <header className="layout-header">
+        <nav
+          className={`layout-bar${menuOpen ? ' menu-abierto' : ''}`}
+          aria-label="Principal"
+        >
           <Link to="/" aria-label="Tenis Ranch Club — Inicio" className="layout-brand layout-focus">
             <span aria-hidden="true" className="layout-brand-ball" />
             <span className="layout-brand-name">Tenis Ranch Club</span>
@@ -374,10 +275,36 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           )}
 
           {isSignedIn && (
+            <div className="layout-mobile-topline">
+              <button
+                ref={menuButtonRef}
+                type="button"
+                className="layout-menu-button layout-focus"
+                aria-expanded={menuOpen}
+                aria-controls="layout-mobile-panel"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <span aria-hidden="true" className="layout-burger">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+                <span>Menú</span>
+              </button>
+              <div className="layout-actions">
+                <UserButton />
+              </div>
+            </div>
+          )}
+
+          {isSignedIn && (
             <div
-              ref={menuDisclosureRef}
-              className="layout-mobile-disclosure"
+              id="layout-mobile-panel"
+              ref={menuPanelRef}
+              className="layout-mobile-panel"
               data-open={menuOpen}
+              aria-hidden={!menuOpen}
+              onClick={closeMenu}
               onBlur={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
                   closeMenu();
@@ -387,57 +314,38 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                 if (event.key === 'Escape' && menuOpen) {
                   closeMenu();
                   menuButtonRef.current?.focus();
+                  return;
                 }
+                const links = Array.from(menuPanelRef.current?.querySelectorAll('a') ?? []);
+                const actual = links.indexOf(document.activeElement as HTMLAnchorElement);
+                if (actual < 0) return;
+                const siguiente: Record<string, number> = {
+                  ArrowDown: actual + 1,
+                  ArrowUp: actual - 1,
+                  Home: 0,
+                  End: links.length - 1,
+                };
+                const destino = siguiente[event.key];
+                if (destino === undefined) return;
+                event.preventDefault();
+                links[(destino + links.length) % links.length].focus();
               }}
             >
-              <div className="layout-mobile-topline">
-                <button
-                  ref={menuButtonRef}
-                  type="button"
-                  className="layout-menu-button layout-focus"
-                  aria-expanded={menuOpen}
-                  aria-controls="layout-mobile-panel"
-                  onClick={() => setMenuOpen((open) => !open)}
-                >
-                  <span className="layout-burger" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                  <span>Menú</span>
-                </button>
-                <div className="layout-actions">
-                  <UserButton />
-                </div>
+              <div className="layout-mobile-panel-inner">
+                <ul className="layout-mobile-links">
+                  {NAV.map((item) => (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        end={'end' in item ? item.end : false}
+                        className="layout-link layout-focus"
+                      >
+                        {item.label}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div
-                id="layout-mobile-panel"
-                className="layout-mobile-panel"
-                aria-hidden={!menuOpen}
-              >
-                <div className="layout-mobile-panel-inner">
-                  <ul className="layout-mobile-links">
-                    {NAV.map((item) => (
-                      <li key={item.to}>
-                        <NavLink
-                          to={item.to}
-                          end={'end' in item ? item.end : false}
-                          className="layout-link layout-focus"
-                          onClick={closeMenu}
-                        >
-                          {item.label}
-                        </NavLink>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isSignedIn && (
-            <div className="layout-actions layout-desktop-actions">
-              <UserButton />
             </div>
           )}
         </nav>

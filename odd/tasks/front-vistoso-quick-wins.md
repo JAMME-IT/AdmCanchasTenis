@@ -12,6 +12,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - S7: "mandale rosca con eso en una rama nueva" — trabajo en feat/front-vistoso-quick-wins, verificado con build y tsc antes de avisar.
 - S8: "Haceme algo de Admin" — panel admin en /admin con turnos (filtros), pagos y reportes del backend, gated por rol, card viva en Home.
 - S9: "Que directamente la primera pantalla sea el login de por sí" — hero afuera, invitados a /ingresar.
+- S10: "Mira quiero que revises el navbar actual y me lo dejes bonito. Tanto en Desktop como en mobile. Volve a revisar para que quede así y borra cualquier rastro de este navbar anterior." — sticky nav de 72px a 52px, frosted, progress bar, nav de desktop y disclosure hamburger mobile; eliminar dropdown y estilos anteriores.
 
 ## Tasks
 - T0 (S7, route: inline, status: done, commit: 32e1be6): commitear fix carry-over import PrismaService en tarifas (boot API).
@@ -23,14 +24,15 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T6 (S1, route: inline, status: done, commit: dd06640): shell fluido (1400px + gutter clamp) y pills compactas en desktop, 44px en mobile.
 - T7 (S8, route: inline, status: done, commit: -): panel admin (turnos con filtros, pagos, reportes) + ruta /admin + card viva en Home.
 - T8 (S1, route: inline, status: done, commit: c85f18a): Mi perfil flama (avatar iniciales, pills rol/estado, chip socio).
-- T9 (S1, route: inline, status: done, commit: -): dropdown Turnos CSS puro (hover + focus-within, puente anti-cierre, sub-lista fija en mobile) + link Admin en nav.
+- T9 (S1, route: inline, status: superseded-by-T18): dropdown Turnos eliminado al rehacer el navbar.
 - T10 (S1, route: inline, status: revertido): hero Wimbledon revertido a pedido.
 - T11 (S9, route: inline, status: done, commit: -): invitados en / van a /ingresar (redirect; Clerk es path-based) + e2e.
-- T12 (S1, route: inline, status: done, commit: -): hamburguesa mobile ARIA (aria-expanded, roving Arrows/Home/End, Escape, grid-rows) en React.
-- T13 (S1, route: inline, status: done, commit: -): fix menu mobile (nav en columna, panel full-width abajo del botón, sub-lista sin tarjeta) verificado con screenshots Playwright.
-- T16 (S1, route: inline, status: done, commit: -): navbar clásico (header claro, links con subrayado, dropdown claro) manteniendo hamburguesa.
-- T17 (S1, route: inline, status: done, commit: -): navbar sticky que se compacta 72 a 52 con sombra, progreso de scroll y box-sizing fix, verificado con Playwright.
-- T14 (S1, route: inline, status: done, commit: -): header mobile en 2 filas (marca arriba, Menú + sesión en una fila) verificado con screenshot.
+- T12 (S1, route: inline, status: superseded-by-T18): disclosure hamburger reimplementado con links de navegación normales y Escape.
+- T13 (S1, route: inline, status: superseded-by-T18): layout mobile anterior reemplazado por una fila compacta y panel de links.
+- T16 (S1, route: inline, status: superseded-by-T18): apariencia previa del navbar retirada.
+- T17 (S1, route: inline, status: superseded-by-T18): shrink/progress reimplementados dentro del nuevo navbar.
+- T18 (S10, route: inline, status: done, commit: 0426bf2): rehacer nav con desktop links sencillos + hamburguesa disclosure mobile; scroll-driven progress con fallback y borrar estilos/dropdown heredados. Build + e2e 8/8; capturas visuales desktop/mobile revisadas.
+- T14 (S1, route: inline, status: superseded-by-T18): header mobile de dos filas reemplazado por una fila con hamburger.
 - T15 (S1, route: inline, status: done, commit: -): fuera botón Cerrar sesión del navbar (Clerk ya lo trae).
 
 ## Log
@@ -39,3 +41,4 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - L3: rama feat/front-vistoso-quick-wins creada desde main 3bf9707; trae fix sin commitear de tarifas (de T0).
 - L4 (2026-10-18, usuario): "Haceme algo de Admin"
 - L5 (2026-10-18, usuario): "Que directamente la primera pantalla sea el login de por sí"
+- L6 (2026-10-18, usuario): "Mira quiero que revises el navbar actual y me lo dejes bonito. Tanto en Desktop como en mobile. Volve a revisar para que quede así y borra cualquier rastro de este navbar anterior."

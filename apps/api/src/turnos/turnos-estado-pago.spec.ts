@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { validate } from 'class-validator';
 import {
+  ConflictException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -33,7 +34,9 @@ const TURNO_BASE = {
 /**
  * Minimal Prisma stub for cambiarEstadoPago tests.
  */
-function estadoPagoStub(db: { turno?: Record<string, unknown> | null } = {}) {
+function estadoPagoStub(
+  db: { turno?: Record<string, unknown> | null; pagos?: unknown[] } = {},
+) {
   const llamadas: {
     update?: Record<string, unknown>;
     create?: Record<string, unknown>;
@@ -58,7 +61,13 @@ function estadoPagoStub(db: { turno?: Record<string, unknown> | null } = {}) {
 
   return {
     turnos: {
-      findUnique: async () => ('turno' in db ? db.turno : TURNO_BASE),
+      findUnique: async () => {
+        if ('turno' in db) {
+          if (db.turno === null) return null;
+          return { ...(db.turno as object), pagos_turno: db.pagos ?? [] };
+        }
+        return { ...TURNO_BASE, pagos_turno: db.pagos ?? [] };
+      },
     },
     $transaction: async (callback: (t: typeof tx) => Promise<unknown>) => {
       llamadas.transacciones += 1;
@@ -79,9 +88,21 @@ describe('TurnosService.cambiarEstadoPago (ACT-54)', () => {
     assert.equal(result.estadoPago, 'pago');
   });
 
-  it('debería actualizar el estado de pago de pago a impago', async () => {
+  it('debería rechazar pago a impago con 409 si hay pago registrado (evita huérfano T-101/P-55)', async () => {
     const turnoPagado = { ...TURNO_BASE, estado_pago: 'pago' };
-    const prisma = estadoPagoStub({ turno: turnoPagado });
+    const prisma = estadoPagoStub({ turno: turnoPagado, pagos: [{ id: 'pago-1' }] });
+    const service = new TurnosService(prisma as any);
+
+    const dto: ActualizarEstadoPagoTurnoDto = { estadoPago: 'impago' };
+    await assert.rejects(
+      async () => service.cambiarEstadoPago('turno-1', dto),
+      ConflictException,
+    );
+  });
+
+  it('debería permitir pago a impago si no hay fila de pago', async () => {
+    const turnoPagado = { ...TURNO_BASE, estado_pago: 'pago' };
+    const prisma = estadoPagoStub({ turno: turnoPagado, pagos: [] });
     const service = new TurnosService(prisma as any);
 
     const dto: ActualizarEstadoPagoTurnoDto = { estadoPago: 'impago' };

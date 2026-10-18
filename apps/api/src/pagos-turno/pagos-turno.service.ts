@@ -76,8 +76,14 @@ export class PagosTurnoService {
       throw new ConflictException('Ya existe un pago registrado para este turno');
     }
 
-    // Transacción: crear pago + líneas + actualizar estado_pago + historial
-    const creado = await this.prisma.$transaction(async (tx) => {
+    // Transacción: crear pago + líneas + actualizar estado_pago + historial.
+    // El unique uq_pagos_turno_turno es la barrera real contra doble cobro:
+    // si dos POST llegan juntos y ambos pasan el check 409 de arriba, la base
+    // rechaza el segundo con 23505/P2002 y acá lo traducimos a 409.
+    // Ejemplo: turno T-101 con pago P-55, segundo POST concurrente → 409.
+    let creado: string;
+    try {
+      creado = await this.prisma.$transaction(async (tx) => {
       const pagoTurno = await tx.pagos_turno.create({
         data: {
           turno_id: dto.turnoId,
@@ -115,7 +121,15 @@ export class PagosTurnoService {
       });
 
       return pagoTurno.id;
-    });
+      });
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      const pgCode = (e as { meta?: { code?: string } })?.meta?.code;
+      if (code === 'P2002' || code === '23505' || pgCode === '23505') {
+        throw new ConflictException('Ya existe un pago registrado para este turno');
+      }
+      throw e;
+    }
 
     // Retornar el pago creado con expansiones
     const pagoCompleto = await this.prisma.pagos_turno.findUnique({

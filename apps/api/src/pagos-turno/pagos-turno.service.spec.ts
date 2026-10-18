@@ -248,6 +248,23 @@ describe('PagosTurnoService - registrarPago', () => {
     await assert.rejects(async () => service.registrarPago(dto), ConflictException);
   });
 
+  it('debería traducir carrera concurrente (P2002) a 409 (doble POST T-101)', async () => {
+    const prisma = pagoStub() as any;
+    prisma.$transaction = async () => {
+      const e = new Error('Unique constraint failed') as Error & { code: string };
+      e.code = 'P2002';
+      throw e;
+    };
+    const service = new PagosTurnoService(prisma as any);
+
+    const dto: CrearPagoTurnoDto = {
+      turnoId: 'turno-1',
+      montoTotalTurno: 1000,
+    };
+
+    await assert.rejects(async () => service.registrarPago(dto), ConflictException);
+  });
+
   it('debería usar fechaPago personalizada si se proporciona', async () => {
     const prisma = pagoStub();
     const service = new PagosTurnoService(prisma as any);

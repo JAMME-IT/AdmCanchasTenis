@@ -21,6 +21,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T5 (S1, route: inline, status: done, commit: 87b4f9a): navbar en una fila (marca + nav flexible + acciones; apila en mobile).
 - T6 (S1, route: inline, status: done, commit: dd06640): shell fluido (1400px + gutter clamp) y pills compactas en desktop, 44px en mobile.
 - T7 (S8, route: inline, status: done, commit: -): panel admin (turnos con filtros, pagos, reportes) + ruta /admin + card viva en Home.
+- T8 (S1, route: inline, status: done, commit: c85f18a): Mi perfil flama (avatar iniciales, pills rol/estado, chip socio).
 
 ## Log
 - L1 (2026-10-18, usuario): "Que nos está faltando para armar un frontend un poco más vistoso?"

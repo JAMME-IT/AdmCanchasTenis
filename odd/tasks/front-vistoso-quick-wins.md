@@ -1,0 +1,24 @@
+# front-vistoso-quick-wins — Frontend más vistoso (quick wins)
+
+Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: feat/front-vistoso-quick-wins. Estrategia: single-pr. Test: web build + api tsc.
+
+## Specs
+- S1: "un frontend un poco más vistoso" — layout común con identidad del club en todas las páginas, sin links de volver repetidos.
+- S2: "un frontend un poco más vistoso" — SEO/meta en index.html (descripción, OG, theme-color, favicon) y tokens de diseño + fuente Archivo más allá del login.
+- S3: "un frontend un poco más vistoso" — skeletons + Reintentar en todos lados, región de feedback (role=status) en vez de `<p>` pelados, y sacar la tarjeta debug "Salud de la API".
+- S4: "un frontend un poco más vistoso" — CompletarPerfil en español y con marca, con errores inline por campo.
+- S5: "un frontend un poco más vistoso" — todo el front habla por lib/api.ts, sin UUID provisorios ni copia "API pendiente", con errores reales de la API.
+- S6: "un frontend un poco más vistoso" — pills con colores por estado + barra de progreso en MisCuotas + mostrar fechaPago.
+- S7: "mandale rosca con eso en una rama nueva" — trabajo en feat/front-vistoso-quick-wins, verificado con build y tsc antes de avisar.
+
+## Tasks
+- T0 (S7, route: inline, status: pending, commit: -): commitear fix carry-over import PrismaService en tarifas (boot API).
+- T1 (S1+S2, route: delegated, status: pending, commit: -): fundación (tokens, Layout, index.html, App, CompletarPerfil).
+- T2 (S3+S6, route: delegated, status: pending, commit: -): feedback y estados (skeletons, retry, pills, progreso, sin debug card).
+- T3 (S5, route: delegated, status: pending, commit: -): unificación api (lib/api + Turnos).
+- T4 (S7, route: inline, status: pending, commit: -): seam check (web build, api tsc, RED/GREEN donde aplique).
+
+## Log
+- L1 (2026-10-18, usuario): "Que nos está faltando para armar un frontend un poco más vistoso?"
+- L2 (2026-10-18, usuario): "Dale, mandale rosca con eso en una rama nueva"
+- L3: rama feat/front-vistoso-quick-wins creada desde main 3bf9707; trae fix sin commitear de tarifas (de T0).

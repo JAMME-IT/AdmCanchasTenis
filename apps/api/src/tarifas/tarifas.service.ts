@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import type { ActualizarTarifaCuotaDto } from './dto/actualizar-tarifa-cuota.dto';
 import type { ActualizarTarifaTurnoDto } from './dto/actualizar-tarifa-turno.dto';
 import {

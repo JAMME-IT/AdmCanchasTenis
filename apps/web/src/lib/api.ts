@@ -61,6 +61,30 @@ export interface MiTurno extends TurnoConCanchaResponse {
 
 export type EstadoHistorial = 'finalizado' | 'no_asistio' | 'cancelado';
 
+/** Pago de cuota del socio (GET /cuotas/mias, API contract §5.7). */
+export interface PagoCuota {
+  id: string;
+  numeroLinea: number;
+  monto: number;
+  fechaPago: string;
+  estado: string;
+}
+
+/** Cuota propia con pagos y saldo calculado por el servidor. */
+export interface MiCuota {
+  id: string;
+  socioId: string;
+  fechaInicio: string;
+  fechaVencimiento: string;
+  montoTotal: number;
+  estadoActual: string;
+  totalPagado: number;
+  saldo: number;
+  pagos: PagoCuota[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface HistorialParams {
   estadoActual?: EstadoHistorial;
   desde?: string;
@@ -145,4 +169,6 @@ export const api = {
   },
   cancelarTurno: (token: string | null, id: string, motivo: string): Promise<Turno> =>
     request<Turno>(`/turnos/${id}/cancelar`, { method: 'POST', token, body: { motivo } }),
+  misCuotas: (token: string | null): Promise<MiCuota[]> =>
+    request<MiCuota[]>('/cuotas/mias', { token }),
 };

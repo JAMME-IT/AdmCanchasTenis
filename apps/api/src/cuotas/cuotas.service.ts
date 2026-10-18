@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -9,7 +10,9 @@ import {
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthContext } from '../auth/auth.types';
 import type { RegistrarPagoCuotaDto } from './dto/registrar-pago-cuota.dto';
+import { toMiCuotaResponse, type MiCuotaResponse } from './mi-cuota-response';
 
 export type EstadoCuota = 'pendiente' | 'pagada' | 'parcial' | 'adeudada' | 'cancelada';
 
@@ -163,6 +166,31 @@ export class CuotasService {
       generadas,
       omitidas,
     };
+  }
+
+  /**
+   * Cuotas del socio autenticado (ACT-48, API contract §5.7 GET /cuotas/mias,
+   * RF-26/CU14): cuotas propias con sus pagos registrados, orden descendente
+   * por inicio de periodo. Exclusivo de socio: sin usuario o sin fila en
+   * `socios` responde 403 (el guard de rol ya filtra por rol vigente).
+   */
+  async obtenerMias(auth: AuthContext): Promise<MiCuotaResponse[]> {
+    if (!auth.usuario) {
+      throw new ForbiddenException('Se requiere un usuario registrado');
+    }
+    const socio = await this.prisma.socios.findUnique({
+      where: { usuario_id: auth.usuario.id },
+      select: { id: true },
+    });
+    if (!socio) {
+      throw new ForbiddenException('El usuario no es socio');
+    }
+    const cuotas = await this.prisma.cuotas.findMany({
+      where: { socio_id: socio.id },
+      include: { lineas_cuota: true },
+      orderBy: [{ fecha_inicio: 'desc' }],
+    });
+    return cuotas.map((cuota) => toMiCuotaResponse(cuota));
   }
 
   /**

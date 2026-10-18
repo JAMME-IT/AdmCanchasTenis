@@ -166,6 +166,14 @@ export default function MisTurnos(): JSX.Element {
           <Link to="/" style={{ color: '#328161', fontWeight: 600 }}>
             ← Volver al inicio
           </Link>
+          {' · '}
+          <Link to="/turnos" style={{ color: '#328161', fontWeight: 600 }}>
+            Reservar turno
+          </Link>
+          {' · '}
+          <Link to="/mis-cuotas" style={{ color: '#328161', fontWeight: 600 }}>
+            Mis cuotas
+          </Link>
         </p>
 
         <header style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

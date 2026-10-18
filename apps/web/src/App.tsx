@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
+import Layout from './components/Layout';
 import Home from './pages/Home';
 import Ingresar from './pages/Ingresar';
 import Registro from './pages/Registro';
@@ -22,14 +23,23 @@ function RequireSession({ children }: { children: JSX.Element }): JSX.Element {
 export default function App(): JSX.Element {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route
+        path="/"
+        element={
+          <Layout>
+            <Home />
+          </Layout>
+        }
+      />
       <Route path="/ingresar/*" element={<Ingresar />} />
       <Route path="/registro/*" element={<Registro />} />
       <Route
         path="/completar-perfil"
         element={
           <RequireSession>
-            <CompletarPerfil />
+            <Layout>
+              <CompletarPerfil />
+            </Layout>
           </RequireSession>
         }
       />
@@ -37,7 +47,9 @@ export default function App(): JSX.Element {
         path="/turnos"
         element={
           <RequireSession>
-            <Turnos />
+            <Layout>
+              <Turnos />
+            </Layout>
           </RequireSession>
         }
       />
@@ -45,7 +57,9 @@ export default function App(): JSX.Element {
         path="/mis-turnos"
         element={
           <RequireSession>
-            <MisTurnos />
+            <Layout>
+              <MisTurnos />
+            </Layout>
           </RequireSession>
         }
       />
@@ -53,7 +67,9 @@ export default function App(): JSX.Element {
         path="/mis-cuotas"
         element={
           <RequireSession>
-            <MisCuotas />
+            <Layout>
+              <MisCuotas />
+            </Layout>
           </RequireSession>
         }
       />

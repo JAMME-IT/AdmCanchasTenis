@@ -6,11 +6,17 @@ import { useSignOut } from '../lib/useSignOut';
 import { tokens } from '../styles/tokens';
 
 // Navegacion principal del club: misma en todas las paginas con sesion.
+// Turnos es un dropdown CSS puro (hover + focus-within, sin JS).
 const NAV = [
   { to: '/', label: 'Inicio', end: true },
-  { to: '/turnos', label: 'Turnos', end: false },
-  { to: '/mis-turnos', label: 'Mis turnos', end: false },
   { to: '/mis-cuotas', label: 'Mis cuotas', end: false },
+  { to: '/admin', label: 'Admin', end: false },
+] as const;
+
+// Items del dropdown de Turnos.
+const TURNOS_MENU = [
+  { to: '/turnos', label: 'Reservar turno', hint: 'Disponibilidad del día' },
+  { to: '/mis-turnos', label: 'Mis turnos', hint: 'Vigentes e historial' },
 ] as const;
 
 type ApiState = 'checking' | 'ok' | 'down';
@@ -81,6 +87,56 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           font-size: 0.78rem;
           letter-spacing: 0.04em;
         }
+        /* Dropdown CSS puro: abre con hover y con focus-within (teclado),
+           sin JavaScript. El puente invisible evita que se cierre al cruzar
+           el hueco entre el trigger y el panel. */
+        .nav-dd {
+          position: relative;
+          flex: 1 1 auto;
+          max-width: 12rem;
+          display: flex;
+        }
+        .nav-dd-trigger {
+          flex: 1 1 auto;
+        }
+        .nav-chevron {
+          transition: transform 0.18s ease;
+        }
+        .nav-dd:hover .nav-chevron,
+        .nav-dd:focus-within .nav-chevron {
+          transform: rotate(180deg);
+        }
+        .nav-panel {
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          z-index: 40;
+          min-width: 15rem;
+          margin-top: 0.6rem;
+          padding: 0.4rem;
+          border-radius: 1rem;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          background-color: #2C3E3A;
+          box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.5);
+          opacity: 0;
+          visibility: hidden;
+          transform: translate(-50%, 6px);
+          transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+        }
+        .nav-panel::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: -12px;
+          height: 12px;
+        }
+        .nav-dd:hover .nav-panel,
+        .nav-dd:focus-within .nav-panel {
+          opacity: 1;
+          visibility: visible;
+          transform: translate(-50%, 0);
+        }
         @media (max-width: 56rem) {
           .layout-bar {
             flex-direction: column;
@@ -93,6 +149,23 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             max-width: none;
             min-height: 44px;
             font-size: 0.85rem;
+          }
+          .nav-dd {
+            max-width: none;
+            flex-direction: column;
+          }
+          /* En mobile el panel queda fijo como sub-lista (sin hover en tactil). */
+          .nav-panel {
+            position: static;
+            transform: none;
+            opacity: 1;
+            visibility: visible;
+            min-width: 0;
+            margin-top: 0.25rem;
+            transition: none;
+          }
+          .nav-panel::before {
+            display: none;
           }
           .layout-bar-actions {
             justify-content: flex-end;
@@ -168,6 +241,66 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                 justifyContent: 'center',
               }}
             >
+              <div className="nav-dd">
+                <Link
+                  to="/turnos"
+                  aria-haspopup="true"
+                  className="layout-bar-link nav-dd-trigger"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.3rem',
+                    borderRadius: tokens.radius.pill,
+                    padding: '0.35rem 0.75rem',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    color: tokens.colors.whisper,
+                    border: '1px solid transparent',
+                  }}
+                >
+                  Turnos
+                  <svg
+                    className="nav-chevron"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </Link>
+                <ul
+                  aria-label="Turnos"
+                  className="nav-panel"
+                  style={{ listStyle: 'none', margin: 0 }}
+                >
+                  {TURNOS_MENU.map((item) => (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        style={({ isActive }) => ({
+                          display: 'flex',
+                          flexDirection: 'column',
+                          minHeight: '44px',
+                          justifyContent: 'center',
+                          borderRadius: '0.75rem',
+                          padding: '0.5rem 0.85rem',
+                          textDecoration: 'none',
+                          color: tokens.colors.whisper,
+                          backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+                        })}
+                      >
+                        <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{item.label}</span>
+                        <span style={{ fontSize: '0.75rem', opacity: 0.75 }}>{item.hint}</span>
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </div>
               {NAV.map((item) => (
                 <NavLink
                   key={item.to}

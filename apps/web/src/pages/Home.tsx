@@ -214,26 +214,30 @@ export default function Home(): JSX.Element {
                 Ver mis cuotas
               </Link>
             </article>
-            <article style={cardStyle}>
-              <h3>Panel admin</h3>
-              <p>Turnos con filtros, pagos y reportes del club.</p>
-              <Link
-                to="/admin"
-                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
-              >
-                Abrir panel
-              </Link>
-            </article>
-            <article style={cardStyle}>
-              <h3>Reportes</h3>
-              <p>Estadísticas e ingresos, dentro del panel admin.</p>
-              <Link
-                to="/admin"
-                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
-              >
-                Ver reportes
-              </Link>
-            </article>
+            {usuario?.rol === 'admin' && (
+              <>
+                <article style={cardStyle}>
+                  <h3>Panel admin</h3>
+                  <p>Turnos con filtros, pagos y reportes del club.</p>
+                  <Link
+                    to="/admin"
+                    style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
+                  >
+                    Abrir panel
+                  </Link>
+                </article>
+                <article style={cardStyle}>
+                  <h3>Reportes</h3>
+                  <p>Estadísticas e ingresos, dentro del panel admin.</p>
+                  <Link
+                    to="/admin"
+                    style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
+                  >
+                    Ver reportes
+                  </Link>
+                </article>
+              </>
+            )}
           </div>
         </section>
       </div>

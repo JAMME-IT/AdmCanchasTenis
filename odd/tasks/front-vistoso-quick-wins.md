@@ -15,6 +15,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - S10: "Mira quiero que revises el navbar actual y me lo dejes bonito. Tanto en Desktop como en mobile. Volve a revisar para que quede así y borra cualquier rastro de este navbar anterior." — sticky nav de 72px a 52px, frosted, progress bar, nav de desktop y disclosure hamburger mobile; eliminar dropdown y estilos anteriores.
 - S11: "no quiero que se agrande ni achique al hacer scroll ni que tenga como esa barra de carga dependiendo del scroll tampoco. Mira como queda un poco raro en mobile al tocar el menu hamburguesa." — header de alto fijo sin shrink ni progreso; panel mobile full-width en su propia fila.
 - S12: "Hace mejor un dock en la parte inferior para mobile en lugar del menu hamburguesa, usa una libreria que quieras pero que sea confiable." — dock inferior con MUI BottomNavigation + lucide-react.
+- S13: "acabo de registrar un nuevo usuario y me aparece la sección de admin. Por qué sucede eso??" — Admin oculto en UI para no-admins (nav, dock y cards).
 
 ## Tasks
 - T0 (S7, route: inline, status: done, commit: 32e1be6): commitear fix carry-over import PrismaService en tarifas (boot API).
@@ -36,6 +37,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T18 (S10, route: inline, status: done, commit: 0426bf2): rehacer nav con desktop links sencillos + hamburguesa disclosure mobile; scroll-driven progress con fallback y borrar estilos/dropdown heredados. Build + e2e 8/8; capturas visuales desktop/mobile revisadas.
 - T19 (S11, route: inline, status: done, commit: -): sin shrink ni barra de progreso (header fijo 64px); panel mobile abre full-width en su propia fila (fix height->min-height) verificado con screenshot.
 - T20 (S12, route: inline, status: done, commit: 22445cc): fuera hamburguesa; dock inferior mobile con MUI BottomNavigation + lucide-react, fijo con safe-area, footer con padding.
+- T21 (S13, route: inline, status: done, commit: -): link Admin oculto para no-admins (Layout trae rol; Home gatea cards admin/reportes). La API igual enforcea 403.
 - T14 (S1, route: inline, status: superseded-by-T18): header mobile de dos filas reemplazado por una fila con hamburger.
 - T15 (S1, route: inline, status: done, commit: -): fuera botón Cerrar sesión del navbar (Clerk ya lo trae).
 
@@ -48,3 +50,4 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - L6 (2026-10-18, usuario): "Mira quiero que revises el navbar actual y me lo dejes bonito. Tanto en Desktop como en mobile. Volve a revisar para que quede así y borra cualquier rastro de este navbar anterior."
 - L7 (2026-10-18, usuario): "no quiero que se agrande ni achique al hacer scroll ni que tenga como esa barra de carga dependiendo del scroll tampoco. Mira como queda un poco raro en mobile al tocar el menu hamburguesa."
 - L8 (2026-10-18, usuario): "Hace mejor un dock en la parte inferior para mobile en lugar del menu hamburguesa, usa una libreria que quieras pero que sea confiable."
+- L9 (2026-10-18, usuario): "acabo de registrar un nuevo usuario y me aparece la sección de admin. Por qué sucede eso??"

@@ -46,10 +46,11 @@ const temaMui = createTheme({
 // centrada en desktop, dock inferior con tabs en mobile, contenido
 // centrado y pie con el estado de la API.
 export default function Layout({ children }: { children: ReactNode }): JSX.Element {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, getToken } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [apiState, setApiState] = useState<ApiState>('checking');
+  const [rol, setRol] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -62,10 +63,39 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
     };
   }, []);
 
+  // El link Admin solo se muestra para rol admin (la API igualmente
+  // enforcea 403; esto es puramente de UI).
+  useEffect(() => {
+    let active = true;
+    if (!isSignedIn) {
+      setRol(null);
+      return;
+    }
+    void (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const perfil = await api.me(token);
+        if (active) {
+          setRol(perfil.rol);
+        }
+      } catch {
+        if (active) {
+          setRol(null);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isSignedIn, getToken]);
+
   const dockValue =
     NAV.find((item) =>
       item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
     )?.to ?? false;
+
+  const navItems = NAV.filter((item) => item.to !== '/admin' || rol === 'admin');
 
   return (
     <div
@@ -221,7 +251,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
 
           {isSignedIn && (
             <div className="layout-desktop-nav">
-              {NAV.map((item) => (
+              {navItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -267,7 +297,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
               onChange={(_event, value: string) => navigate(value)}
               sx={{ width: '100%', bgcolor: 'transparent' }}
             >
-              {NAV.map((item) => (
+              {navItems.map((item) => (
                 <BottomNavigationAction
                   key={item.to}
                   value={item.to}

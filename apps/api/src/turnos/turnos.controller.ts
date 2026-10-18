@@ -11,7 +11,9 @@ import { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import { ConsultarHistorialDto } from './dto/consultar-historial.dto';
 import { ConsultarMisTurnosDto } from './dto/consultar-mis-turnos.dto';
 import { CrearTurnoDto } from './dto/crear-turno.dto';
+import { ListarTurnosAdminDto } from './dto/listar-turnos-admin.dto';
 import type { MiTurnoResponse, TurnoConCanchaResponse } from './mis-turno-response';
+import type { TurnoAdminResponse } from './admin-turno-response';
 import type { ReservarTurnoResponse, TurnoResponse } from './turno-response';
 import { TurnosService } from './turnos.service';
 
@@ -58,6 +60,19 @@ export class TurnosController {
     @Query() query: ConsultarHistorialDto,
   ): Promise<TurnoConCanchaResponse[]> {
     return this.turnos.obtenerHistorial(auth, query);
+  }
+
+  /**
+   * Admin listing of all bookings with filters (ACT-37, RF-36/RF-37/RF-38):
+   * text search on user name/surname, exact date, or inclusive date range.
+   * Only admin role can access.
+   */
+  @Get()
+  @Roles('admin')
+  @ApiOperation({ summary: 'Listado admin de turnos con filtros de busqueda y fecha' })
+  @ApiOkResponse({ description: 'Turnos con usuario y cancha expandidos' })
+  async listarAdmin(@Query() query: ListarTurnosAdminDto): Promise<TurnoAdminResponse[]> {
+    return this.turnos.listarAdmin(query);
   }
 
   /** Court booking with frozen rate and shared lighting charge (ACT-34, RF-12/RF-13/RF-39). */

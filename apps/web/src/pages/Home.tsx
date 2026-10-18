@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
 import { ApiError, api, type Usuario } from '../lib/api';
-import { EmptyState, ErrorCard, Skeleton } from '../components/Feedback';
+import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
 // Palette: refined green #384543, whisper white #F5F3EF,
 // peridot accent #328161, serene gray #8A9A93.
@@ -127,18 +127,53 @@ export default function Home(): JSX.Element {
           ) : error ? (
             <ErrorCard message={error} onRetry={() => void cargarPerfil()} />
           ) : usuario ? (
-            <>
-              <p>
-                Hola, {usuario.nombre} {usuario.apellido}
-              </p>
-              <ul>
-                <li>Usuario: {usuario.username}</li>
-                <li>Email: {usuario.email}</li>
-                <li>Rol: {usuario.rol ?? 'sin asignar'}</li>
-                <li>Número de socio: {usuario.numeroSocio ?? '—'}</li>
-                <li>Estado: {usuario.estadoActual}</li>
-              </ul>
-            </>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: '4rem',
+                  height: '4rem',
+                  borderRadius: '50%',
+                  flex: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: '"Archivo Black", "Archivo", system-ui, sans-serif',
+                  fontSize: '1.4rem',
+                  color: '#FFFFFF',
+                  background: 'radial-gradient(circle at 35% 30%, #3FA67E 0%, #328161 55%, #1F6B45 100%)',
+                  boxShadow: '0 2px 8px rgba(56, 69, 67, 0.3)',
+                }}
+              >
+                {(usuario.nombre.charAt(0) + usuario.apellido.charAt(0)).toUpperCase()}
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: '1 1 16rem' }}>
+                <p style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>
+                  Hola, {usuario.nombre}
+                </p>
+                <p style={{ margin: 0, color: '#5A6661' }}>
+                  @{usuario.username} · {usuario.email}
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <StatusPill estado={usuario.rol ?? 'sin asignar'} label={usuario.rol ?? 'Sin rol'} />
+                  <StatusPill estado={usuario.estadoActual} />
+                  {usuario.numeroSocio && (
+                    <span
+                      style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        borderRadius: '999px',
+                        padding: '0.25rem 0.75rem',
+                        backgroundColor: '#384543',
+                        color: '#E9E633',
+                      }}
+                    >
+                      Socio {usuario.numeroSocio}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : (
             <EmptyState message="Todavía no se cargó tu perfil." />
           )}

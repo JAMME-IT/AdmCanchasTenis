@@ -85,6 +85,41 @@ export interface MiCuota {
   updatedAt: string;
 }
 
+/** Availability slot (GET /turnos/disponibilidad, API contract §5.3). */
+export interface SlotDisponibilidad {
+  canchaId: string;
+  nroCancha: number;
+  horaInicio: string;
+  horaFin: string;
+  disponible: boolean;
+  requiereLuz: boolean;
+  motivo: string | null;
+}
+
+/** GET /turnos/disponibilidad response: day, resolved duration and slots. */
+export interface DisponibilidadResponse {
+  fecha: string;
+  duracionMinutos: number;
+  slots: SlotDisponibilidad[];
+}
+
+/** POST /turnos body: the client never sends amounts (API contract §5.3). */
+export interface CrearTurnoBody {
+  canchaId: string;
+  fecha: string;
+  horaInicio: string;
+  tipoTurnoId: string;
+  cantidadPersonas: number;
+  cantidadNoSocios: number;
+  requiereLuz: boolean;
+}
+
+/** POST /turnos response: created booking plus shared lighting charge and notices. */
+export interface ReservarTurnoResponse extends Turno {
+  cargoLuzCompartido: number | null;
+  avisos: string[];
+}
+
 export interface HistorialParams {
   estadoActual?: EstadoHistorial;
   desde?: string;
@@ -171,4 +206,22 @@ export const api = {
     request<Turno>(`/turnos/${id}/cancelar`, { method: 'POST', token, body: { motivo } }),
   misCuotas: (token: string | null): Promise<MiCuota[]> =>
     request<MiCuota[]>('/cuotas/mias', { token }),
+  disponibilidad: (
+    token: string | null,
+    fecha: string,
+    params?: { canchaId?: string; tipoTurnoId?: string },
+  ): Promise<DisponibilidadResponse> => {
+    const query = new URLSearchParams({ fecha });
+    if (params?.canchaId) {
+      query.set('canchaId', params.canchaId);
+    }
+    if (params?.tipoTurnoId) {
+      query.set('tipoTurnoId', params.tipoTurnoId);
+    }
+    return request<DisponibilidadResponse>(`/turnos/disponibilidad?${query.toString()}`, {
+      token,
+    });
+  },
+  crearTurno: (token: string | null, body: CrearTurnoBody): Promise<ReservarTurnoResponse> =>
+    request<ReservarTurnoResponse>('/turnos', { method: 'POST', token, body }),
 };

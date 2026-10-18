@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
+import { api, ApiError, type ReservarTurnoResponse } from '../lib/api';
 import TurnoGrilla, { type SlotTurno } from '../components/TurnoGrilla';
 import BloqueoTemporal from '../components/BloqueoTemporal';
 
@@ -21,52 +22,22 @@ function formatoARS(valor: number): string {
   }).format(valor);
 }
 
-const API_ORIGIN = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-
-// TEMPORARY: hardcoded dev-DB tipoTurno IDs until backend exposes GET listing — swap this constant, TODO.
-const TIPOS_TURNO_PROVISORIOS = [
-  { id: '016a91be-5bc3-4b73-ab3e-e671a2faf0fa', minutos: 60, etiqueta: '60 min' },
-  { id: 'e7d99191-7ed9-4bb6-8188-f5abc9078db8', minutos: 90, etiqueta: '90 min' },
-] as const;
-
-// Minimal shape of POST /turnos success used by this page (amounts come from the server).
-interface ReservaTurnoOk {
-  id: string;
-  fecha: string;
-  horaInicio: string;
-  horaFin: string;
-  costoTurnoNs: number;
-  cargoLuzCompartido: number | null;
-  avisos: string[];
-}
-
-// Pull the real API message out of a Nest error body (string or string[]).
-function mensajeErrorApi(cuerpo: unknown, fallback: string): string {
-  if (cuerpo !== null && typeof cuerpo === 'object' && 'message' in cuerpo) {
-    const mensaje = (cuerpo as { message?: unknown }).message;
-    if (Array.isArray(mensaje)) {
-      return mensaje.map(String).join(', ');
-    }
-    if (typeof mensaje === 'string' && mensaje.length > 0) {
-      return mensaje;
-    }
-  }
-  return fallback;
-}
-
 export default function Turnos(): JSX.Element {
   const { getToken } = useAuth();
   // Token is resolved once per page; the grid re-fetches when it arrives.
   const [token, setToken] = useState<string | null>(null);
   const [fecha, setFecha] = useState<string>(() => hoyART());
   const [seleccionado, setSeleccionado] = useState<SlotTurno | null>(null);
-  // Provisional booking form: duration defaults to 60 min, party defaults to 4/0.
-  const [tipoTurnoId, setTipoTurnoId] = useState<string>(TIPOS_TURNO_PROVISORIOS[0].id);
+  // Booking form: no hardcoded tipoTurno IDs (the API has no listing endpoint yet,
+  // so the ID comes from user input and the server validates it).
+  const [tipoTurnoId, setTipoTurnoId] = useState<string>('');
+  // Slot length resolved by the server, reported back by the grid.
+  const [duracionMinutos, setDuracionMinutos] = useState<number | null>(null);
   const [cantidadPersonas, setCantidadPersonas] = useState<number>(4);
   const [cantidadNoSocios, setCantidadNoSocios] = useState<number>(0);
   const [reservando, setReservando] = useState(false);
   const [errorReserva, setErrorReserva] = useState<string | null>(null);
-  const [reservaOk, setReservaOk] = useState<ReservaTurnoOk | null>(null);
+  const [reservaOk, setReservaOk] = useState<ReservarTurnoResponse | null>(null);
 
   // Lazily fetch the Clerk token on first render.
   useMemo(() => {
@@ -90,6 +61,7 @@ export default function Turnos(): JSX.Element {
   function cambiarFecha(valor: string): void {
     setFecha(valor);
     setSeleccionado(null);
+    setDuracionMinutos(null);
     reiniciarReserva();
   }
 
@@ -99,7 +71,7 @@ export default function Turnos(): JSX.Element {
     reiniciarReserva();
   }
 
-  // POST /turnos with the Clerk token; amounts and horaFin come back from the server.
+  // POST /turnos through lib/api; amounts and horaFin come back from the server.
   async function confirmarReserva(): Promise<void> {
     if (!seleccionado || reservando) {
       return;
@@ -108,46 +80,22 @@ export default function Turnos(): JSX.Element {
     setErrorReserva(null);
     setReservaOk(null);
     try {
-      const response = await fetch(`${API_ORIGIN}/api/turnos`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          canchaId: seleccionado.canchaId,
-          fecha,
-          horaInicio: seleccionado.horaInicio,
-          tipoTurnoId,
-          cantidadPersonas,
-          cantidadNoSocios,
-          requiereLuz: seleccionado.requiereLuz,
-        }),
+      const data = await api.crearTurno(token, {
+        canchaId: seleccionado.canchaId,
+        fecha,
+        horaInicio: seleccionado.horaInicio,
+        tipoTurnoId: tipoTurnoId.trim(),
+        cantidadPersonas,
+        cantidadNoSocios,
+        requiereLuz: seleccionado.requiereLuz,
       });
-      let cuerpo: unknown = null;
-      try {
-        cuerpo = await response.json();
-      } catch {
-        cuerpo = null;
-      }
-      if (!response.ok) {
-        throw new Error(mensajeErrorApi(cuerpo, `Error ${response.status}`));
-      }
-      const data = cuerpo as ReservaTurnoOk;
-      setReservaOk({
-        id: String(data.id ?? ''),
-        fecha: String(data.fecha ?? fecha),
-        horaInicio: String(data.horaInicio ?? seleccionado.horaInicio),
-        horaFin: String(data.horaFin ?? ''),
-        costoTurnoNs: Number(data.costoTurnoNs ?? 0),
-        cargoLuzCompartido:
-          data.cargoLuzCompartido === null || data.cargoLuzCompartido === undefined
-            ? null
-            : Number(data.cargoLuzCompartido),
-        avisos: Array.isArray(data.avisos) ? data.avisos.map(String) : [],
-      });
+      setReservaOk(data);
     } catch (error) {
-      setErrorReserva(error instanceof Error ? error.message : 'No se pudo confirmar la reserva.');
+      setErrorReserva(
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : 'No se pudo confirmar la reserva.',
+      );
     } finally {
       setReservando(false);
     }
@@ -184,8 +132,7 @@ export default function Turnos(): JSX.Element {
           </h1>
           <p style={{ margin: 0, maxWidth: '65ch' }}>
             Mirá la disponibilidad real del día y tocá un horario libre para ver el detalle.
-            La hora que ves es hora del club (ART). La reserva es provisoria: usa los tipos
-            de turno de la base de desarrollo hasta que la API exponga el listado oficial.
+            La hora que ves es hora del club (ART).
           </p>
         </header>
 
@@ -217,6 +164,7 @@ export default function Turnos(): JSX.Element {
               token={token}
               seleccionado={seleccionado}
               onSeleccionar={elegirSlot}
+              onDisponibilidad={(info) => setDuracionMinutos(info.duracionMinutos)}
             />
           </section>
 
@@ -264,28 +212,30 @@ export default function Turnos(): JSX.Element {
 
                 <fieldset style={{ border: '1px solid #8A9A93', borderRadius: '0.75rem', padding: '0.75rem', margin: '0 0 1rem' }}>
                   <legend style={{ fontWeight: 700, padding: '0 0.4rem' }}>
-                    Duración · Provisorios
+                    Tipo de turno
                   </legend>
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    {TIPOS_TURNO_PROVISORIOS.map((tipo) => (
-                      <label
-                        key={tipo.id}
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minHeight: '44px', cursor: 'pointer' }}
-                      >
-                        <input
-                          type="radio"
-                          name="duracion-turno"
-                          value={tipo.id}
-                          checked={tipoTurnoId === tipo.id}
-                          onChange={() => setTipoTurnoId(tipo.id)}
-                        />
-                        {tipo.etiqueta}
-                      </label>
-                    ))}
-                  </div>
+                  <label style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>
+                    ID del tipo de turno
+                    <input
+                      type="text"
+                      value={tipoTurnoId}
+                      onChange={(event) => setTipoTurnoId(event.target.value)}
+                      placeholder="UUID del tipo de turno"
+                      style={{
+                        minHeight: '44px',
+                        borderRadius: '0.75rem',
+                        border: '1px solid #8A9A93',
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: '#FFFFFF',
+                        color: '#384543',
+                      }}
+                    />
+                  </label>
                   <p style={{ fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
-                    Tipos provisorios de la base de desarrollo. Si la base se reseed y el ID
-                    ya no existe, la API lo informa y lo ves acá abajo.
+                    Los turnos de este día duran
+                    {duracionMinutos !== null ? ` ${duracionMinutos} min` : ' lo que indique el servidor'}.
+                    La API todavía no expone el listado oficial de tipos: si el ID no existe,
+                    la API lo informa y lo ves acá abajo.
                   </p>
                 </fieldset>
 
@@ -327,10 +277,10 @@ export default function Turnos(): JSX.Element {
                   </label>
                 </div>
 
-                <BloqueoTemporal motivo="Reserva provisoria" />
+                <BloqueoTemporal motivo="Revisá el detalle" />
                 <button
                   type="button"
-                  disabled={reservando}
+                  disabled={reservando || tipoTurnoId.trim().length === 0}
                   onClick={() => void confirmarReserva()}
                   style={{
                     marginTop: '0.75rem',
@@ -393,7 +343,7 @@ export default function Turnos(): JSX.Element {
               <>
                 <p style={{ marginTop: 0 }}>
                   Todavía no elegiste horario. Tocá un bloque libre de la grilla y acá ves el
-                  resumen para confirmar tu reserva provisoria.
+                  resumen para confirmar tu reserva.
                 </p>
                 <BloqueoTemporal motivo="Sin selección" />
               </>

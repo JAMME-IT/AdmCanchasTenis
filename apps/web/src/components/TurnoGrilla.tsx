@@ -1,16 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import BloqueoTemporal from './BloqueoTemporal';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { api, ApiError, type SlotDisponibilidad } from '../lib/api';
 
-// Slot shape mirrored from GET /turnos/disponibilidad (ACT-33, contract §5.3).
-// Kept local so TurnoGrilla stays callable without touching lib/api.ts.
-export interface SlotTurno {
-  canchaId: string;
-  nroCancha: number;
-  horaInicio: string;
-  horaFin: string;
-  disponible: boolean;
-  requiereLuz: boolean;
-  motivo: string | null;
+// Slot shape shared with GET /turnos/disponibilidad (contract §5.3) via lib/api,
+// so the grid and the booking page speak the same contract.
+export type SlotTurno = SlotDisponibilidad;
+
+export interface DisponibilidadInfo {
+  fecha: string;
+  duracionMinutos: number;
 }
 
 interface TurnoGrillaProps {
@@ -18,50 +15,46 @@ interface TurnoGrillaProps {
   token: string | null;
   seleccionado: SlotTurno | null;
   onSeleccionar: (slot: SlotTurno) => void;
+  onDisponibilidad?: (info: DisponibilidadInfo) => void;
 }
 
-const API_ORIGIN = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
-
-// Example slots used ONLY when the real API is unreachable.
-// They render disabled so nobody mistakes them for bookable data.
-const EJEMPLO_SLOTS: SlotTurno[] = [
-  { canchaId: 'ej-1', nroCancha: 1, horaInicio: '17:00', horaFin: '18:00', disponible: true, requiereLuz: false, motivo: null },
-  { canchaId: 'ej-1', nroCancha: 1, horaInicio: '18:00', horaFin: '19:00', disponible: false, requiereLuz: false, motivo: 'Turno confirmado' },
-  { canchaId: 'ej-1', nroCancha: 1, horaInicio: '19:00', horaFin: '20:00', disponible: true, requiereLuz: true, motivo: null },
-  { canchaId: 'ej-2', nroCancha: 2, horaInicio: '17:00', horaFin: '18:00', disponible: false, requiereLuz: false, motivo: 'Cancha no disponible' },
-  { canchaId: 'ej-2', nroCancha: 2, horaInicio: '18:00', horaFin: '19:00', disponible: true, requiereLuz: false, motivo: null },
-  { canchaId: 'ej-2', nroCancha: 2, horaInicio: '19:00', horaFin: '20:00', disponible: true, requiereLuz: true, motivo: null },
-  { canchaId: 'ej-3', nroCancha: 3, horaInicio: '17:00', horaFin: '18:00', disponible: true, requiereLuz: false, motivo: null },
-  { canchaId: 'ej-3', nroCancha: 3, horaInicio: '18:00', horaFin: '19:00', disponible: true, requiereLuz: false, motivo: null },
-  { canchaId: 'ej-3', nroCancha: 3, horaInicio: '19:00', horaFin: '20:00', disponible: false, requiereLuz: true, motivo: 'Turno confirmado' },
-];
-
-export default function TurnoGrilla({ fecha, token, seleccionado, onSeleccionar }: TurnoGrillaProps): JSX.Element {
-  // Real listing wired to GET /turnos/disponibilidad with the Clerk token.
+export default function TurnoGrilla({
+  fecha,
+  token,
+  seleccionado,
+  onSeleccionar,
+  onDisponibilidad,
+}: TurnoGrillaProps): JSX.Element {
+  // Real listing wired to GET /turnos/disponibilidad through lib/api.
   const [slots, setSlots] = useState<SlotTurno[]>([]);
   const [cargando, setCargando] = useState(false);
   const [errorApi, setErrorApi] = useState<string | null>(null);
+  const [intento, setIntento] = useState(0);
+  // Latest callback without retriggering the fetch when the parent re-renders.
+  const observadorRef = useRef(onDisponibilidad);
+  observadorRef.current = onDisponibilidad;
 
   useEffect(() => {
     let active = true;
     setCargando(true);
     setErrorApi(null);
-    const params = new URLSearchParams({ fecha });
     void (async () => {
       try {
-        const response = await fetch(`${API_ORIGIN}/api/turnos/disponibilidad?${params.toString()}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}`);
-        }
-        const data = (await response.json()) as { slots?: SlotTurno[] };
+        const data = await api.disponibilidad(token, fecha);
         if (active) {
-          setSlots(Array.isArray(data.slots) ? data.slots : []);
+          setSlots(data.slots);
+          observadorRef.current?.({
+            fecha: data.fecha,
+            duracionMinutos: data.duracionMinutos,
+          });
         }
-      } catch {
+      } catch (error) {
         if (active) {
-          setErrorApi('No se pudo alcanzar la API de turnos.');
+          setErrorApi(
+            error instanceof ApiError
+              ? error.message
+              : 'No se pudo alcanzar la API de turnos.',
+          );
           setSlots([]);
         }
       } finally {
@@ -73,16 +66,12 @@ export default function TurnoGrilla({ fecha, token, seleccionado, onSeleccionar 
     return () => {
       active = false;
     };
-  }, [fecha, token]);
-
-  // Fall back to disabled example data only when the API fails or is empty.
-  const usandoEjemplo = errorApi !== null || (!cargando && slots.length === 0);
-  const visibles = usandoEjemplo ? EJEMPLO_SLOTS : slots;
+  }, [fecha, token, intento]);
 
   // Group slots by court so the desktop grid reads court-first (Stitch reference).
   const porCancha = useMemo(() => {
     const grupos = new Map<number, SlotTurno[]>();
-    for (const slot of visibles) {
+    for (const slot of slots) {
       const lista = grupos.get(slot.nroCancha) ?? [];
       lista.push(slot);
       grupos.set(slot.nroCancha, lista);
@@ -93,7 +82,7 @@ export default function TurnoGrilla({ fecha, token, seleccionado, onSeleccionar 
         nro,
         lista: [...lista].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio)),
       }));
-  }, [visibles]);
+  }, [slots]);
 
   if (cargando) {
     // Skeletal loader matching the grid shape, no generic spinner.
@@ -109,17 +98,46 @@ export default function TurnoGrilla({ fecha, token, seleccionado, onSeleccionar 
     );
   }
 
+  if (errorApi !== null) {
+    // Real API error with retry, following the page card style.
+    return (
+      <div
+        role="alert"
+        style={{
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #8A9A93',
+          borderRadius: '1rem',
+          padding: '1.25rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+        }}
+      >
+        <p style={{ margin: 0, fontWeight: 600 }}>No se pudo cargar la disponibilidad.</p>
+        <p style={{ margin: 0, fontSize: '0.9rem', color: '#9B2C2C' }}>{errorApi}</p>
+        <button
+          type="button"
+          onClick={() => setIntento((previo) => previo + 1)}
+          style={{
+            minHeight: '44px',
+            alignSelf: 'flex-start',
+            backgroundColor: '#328161',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '0.75rem',
+            padding: '0.7rem 1.25rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
-      {usandoEjemplo && (
-        <div style={{ marginBottom: '0.75rem' }}>
-          <BloqueoTemporal motivo="API pendiente" />
-          <p style={{ margin: '0.5rem 0 0', fontSize: '0.9rem', color: '#384543' }}>
-            Mostramos horarios de ejemplo deshabilitados. En cuanto la API responda, ves la
-            disponibilidad real del día.
-          </p>
-        </div>
-      )}
       {porCancha.length === 0 ? (
         <p>No hay canchas configuradas para este día.</p>
       ) : (
@@ -148,7 +166,7 @@ export default function TurnoGrilla({ fecha, token, seleccionado, onSeleccionar 
                   const activo =
                     seleccionado?.canchaId === slot.canchaId &&
                     seleccionado?.horaInicio === slot.horaInicio;
-                  const bloqueado = usandoEjemplo || !slot.disponible;
+                  const bloqueado = !slot.disponible;
                   return (
                     <button
                       key={key}

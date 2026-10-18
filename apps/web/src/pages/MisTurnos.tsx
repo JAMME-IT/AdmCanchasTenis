@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
 import { ApiError, api, type EstadoHistorial, type MiTurno, type TurnoConCanchaResponse } from '../lib/api';
+import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
 // Palette: refined green #384543, whisper white #F5F3EF,
 // peridot #328161, serene gray #8A9A93.
@@ -162,20 +162,6 @@ export default function MisTurnos(): JSX.Element {
       }}
     >
       <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <p style={{ margin: 0 }}>
-          <Link to="/" style={{ color: '#328161', fontWeight: 600 }}>
-            ← Volver al inicio
-          </Link>
-          {' · '}
-          <Link to="/turnos" style={{ color: '#328161', fontWeight: 600 }}>
-            Reservar turno
-          </Link>
-          {' · '}
-          <Link to="/mis-cuotas" style={{ color: '#328161', fontWeight: 600 }}>
-            Mis cuotas
-          </Link>
-        </p>
-
         <header style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <p style={{ margin: 0, fontSize: '0.85rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A9A93' }}>
             Club · Mis reservas
@@ -258,44 +244,16 @@ export default function MisTurnos(): JSX.Element {
           </p>
         )}
 
-        {cargando && <p>Cargando tus turnos…</p>}
+        {cargando && <Skeleton rows={3} label="Cargando tus turnos…" />}
 
         {!cargando && error && (
-          <div
-            role="alert"
-            style={{
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #8A9A93',
-              borderRadius: '1rem',
-              padding: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem',
-            }}
-          >
-            <p style={{ margin: 0, color: '#9B2C2C' }}>No se pudieron cargar: {error}</p>
-            <button
-              type="button"
-              onClick={reintentar}
-              style={{
-                alignSelf: 'flex-start',
-                minHeight: '44px',
-                backgroundColor: '#328161',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '0.75rem',
-                padding: '0.6rem 1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Reintentar
-            </button>
-          </div>
+          <ErrorCard message={`No se pudieron cargar: ${error}`} onRetry={reintentar} />
         )}
 
         {!cargando && !error && turnos.length === 0 && (
-          <p>{tab === 'vigentes' ? 'No tenés turnos vigentes todavía' : 'No hay turnos en tu historial'}</p>
+          <EmptyState
+            message={tab === 'vigentes' ? 'No tenés turnos vigentes todavía' : 'No hay turnos en tu historial'}
+          />
         )}
 
         {!cargando && !error && turnos.length > 0 && (
@@ -317,18 +275,7 @@ export default function MisTurnos(): JSX.Element {
                   <strong>
                     Cancha {turno.cancha.nroCancha} · {formatoFechaCorta(turno.fecha)} · {turno.horaInicio}–{turno.horaFin}
                   </strong>
-                  <span
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      borderRadius: '999px',
-                      border: '1px solid #8A9A93',
-                      padding: '0.25rem 0.75rem',
-                      backgroundColor: '#F5F3EF',
-                    }}
-                  >
-                    {etiquetaEstado(turno.estadoActual)}
-                  </span>
+                  <StatusPill estado={turno.estadoActual} label={etiquetaEstado(turno.estadoActual)} />
                 </div>
 
                 {tab === 'vigentes' &&

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { UserButton, useAuth } from '@clerk/react';
+import { useAuth } from '@clerk/react';
 import { ApiError, api, type Usuario } from '../lib/api';
-import { useSignOut } from '../lib/useSignOut';
 import BloqueoTemporal from '../components/BloqueoTemporal';
+import { EmptyState, ErrorCard, Skeleton } from '../components/Feedback';
 
 // Palette: refined green #384543, whisper white #F5F3EF,
 // peridot accent #328161, serene gray #8A9A93.
@@ -51,123 +51,88 @@ const buttonPrimary: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-const buttonGhost: React.CSSProperties = {
-  backgroundColor: 'transparent',
-  color: '#384543',
-  border: '1px solid #8A9A93',
-  borderRadius: '0.75rem',
-  padding: '0.6rem 1rem',
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
 export default function Home(): JSX.Element {
   const { isLoaded, isSignedIn, getToken } = useAuth();
-  const signOutEverywhere = useSignOut();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [perfilIncompleto, setPerfilIncompleto] = useState(false);
+  const [cargandoPerfil, setCargandoPerfil] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [health, setHealth] = useState<string>('Todavía no se controló la API.');
-  const [checking, setChecking] = useState(false);
 
   // Load the connected profile once the session is ready.
+  const cargarPerfil = useCallback(async () => {
+    setCargandoPerfil(true);
+    setError(null);
+    setPerfilIncompleto(false);
+    try {
+      const token = await getToken();
+      const perfil = await api.me(token);
+      setUsuario(perfil);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 403) {
+        setPerfilIncompleto(true);
+      } else {
+        setError(caught instanceof ApiError ? caught.message : 'No se pudo cargar el perfil');
+      }
+    } finally {
+      setCargandoPerfil(false);
+    }
+  }, [getToken]);
+
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
       return;
     }
-    let active = true;
-    void (async () => {
-      try {
-        const token = await getToken();
-        const perfil = await api.me(token);
-        if (active) {
-          setUsuario(perfil);
-        }
-      } catch (caught) {
-        if (!active) {
-          return;
-        }
-        if (caught instanceof ApiError && caught.status === 403) {
-          setPerfilIncompleto(true);
-        } else {
-          setError(caught instanceof ApiError ? caught.message : 'No se pudo cargar el perfil');
-        }
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [getToken, isLoaded, isSignedIn]);
-
-  // Check the already existing health endpoint.
-  async function checkHealth(): Promise<void> {
-    setChecking(true);
-    try {
-      const data = await api.health();
-      setHealth(`Estado de la API: ${data.status}`);
-    } catch {
-      setHealth('No se pudo alcanzar la API. ¿Está corriendo en el puerto 3000?');
-    } finally {
-      setChecking(false);
-    }
-  }
+    void cargarPerfil();
+  }, [cargarPerfil, isLoaded, isSignedIn]);
 
   if (!isLoaded) {
     return (
       <main style={pageStyle}>
-        <p>Cargando...</p>
+        <Skeleton rows={2} label="Cargando tu sesión…" />
       </main>
     );
   }
 
+  // Guest home: Layout already shows the API status dot in the footer.
   if (!isSignedIn) {
     return (
       <main style={pageStyle}>
         <div style={shellStyle}>
           <section style={cardStyle}>
             <h1>Tenis Ranch Club</h1>
-            <p>Gestión simple del club: tu sesión, tu perfil y el estado de la API.</p>
+            <p>Gestión simple del club: tu sesión, tu perfil y tus turnos.</p>
             <p>
               <Link to="/ingresar">Ingresar</Link> {'·'} <Link to="/registro">Crear cuenta</Link>
             </p>
-            <button type="button" onClick={checkHealth} disabled={checking} style={buttonPrimary}>
-              {checking ? 'Controlando...' : 'Controlar salud'}
-            </button>
-            <p>{health}</p>
           </section>
         </div>
       </main>
     );
   }
 
+  // Session home: Layout provides the header nav and footer status dot.
   return (
     <main style={pageStyle}>
       <div style={shellStyle}>
-        {/* Connected header: session controls stay active. */}
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ margin: 0 }}>Tenis Ranch Club</h1>
-            <p style={{ margin: '0.25rem 0 0' }}>Gestión simple del club.</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button type="button" onClick={() => void signOutEverywhere()} style={buttonGhost}>
-              Cerrar sesión
-            </button>
-            <UserButton />
-          </div>
-        </header>
+        <div>
+          <h1 style={{ margin: 0 }}>Tenis Ranch Club</h1>
+          <p style={{ margin: '0.25rem 0 0' }}>Gestión simple del club.</p>
+        </div>
 
         {perfilIncompleto && (
           <p>
             Tu perfil está incompleto. <Link to="/completar-perfil">Completar perfil</Link>
           </p>
         )}
-        {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
         {/* Connected section: profile loaded from GET /auth/me. */}
         <section style={cardStyle}>
           <h2 style={{ marginTop: 0 }}>Mi perfil</h2>
-          {usuario ? (
+          {cargandoPerfil && !usuario ? (
+            <Skeleton rows={2} label="Cargando tu perfil…" />
+          ) : error ? (
+            <ErrorCard message={error} onRetry={() => void cargarPerfil()} />
+          ) : usuario ? (
             <>
               <p>
                 Hola, {usuario.nombre} {usuario.apellido}
@@ -181,17 +146,8 @@ export default function Home(): JSX.Element {
               </ul>
             </>
           ) : (
-            <p>Todavía no se cargó tu perfil.</p>
+            <EmptyState message="Todavía no se cargó tu perfil." />
           )}
-        </section>
-
-        {/* Connected section: health check against GET /health. */}
-        <section style={cardStyle}>
-          <h2 style={{ marginTop: 0 }}>Salud de la API</h2>
-          <button type="button" onClick={checkHealth} disabled={checking} style={buttonPrimary}>
-            {checking ? 'Controlando...' : 'Controlar salud'}
-          </button>
-          <p style={{ marginBottom: 0 }}>{health}</p>
         </section>
 
         {/* Blocked section: no new endpoints, all actions disabled. */}

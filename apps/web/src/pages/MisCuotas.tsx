@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
 import { ApiError, api, type MiCuota } from '../lib/api';
+import { CuotaProgress, EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
 // Palette: refined green #384543, whisper white #F5F3EF,
 // peridot #328161, serene gray #8A9A93.
@@ -23,6 +23,12 @@ function formatoFechaCorta(fecha: string): string {
   }
   const [anio, mes, dia] = partes;
   return `${dia}/${mes}/${anio}`;
+}
+
+// Pago timestamps may carry a time part ('YYYY-MM-DDTHH:mm…'): the day
+// is what matters, so strip the time before the date-only formatting.
+function formatoFechaPago(fechaPago: string): string {
+  return formatoFechaCorta(fechaPago.split('T')[0]);
 }
 
 function etiquetaEstado(estado: string): string {
@@ -96,20 +102,6 @@ export default function MisCuotas(): JSX.Element {
       }}
     >
       <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <p style={{ margin: 0 }}>
-          <Link to="/" style={{ color: '#328161', fontWeight: 600 }}>
-            ← Volver al inicio
-          </Link>
-          {' · '}
-          <Link to="/turnos" style={{ color: '#328161', fontWeight: 600 }}>
-            Reservar turno
-          </Link>
-          {' · '}
-          <Link to="/mis-turnos" style={{ color: '#328161', fontWeight: 600 }}>
-            Mis turnos
-          </Link>
-        </p>
-
         <header style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <p style={{ margin: 0, fontSize: '0.85rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A9A93' }}>
             Club · Mi cuenta
@@ -120,45 +112,20 @@ export default function MisCuotas(): JSX.Element {
           <p style={{ margin: 0, maxWidth: '65ch' }}>
             Acá ves tus cuotas con lo pagado, el saldo y cada pago registrado.
           </p>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#8A9A93' }}>
+            Se abona en el club: el pago se registra en caja, acá solo ves el estado.
+          </p>
         </header>
 
-        {cargando && <p>Cargando tus cuotas…</p>}
+        {cargando && <Skeleton rows={3} label="Cargando tus cuotas…" />}
 
         {!cargando && error && (
-          <div
-            role="alert"
-            style={{
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #8A9A93',
-              borderRadius: '1rem',
-              padding: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem',
-            }}
-          >
-            <p style={{ margin: 0, color: '#9B2C2C' }}>No se pudieron cargar: {error}</p>
-            <button
-              type="button"
-              onClick={() => void cargar(token)}
-              style={{
-                alignSelf: 'flex-start',
-                minHeight: '44px',
-                backgroundColor: '#328161',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '0.75rem',
-                padding: '0.6rem 1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Reintentar
-            </button>
-          </div>
+          <ErrorCard message={`No se pudieron cargar: ${error}`} onRetry={() => void cargar(token)} />
         )}
 
-        {!cargando && !error && cuotas.length === 0 && <p>No tenés cuotas emitidas todavía</p>}
+        {!cargando && !error && cuotas.length === 0 && (
+          <EmptyState message="No tenés cuotas emitidas todavía" />
+        )}
 
         {!cargando && !error && cuotas.length > 0 && (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -179,28 +146,19 @@ export default function MisCuotas(): JSX.Element {
                   <strong>
                     {formatoFechaCorta(cuota.fechaInicio)} · vence {formatoFechaCorta(cuota.fechaVencimiento)}
                   </strong>
-                  <span
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      borderRadius: '999px',
-                      border: '1px solid #8A9A93',
-                      padding: '0.25rem 0.75rem',
-                      backgroundColor: '#F5F3EF',
-                    }}
-                  >
-                    {etiquetaEstado(cuota.estadoActual)}
-                  </span>
+                  <StatusPill estado={cuota.estadoActual} label={etiquetaEstado(cuota.estadoActual)} />
                 </div>
                 <p style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>
                   Total {formatoARS(cuota.montoTotal)} · Pagado {formatoARS(cuota.totalPagado)} · Saldo{' '}
                   {formatoARS(cuota.saldo)}
                 </p>
+                <CuotaProgress pagado={cuota.totalPagado} total={cuota.montoTotal} />
                 {cuota.pagos.length > 0 ? (
                   <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.9rem' }}>
                     {cuota.pagos.map((pago) => (
                       <li key={pago.id}>
-                        Línea {pago.numeroLinea} · {formatoARS(pago.monto)}
+                        Línea {pago.numeroLinea} · {formatoARS(pago.monto)} · pagado el{' '}
+                        {formatoFechaPago(pago.fechaPago)}
                       </li>
                     ))}
                   </ul>

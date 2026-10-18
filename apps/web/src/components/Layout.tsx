@@ -173,13 +173,18 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
         }
         @media (max-width: 56rem) {
           .layout-bar {
-            flex-direction: column;
-            align-items: stretch !important;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+          }
+          .layout-bar-marca {
+            flex: 1 1 100%;
           }
           .layout-bar-nav {
             flex-direction: column !important;
             align-items: stretch !important;
             justify-content: flex-start !important;
+            flex: 1 1 auto !important;
           }
           .layout-bar-link {
             max-width: none;
@@ -280,6 +285,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           <Link
             to="/"
             aria-label="Tenis Ranch Club — Inicio"
+            className="layout-bar-marca"
             style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none', flex: 'none' }}
           >
             <span

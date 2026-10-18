@@ -192,7 +192,7 @@ model pagos_turno {
   turnos            turnos              @relation(fields: [turno_id], references: [id], onUpdate: NoAction)
 
   @@index([fecha_pago], map: "idx_pagos_turno_fecha")
-  @@index([turno_id], map: "idx_pagos_turno_turno")
+  @@unique([turno_id], map: "uq_pagos_turno_turno")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

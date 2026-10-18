@@ -21,6 +21,7 @@ import {
 import { transicionPermitida } from './estados-turno';
 import type { DisponibilidadResponse } from './disponibilidad-response';
 import type { ActualizarEstadoTurnoDto } from './dto/actualizar-estado-turno.dto';
+import type { ActualizarEstadoPagoTurnoDto } from './dto/actualizar-estado-pago-turno.dto';
 import type { CancelarTurnoDto } from './dto/cancelar-turno.dto';
 import type { ConsultarDisponibilidadDto } from './dto/consultar-disponibilidad.dto';
 import type { ConsultarHistorialDto } from './dto/consultar-historial.dto';
@@ -465,6 +466,54 @@ export class TurnosService {
           // never changes `estado_pago`, so the combined history stays accurate.
           valor_estado_pago: turno.estado_pago,
           ...(motivo ? { motivo } : {}),
+        },
+      });
+      return turnoActualizado;
+    });
+    return toTurnoResponse(actualizado);
+  }
+
+  /**
+   * Corrección manual del estado de pago (ACT-54, API contract §5.3 PATCH /turnos/:id/pago):
+   * actualiza `turnos.estado_pago` e inserta la transición combinada en `estados_turno`.
+   * Solo admin. 404 si el turno no existe, 422 si el estado es igual al actual.
+   */
+  async cambiarEstadoPago(id: string, dto: ActualizarEstadoPagoTurnoDto): Promise<TurnoResponse> {
+    const turno = await this.prisma.turnos.findUnique({
+      where: { id },
+      include: { pagos_turno: { select: { id: true } } },
+    });
+    if (!turno) {
+      throw new NotFoundException('Turno inexistente');
+    }
+    if (turno.estado_pago === dto.estadoPago) {
+      throw new UnprocessableEntityException('El turno ya tiene ese estado de pago');
+    }
+    // No se puede marcar impago si hay fila de pago: quedaría huérfana y el
+    // re-POST daría 409 sin salida. Ejemplo: T-101 con P-55, PATCH a impago
+    // deja flag impago con P-55 adentro, el cobro posterior choca con 409.
+    // Para anular hay que anular el pago por su flujo, no flipear el flag.
+    if (
+      turno.estado_pago === 'pago' &&
+      dto.estadoPago === 'impago' &&
+      (turno as { pagos_turno?: unknown[] }).pagos_turno !== undefined &&
+      ((turno as { pagos_turno: unknown[] }).pagos_turno?.length ?? 0) > 0
+    ) {
+      throw new ConflictException(
+        'No se puede marcar impago: existe un pago registrado para este turno',
+      );
+    }
+
+    const actualizado = await this.prisma.$transaction(async (tx) => {
+      const turnoActualizado = await tx.turnos.update({
+        where: { id },
+        data: { estado_pago: dto.estadoPago, updated_at: new Date() },
+      });
+      await tx.estados_turno.create({
+        data: {
+          turno_id: id,
+          valor_estado: turno.estado_actual,
+          valor_estado_pago: dto.estadoPago,
         },
       });
       return turnoActualizado;

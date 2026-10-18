@@ -44,8 +44,12 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
   // Menu mobile (disclosure ARIA, no dialogo): el estado abierto vive en
   // React y el CSS anima desde ese estado. En desktop se ignora.
   const [menuAbierto, setMenuAbierto] = useState(false);
+  // Navbar sticky que se compacta al scrollear (observa un sentinel de 60px).
+  const [encogido, setEncogido] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const progresoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -63,6 +67,48 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
     );
     return () => {
       active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setEncogido(!entry.isIntersecting);
+      },
+      { threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    let ticking = false;
+    const actualizar = () => {
+      ticking = false;
+      const barra = progresoRef.current;
+      if (!barra) {
+        return;
+      }
+      const maximo = document.documentElement.scrollHeight - window.innerHeight;
+      const avance = maximo > 0 ? window.scrollY / maximo : 0;
+      barra.style.transform = `scaleX(${avance})`;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        window.requestAnimationFrame(actualizar);
+      }
+    };
+    actualizar();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
     };
   }, []);
 
@@ -178,6 +224,35 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           visibility: visible;
           transform: translate(-50%, 0);
         }
+        /* Sticky encogido al scrollear: solo visual, sin tocar focos ni areas. */
+        .layout-header *,
+        .layout-header *::before,
+        .layout-header *::after {
+          box-sizing: border-box;
+        }
+        .layout-header {
+          transition: box-shadow 0.3s ease-out, border-color 0.3s ease-out;
+        }
+        .layout-header.encogido {
+          border-bottom-color: ${tokens.colors.peridot};
+          box-shadow: 0 8px 30px -12px rgba(56, 69, 67, 0.35);
+        }
+        .layout-bar {
+          min-height: 72px;
+          transition: min-height 0.3s ease-out;
+        }
+        .layout-header.encogido .layout-bar {
+          min-height: 52px;
+          padding-top: 0.35rem !important;
+          padding-bottom: 0.35rem !important;
+        }
+        .layout-bar-marca {
+          transition: transform 0.3s ease-out;
+          transform-origin: left center;
+        }
+        .layout-header.encogido .layout-bar-marca {
+          transform: scale(0.9);
+        }
         @media (max-width: 56rem) {
           .layout-bar {
             flex-direction: row;
@@ -268,10 +343,31 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
         }
       `}</style>
 
-      <header
-        className="layout-header"
+      <div ref={sentinelRef} aria-hidden="true" style={{ height: '60px', width: '1px' }} />
+      <div
+        ref={progresoRef}
+        aria-hidden="true"
         style={{
-          backgroundColor: tokens.colors.blanco,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '3px',
+          zIndex: 50,
+          transformOrigin: 'left',
+          transform: 'scaleX(0)',
+          background: `linear-gradient(to right, ${tokens.colors.peridot}, ${tokens.colors.fairway})`,
+        }}
+      />
+      <header
+        className={`layout-header${encogido ? ' encogido' : ''}`}
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+          backgroundColor: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           borderBottom: `1px solid ${tokens.colors.sereno}`,
           color: tokens.colors.musgo,
         }}

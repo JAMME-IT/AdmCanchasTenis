@@ -3,6 +3,7 @@
 // verifica el rol del perfil y muestra un aviso si no es admin.
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/react';
+import { Navigate } from 'react-router-dom';
 import {
   ApiError,
   api,
@@ -132,14 +133,9 @@ export default function Admin(): JSX.Element {
   }, [token, rol, tab, cargar]);
 
   if (rol !== null && rol !== 'admin') {
-    return (
-      <section aria-labelledby="admin-titulo" style={cardStyle}>
-        <h1 id="admin-titulo" style={{ marginTop: 0 }}>
-          Panel admin
-        </h1>
-        <p>Esta sección es solo para administradores del club.</p>
-      </section>
-    );
+    // No admin: no ve nada de este panel (RequireAdmin ya redirige;
+    // esto es cinturon y tirantes por si se ruta fuera del wrapper).
+    return <Navigate to="/" replace />;
   }
 
   return (

@@ -32,7 +32,8 @@ export const tokens = {
     base: 'system-ui, -apple-system, "Segoe UI", sans-serif',
   },
   shell: {
-    maxWidth: '1024px',
+    maxWidth: '1400px',
+    gutter: 'clamp(1rem, 4vw, 2.5rem)',
   },
 } as const;
 

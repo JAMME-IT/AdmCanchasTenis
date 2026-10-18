@@ -77,6 +77,9 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           flex: 1 1 auto;
           max-width: 12rem;
           text-align: center;
+          min-height: 2.25rem;
+          font-size: 0.78rem;
+          letter-spacing: 0.04em;
         }
         @media (max-width: 56rem) {
           .layout-bar {
@@ -88,6 +91,8 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           }
           .layout-bar-link {
             max-width: none;
+            min-height: 44px;
+            font-size: 0.85rem;
           }
           .layout-bar-actions {
             justify-content: flex-end;
@@ -115,7 +120,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           style={{
             maxWidth: tokens.shell.maxWidth,
             margin: '0 auto',
-            padding: `${tokens.spacing.sm} ${tokens.spacing.lg}`,
+            padding: `${tokens.spacing.sm} ${tokens.shell.gutter}`,
             display: 'flex',
             alignItems: 'center',
             gap: tokens.spacing.md,
@@ -170,12 +175,11 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                   end={item.end}
                   className="layout-bar-link"
                   style={({ isActive }) => ({
-                    minHeight: '44px',
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: tokens.radius.pill,
-                    padding: '0.5rem 1rem',
+                    padding: '0.35rem 0.75rem',
                     fontWeight: 600,
                     textDecoration: 'none',
                     color: tokens.colors.whisper,
@@ -220,7 +224,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           width: '100%',
           maxWidth: tokens.shell.maxWidth,
           margin: '0 auto',
-          padding: `${tokens.spacing.lg} ${tokens.spacing.lg} ${tokens.spacing.xl}`,
+          padding: `${tokens.spacing.lg} ${tokens.shell.gutter} ${tokens.spacing.xl}`,
         }}
       >
         {children}
@@ -234,7 +238,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           style={{
             maxWidth: tokens.shell.maxWidth,
             margin: '0 auto',
-            padding: `${tokens.spacing.sm} ${tokens.spacing.lg}`,
+            padding: `${tokens.spacing.sm} ${tokens.shell.gutter}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

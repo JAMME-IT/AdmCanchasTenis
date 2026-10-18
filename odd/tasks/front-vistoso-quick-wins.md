@@ -17,6 +17,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T2 (S3+S6, route: delegated, status: done, commit: fbad35e): feedback y estados (skeletons, retry, pills, progreso, sin debug card).
 - T3 (S5, route: delegated, status: done, commit: dd8c672): unificación api (lib/api + Turnos).
 - T4 (S7, route: inline, status: done, commit: -): seam check (web build + api tsc verdes).
+- T5 (S1, route: inline, status: done, commit: 87b4f9a): navbar en una fila (marca + nav flexible + acciones; apila en mobile).
 
 ## Log
 - L1 (2026-10-18, usuario): "Que nos está faltando para armar un frontend un poco más vistoso?"

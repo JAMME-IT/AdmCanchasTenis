@@ -120,6 +120,62 @@ export interface ReservarTurnoResponse extends Turno {
   avisos: string[];
 }
 
+/** GET /turnos item for admins: booking plus expanded user and court (ACT-37). */
+export interface TurnoAdmin extends Turno {
+  usuario: { id: string; nombre: string; apellido: string };
+  cancha: CanchaResumen;
+}
+
+export interface TurnosAdminParams {
+  busqueda?: string;
+  fecha?: string;
+  desde?: string;
+  hasta?: string;
+}
+
+/** GET /pagos-turno item (ACT-54). */
+export interface PagoTurno {
+  id: string;
+  turnoId: string;
+  montoTotalTurno: number;
+  fechaPago: string;
+  turno: { id: string; fecha: string; horaInicio: string; canchaId: string };
+  usuario: { id: string; nombre: string; apellido: string; numeroSocio: string | null };
+  lineas: { id: string; montoTurnoPago: number }[];
+}
+
+export interface PagosTurnoParams {
+  turnoId?: string;
+  usuarioId?: string;
+  desde?: string;
+  hasta?: string;
+}
+
+/** GET /reportes/estadisticas (ACT-45). */
+export interface EstadisticasResponse {
+  periodo: { desde: string; hasta: string };
+  turnos: {
+    total: number;
+    porEstado: Record<string, number>;
+    porCancha: { canchaId: string; nroCancha: number; cantidad: number }[];
+    porFranja: { horaInicio: string; cantidad: number }[];
+  };
+  usuarios: { sociosActivos: number; noSocios: number; morosos: number };
+}
+
+/** GET /reportes/financiero (ACT-46). */
+export interface FinancieroResponse {
+  periodo: { desde: string; hasta: string };
+  ingresos: { pagosTurno: number; pagosLuz: number; cuotasCobradas: number; total: number };
+  cuotas: { emitidas: number; montoEmitido: number; pagadas: number; parciales: number; adeudadas: number };
+  usoCanchas: { turnosTotal: number; horasOcupadas: number; ocupacionPromedio: number };
+}
+
+export interface PeriodoParams {
+  desde?: string;
+  hasta?: string;
+}
+
 export interface HistorialParams {
   estadoActual?: EstadoHistorial;
   desde?: string;
@@ -224,4 +280,60 @@ export const api = {
   },
   crearTurno: (token: string | null, body: CrearTurnoBody): Promise<ReservarTurnoResponse> =>
     request<ReservarTurnoResponse>('/turnos', { method: 'POST', token, body }),
+  turnosAdmin: (token: string | null, params?: TurnosAdminParams): Promise<TurnoAdmin[]> => {
+    const query = new URLSearchParams();
+    if (params?.busqueda) {
+      query.set('busqueda', params.busqueda);
+    }
+    if (params?.fecha) {
+      query.set('fecha', params.fecha);
+    }
+    if (params?.desde) {
+      query.set('desde', params.desde);
+    }
+    if (params?.hasta) {
+      query.set('hasta', params.hasta);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<TurnoAdmin[]>(`/turnos${suffix}`, { token });
+  },
+  pagosTurno: (token: string | null, params?: PagosTurnoParams): Promise<PagoTurno[]> => {
+    const query = new URLSearchParams();
+    if (params?.turnoId) {
+      query.set('turnoId', params.turnoId);
+    }
+    if (params?.usuarioId) {
+      query.set('usuarioId', params.usuarioId);
+    }
+    if (params?.desde) {
+      query.set('desde', params.desde);
+    }
+    if (params?.hasta) {
+      query.set('hasta', params.hasta);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<PagoTurno[]>(`/pagos-turno${suffix}`, { token });
+  },
+  estadisticas: (token: string | null, params?: PeriodoParams): Promise<EstadisticasResponse> => {
+    const query = new URLSearchParams();
+    if (params?.desde) {
+      query.set('desde', params.desde);
+    }
+    if (params?.hasta) {
+      query.set('hasta', params.hasta);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<EstadisticasResponse>(`/reportes/estadisticas${suffix}`, { token });
+  },
+  financiero: (token: string | null, params?: PeriodoParams): Promise<FinancieroResponse> => {
+    const query = new URLSearchParams();
+    if (params?.desde) {
+      query.set('desde', params.desde);
+    }
+    if (params?.hasta) {
+      query.set('hasta', params.hasta);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<FinancieroResponse>(`/reportes/financiero${suffix}`, { token });
+  },
 };

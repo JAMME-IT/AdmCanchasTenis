@@ -10,6 +10,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - S5: "un frontend un poco más vistoso" — todo el front habla por lib/api.ts, sin UUID provisorios ni copia "API pendiente", con errores reales de la API.
 - S6: "un frontend un poco más vistoso" — pills con colores por estado + barra de progreso en MisCuotas + mostrar fechaPago.
 - S7: "mandale rosca con eso en una rama nueva" — trabajo en feat/front-vistoso-quick-wins, verificado con build y tsc antes de avisar.
+- S8: "Haceme algo de Admin" — panel admin en /admin con turnos (filtros), pagos y reportes del backend, gated por rol, card viva en Home.
 
 ## Tasks
 - T0 (S7, route: inline, status: done, commit: 32e1be6): commitear fix carry-over import PrismaService en tarifas (boot API).
@@ -19,8 +20,10 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T4 (S7, route: inline, status: done, commit: -): seam check (web build + api tsc verdes).
 - T5 (S1, route: inline, status: done, commit: 87b4f9a): navbar en una fila (marca + nav flexible + acciones; apila en mobile).
 - T6 (S1, route: inline, status: done, commit: dd06640): shell fluido (1400px + gutter clamp) y pills compactas en desktop, 44px en mobile.
+- T7 (S8, route: inline, status: done, commit: -): panel admin (turnos con filtros, pagos, reportes) + ruta /admin + card viva en Home.
 
 ## Log
 - L1 (2026-10-18, usuario): "Que nos está faltando para armar un frontend un poco más vistoso?"
 - L2 (2026-10-18, usuario): "Dale, mandale rosca con eso en una rama nueva"
 - L3: rama feat/front-vistoso-quick-wins creada desde main 3bf9707; trae fix sin commitear de tarifas (de T0).
+- L4 (2026-10-18, usuario): "Haceme algo de Admin"

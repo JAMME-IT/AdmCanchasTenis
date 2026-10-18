@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Ingresar from './pages/Ingresar';
 import Registro from './pages/Registro';
 import CompletarPerfil from './pages/CompletarPerfil';
+import Admin from './pages/Admin';
 import Turnos from './pages/Turnos';
 import MisTurnos from './pages/MisTurnos';
 import MisCuotas from './pages/MisCuotas';
@@ -69,6 +70,16 @@ export default function App(): JSX.Element {
           <RequireSession>
             <Layout>
               <MisCuotas />
+            </Layout>
+          </RequireSession>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <RequireSession>
+            <Layout>
+              <Admin />
             </Layout>
           </RequireSession>
         }

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
 import { ApiError, api, type Usuario } from '../lib/api';
-import BloqueoTemporal from '../components/BloqueoTemporal';
 import { EmptyState, ErrorCard, Skeleton } from '../components/Feedback';
 
 // Palette: refined green #384543, whisper white #F5F3EF,
@@ -34,11 +33,6 @@ const gridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
   gap: '1rem',
-};
-
-const disabledCardStyle: React.CSSProperties = {
-  ...cardStyle,
-  opacity: 0.95,
 };
 
 const buttonPrimary: React.CSSProperties = {
@@ -185,21 +179,25 @@ export default function Home(): JSX.Element {
                 Ver mis cuotas
               </Link>
             </article>
-            <article style={disabledCardStyle}>
-              <BloqueoTemporal motivo="API pendiente" />
+            <article style={cardStyle}>
               <h3>Panel admin</h3>
-              <p>Falta conectar socios, morosos y caja del backend.</p>
-              <button type="button" disabled style={buttonPrimary}>
+              <p>Turnos con filtros, pagos y reportes del club.</p>
+              <Link
+                to="/admin"
+                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
+              >
                 Abrir panel
-              </button>
+              </Link>
             </article>
-            <article style={disabledCardStyle}>
-              <BloqueoTemporal motivo="Stitch pendiente" />
+            <article style={cardStyle}>
               <h3>Reportes</h3>
-              <p>Falta definir las pantallas Stitch para ver los reportes.</p>
-              <button type="button" disabled style={buttonPrimary}>
+              <p>Estadísticas e ingresos, dentro del panel admin.</p>
+              <Link
+                to="/admin"
+                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
+              >
                 Ver reportes
-              </button>
+              </Link>
             </article>
           </div>
         </section>

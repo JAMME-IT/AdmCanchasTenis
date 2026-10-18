@@ -28,6 +28,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T11 (S9, route: inline, status: done, commit: -): invitados en / van a /ingresar (redirect; Clerk es path-based) + e2e.
 - T12 (S1, route: inline, status: done, commit: -): hamburguesa mobile ARIA (aria-expanded, roving Arrows/Home/End, Escape, grid-rows) en React.
 - T13 (S1, route: inline, status: done, commit: -): fix menu mobile (nav en columna, panel full-width abajo del botón, sub-lista sin tarjeta) verificado con screenshots Playwright.
+- T16 (S1, route: inline, status: done, commit: -): navbar clásico (header claro, links con subrayado, dropdown claro) manteniendo hamburguesa.
 - T14 (S1, route: inline, status: done, commit: -): header mobile en 2 filas (marca arriba, Menú + sesión en una fila) verificado con screenshot.
 - T15 (S1, route: inline, status: done, commit: -): fuera botón Cerrar sesión del navbar (Clerk ya lo trae).
 

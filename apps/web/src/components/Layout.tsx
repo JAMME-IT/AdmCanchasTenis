@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
 import { api } from '../lib/api';
 import { tokens } from '../styles/tokens';
@@ -37,6 +37,9 @@ const API_DOT: Record<ApiState, string> = {
 // navegacion principal, contenido centrado y pie con el estado de la API.
 export default function Layout({ children }: { children: ReactNode }): JSX.Element {
   const { isSignedIn } = useAuth();
+  const location = useLocation();
+  const turnosActivo =
+    location.pathname === '/turnos' || location.pathname === '/mis-turnos';
   const [apiState, setApiState] = useState<ApiState>('checking');
   // Menu mobile (disclosure ARIA, no dialogo): el estado abierto vive en
   // React y el CSS anima desde ese estado. En desktop se ignora.
@@ -147,13 +150,19 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           margin-top: 0.6rem;
           padding: 0.4rem;
           border-radius: 1rem;
-          border: 1px solid rgba(255, 255, 255, 0.25);
-          background-color: #2C3E3A;
-          box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.5);
+          border: 1px solid ${tokens.colors.sereno};
+          background-color: ${tokens.colors.blanco};
+          box-shadow: 0 24px 60px -24px rgba(56, 69, 67, 0.35);
           opacity: 0;
           visibility: hidden;
           transform: translate(-50%, 6px);
           transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+        }
+        .nav-panel-link:hover {
+          background-color: ${tokens.colors.whisper};
+        }
+        .nav-classic-link:hover {
+          color: ${tokens.colors.musgo};
         }
         .nav-panel::before {
           content: '';
@@ -224,9 +233,9 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             gap: 0.5rem;
             min-height: 44px;
             border-radius: 0.75rem;
-            border: 1px solid rgba(255, 255, 255, 0.4);
+            border: 1px solid ${tokens.colors.sereno};
             background: transparent;
-            color: inherit;
+            color: ${tokens.colors.musgo};
             padding: 0.6rem 1rem;
             font-weight: 700;
             cursor: pointer;
@@ -262,10 +271,9 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
       <header
         className="layout-header"
         style={{
-          backgroundColor: tokens.colors.fairway,
-          backgroundImage:
-            'repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0.05) 72px, rgba(255, 255, 255, 0) 72px, rgba(255, 255, 255, 0) 144px)',
-          color: tokens.colors.whisper,
+          backgroundColor: tokens.colors.blanco,
+          borderBottom: `1px solid ${tokens.colors.sereno}`,
+          color: tokens.colors.musgo,
         }}
       >
         <div
@@ -305,13 +313,13 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                 letterSpacing: '0.02em',
                 fontSize: '1.05rem',
                 lineHeight: 1.1,
-                color: tokens.colors.whisper,
+                color: tokens.colors.musgo,
               }}
             >
               Tenis Ranch Club
             </span>
           </Link>
-          {isSignedIn && (
+          {true && (
             <nav
               aria-label="Principal"
               className={`layout-nav layout-bar-nav${menuAbierto ? ' menu-abierto' : ''}`}
@@ -379,18 +387,19 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                 <Link
                   to="/turnos"
                   aria-haspopup="true"
-                  className="layout-bar-link nav-dd-trigger"
+                  className="layout-bar-link nav-dd-trigger nav-classic-link"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '0.3rem',
-                    borderRadius: tokens.radius.pill,
-                    padding: '0.35rem 0.75rem',
-                    fontWeight: 600,
+                    padding: '0.5rem 0.25rem',
+                    fontWeight: turnosActivo ? 700 : 600,
                     textDecoration: 'none',
-                    color: tokens.colors.whisper,
-                    border: '1px solid transparent',
+                    color: turnosActivo ? tokens.colors.musgo : '#5A6661',
+                    borderBottom: turnosActivo
+                      ? `2px solid ${tokens.colors.peridot}`
+                      : '2px solid transparent',
                   }}
                 >
                   Turnos
@@ -416,6 +425,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                     <li key={item.to}>
                       <NavLink
                         to={item.to}
+                        className="nav-panel-link"
                         style={({ isActive }) => ({
                           display: 'flex',
                           flexDirection: 'column',
@@ -424,8 +434,9 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                           borderRadius: '0.75rem',
                           padding: '0.5rem 0.85rem',
                           textDecoration: 'none',
-                          color: tokens.colors.whisper,
-                          backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
+                          color: tokens.colors.musgo,
+                          backgroundColor: isActive ? tokens.colors.whisper : 'transparent',
+                          fontWeight: isActive ? 700 : 400,
                         })}
                       >
                         <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{item.label}</span>
@@ -440,20 +451,18 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                   key={item.to}
                   to={item.to}
                   end={item.end}
-                  className="layout-bar-link"
+                  className="layout-bar-link nav-classic-link"
                   style={({ isActive }) => ({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderRadius: tokens.radius.pill,
-                    padding: '0.35rem 0.75rem',
-                    fontWeight: 600,
+                    padding: '0.5rem 0.25rem',
+                    fontWeight: isActive ? 700 : 600,
                     textDecoration: 'none',
-                    color: tokens.colors.whisper,
-                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.18)' : 'transparent',
-                    border: isActive
-                      ? `1px solid ${tokens.colors.whisper}`
-                      : '1px solid transparent',
+                    color: isActive ? tokens.colors.musgo : '#5A6661',
+                    borderBottom: isActive
+                      ? `2px solid ${tokens.colors.peridot}`
+                      : '2px solid transparent',
                   })}
                 >
                   {item.label}

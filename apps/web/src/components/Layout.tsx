@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
 import { api } from '../lib/api';
@@ -40,6 +40,11 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
   const { isSignedIn } = useAuth();
   const signOutEverywhere = useSignOut();
   const [apiState, setApiState] = useState<ApiState>('checking');
+  // Menu mobile (disclosure ARIA, no dialogo): el estado abierto vive en
+  // React y el CSS anima desde ese estado. En desktop se ignora.
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const menuPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -87,9 +92,38 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           font-size: 0.78rem;
           letter-spacing: 0.04em;
         }
-        /* Dropdown CSS puro: abre con hover y con focus-within (teclado),
-           sin JavaScript. El puente invisible evita que se cierre al cruzar
-           el hueco entre el trigger y el panel. */
+        /* Menu hamburguesa mobile: el panel anima con grid-rows desde
+           la clase menu-abierto (una sola fuente de verdad con el estado).
+           En desktop el boton se oculta y el panel es transparente. */
+        .nav-menu-btn {
+          display: none;
+        }
+        .nav-menu-panel,
+        .nav-menu-inner {
+          display: contents;
+        }
+        .nav-burger {
+          display: inline-flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+        .nav-burger i {
+          display: block;
+          width: 1rem;
+          height: 2px;
+          border-radius: 2px;
+          background: currentColor;
+          transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        .menu-abierto .nav-burger i:nth-child(1) {
+          transform: translateY(5px) rotate(45deg);
+        }
+        .menu-abierto .nav-burger i:nth-child(2) {
+          opacity: 0;
+        }
+        .menu-abierto .nav-burger i:nth-child(3) {
+          transform: translateY(-5px) rotate(-45deg);
+        }
         .nav-dd {
           position: relative;
           flex: 1 1 auto;
@@ -170,6 +204,36 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           .layout-bar-actions {
             justify-content: flex-end;
           }
+          .nav-menu-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 44px;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: transparent;
+            color: inherit;
+            padding: 0.6rem 1rem;
+            font-weight: 700;
+            cursor: pointer;
+          }
+          .nav-menu-panel {
+            display: grid;
+            grid-template-rows: 0fr;
+            opacity: 0;
+            transition: grid-template-rows 0.25s ease, opacity 0.2s ease;
+            flex-basis: 100%;
+          }
+          .menu-abierto .nav-menu-panel {
+            grid-template-rows: 1fr;
+            opacity: 1;
+          }
+          .nav-menu-inner {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+          }
         }
         @media (prefers-reduced-motion: reduce) {
           .layout * {
@@ -233,7 +297,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           {isSignedIn && (
             <nav
               aria-label="Principal"
-              className="layout-nav layout-bar-nav"
+              className={`layout-nav layout-bar-nav${menuAbierto ? ' menu-abierto' : ''}`}
               style={{
                 flex: '1 1 24rem',
                 display: 'flex',
@@ -241,6 +305,59 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                 justifyContent: 'center',
               }}
             >
+              <button
+                type="button"
+                ref={menuBtnRef}
+                aria-expanded={menuAbierto}
+                aria-controls="nav-menu-panel"
+                onClick={() => setMenuAbierto((abierto) => !abierto)}
+                className="nav-menu-btn"
+              >
+                <span aria-hidden="true" className="nav-burger">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                Menú
+              </button>
+              <div
+                id="nav-menu-panel"
+                ref={menuPanelRef}
+                className="nav-menu-panel"
+                onClick={() => setMenuAbierto(false)}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    setMenuAbierto(false);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    setMenuAbierto(false);
+                    menuBtnRef.current?.focus();
+                    return;
+                  }
+                  const links = Array.from(
+                    menuPanelRef.current?.querySelectorAll('a') ?? [],
+                  );
+                  const actual = links.indexOf(document.activeElement as HTMLAnchorElement);
+                  if (actual < 0) {
+                    return;
+                  }
+                  const siguiente: Record<string, number> = {
+                    ArrowDown: actual + 1,
+                    ArrowUp: actual - 1,
+                    Home: 0,
+                    End: links.length - 1,
+                  };
+                  const destino = siguiente[event.key];
+                  if (destino === undefined) {
+                    return;
+                  }
+                  event.preventDefault();
+                  links[(destino + links.length) % links.length].focus();
+                }}
+              >
+                <div className="nav-menu-inner">
               <div className="nav-dd">
                 <Link
                   to="/turnos"
@@ -325,6 +442,8 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
                   {item.label}
                 </NavLink>
               ))}
+                </div>
+              </div>
             </nav>
           )}
           {isSignedIn && (

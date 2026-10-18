@@ -26,6 +26,7 @@ Objetivo: dejar el front vistoso con layout, tokens y estados prolijos. Branch: 
 - T9 (S1, route: inline, status: done, commit: -): dropdown Turnos CSS puro (hover + focus-within, puente anti-cierre, sub-lista fija en mobile) + link Admin en nav.
 - T10 (S1, route: inline, status: revertido): hero Wimbledon revertido a pedido.
 - T11 (S9, route: inline, status: done, commit: -): invitados en / van a /ingresar (redirect; Clerk es path-based) + e2e.
+- T12 (S1, route: inline, status: done, commit: -): hamburguesa mobile ARIA (aria-expanded, roving Arrows/Home/End, Escape, grid-rows) en React.
 
 ## Log
 - L1 (2026-10-18, usuario): "Que nos está faltando para armar un frontend un poco más vistoso?"

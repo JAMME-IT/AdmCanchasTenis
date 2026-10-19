@@ -195,11 +195,6 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           flex: none;
           align-items: center;
         }
-        .layout-actions {
-          display: flex;
-          flex: none;
-          align-items: center;
-        }
         .layout-focus:focus-visible,
         .layout-header :focus-visible,
         .layout-footer :focus-visible {

@@ -87,11 +87,11 @@ export default function TurnoGrilla({
   if (cargando) {
     // Skeletal loader matching the grid shape, no generic spinner.
     return (
-      <div aria-busy="true" aria-label="Cargando turnos" style={{ display: 'grid', gap: '0.75rem' }}>
+      <div aria-busy="true" aria-label="Cargando turnos" className="grid gap-3">
         {[0, 1, 2].map((fila) => (
           <div
             key={fila}
-            style={{ height: '3.5rem', borderRadius: '0.75rem', backgroundColor: '#EAE7E0' }}
+            className="h-14 rounded-xl bg-[#EAE7E0]"
           />
         ))}
       </div>
@@ -103,32 +103,14 @@ export default function TurnoGrilla({
     return (
       <div
         role="alert"
-        style={{
-          backgroundColor: '#FFFFFF',
-          border: '1px solid #8A9A93',
-          borderRadius: '1rem',
-          padding: '1.25rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.75rem',
-        }}
+        className="bg-white border border-sereno rounded-2xl p-5 flex flex-col gap-3"
       >
-        <p style={{ margin: 0, fontWeight: 600 }}>No se pudo cargar la disponibilidad.</p>
-        <p style={{ margin: 0, fontSize: '0.9rem', color: '#9B2C2C' }}>{errorApi}</p>
+        <p className="m-0 font-semibold">No se pudo cargar la disponibilidad.</p>
+        <p className="m-0 text-sm text-error">{errorApi}</p>
         <button
           type="button"
           onClick={() => setIntento((previo) => previo + 1)}
-          style={{
-            minHeight: '44px',
-            alignSelf: 'flex-start',
-            backgroundColor: '#328161',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '0.75rem',
-            padding: '0.7rem 1.25rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
+          className="min-h-[44px] self-start bg-peridot text-white border-none rounded-xl px-5 py-2.5 font-bold cursor-pointer"
         >
           Reintentar
         </button>
@@ -141,26 +123,15 @@ export default function TurnoGrilla({
       {porCancha.length === 0 ? (
         <p>No hay canchas configuradas para este día.</p>
       ) : (
-        <div style={{ display: 'grid', gap: '1rem' }}>
+        <div className="grid gap-4">
           {porCancha.map((grupo) => (
             <section
               key={grupo.nro}
               aria-label={`Cancha ${grupo.nro}`}
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #8A9A93',
-                borderRadius: '1rem',
-                padding: '1rem',
-              }}
+              className="bg-white border border-sereno rounded-2xl p-4"
             >
-              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Cancha {grupo.nro}</h3>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                  gap: '0.6rem',
-                }}
-              >
+              <h3 className="m-0 mb-3 text-base">Cancha {grupo.nro}</h3>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
                 {grupo.lista.map((slot) => {
                   const key = `${slot.canchaId}-${slot.horaInicio}`;
                   const activo =
@@ -174,26 +145,23 @@ export default function TurnoGrilla({
                       disabled={bloqueado}
                       onClick={() => onSeleccionar(slot)}
                       title={slot.motivo ?? `${slot.horaInicio} ART disponible`}
-                      style={{
-                        minHeight: '44px',
-                        textAlign: 'left',
-                        borderRadius: '0.75rem',
-                        padding: '0.6rem 0.75rem',
-                        cursor: bloqueado ? 'not-allowed' : 'pointer',
-                        border: activo ? '2px solid #328161' : '1px solid #8A9A93',
-                        borderLeft: slot.disponible
-                          ? '4px solid #328161'
-                          : '4px solid #8A9A93',
-                        backgroundColor: activo ? '#328161' : '#F5F3EF',
-                        color: activo ? '#FFFFFF' : '#384543',
-                        opacity: bloqueado ? 0.72 : 1,
-                        fontWeight: 600,
-                      }}
+                      className={`min-h-[44px] text-left rounded-xl px-3 py-2.5 font-semibold text-sm transition-colors ${
+                        bloqueado
+                          ? 'cursor-not-allowed opacity-72'
+                          : 'cursor-pointer'
+                      } ${
+                        activo
+                          ? 'border-2 border-peridot border-l-4 border-l-peridot bg-peridot text-white'
+                          : 'border border-sereno border-l-4 ' +
+                            (slot.disponible
+                              ? 'border-l-peridot bg-whisper text-musgo'
+                              : 'border-l-sereno bg-whisper text-musgo')
+                      }`}
                     >
-                      <span style={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+                      <span className="block tabular-nums">
                         {slot.horaInicio}–{slot.horaFin} ART
                       </span>
-                      <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500 }}>
+                      <span className="block text-xs font-medium">
                         {slot.disponible ? 'Libre' : (slot.motivo ?? 'Ocupado')}
                         {slot.requiereLuz ? ' · con luz' : ''}
                       </span>

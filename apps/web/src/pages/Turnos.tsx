@@ -5,15 +5,10 @@ import { api, ApiError, type ReservarTurnoResponse } from '../lib/api';
 import TurnoGrilla, { type SlotTurno } from '../components/TurnoGrilla';
 import BloqueoTemporal from '../components/BloqueoTemporal';
 
-// Palette: refined green #384543, whisper white #F5F3EF,
-// peridot #328161, serene gray #8A9A93, purple #68457A (sparse detail only).
-
-// Today in Argentina (UTC-3, no DST): shift the instant so UTC getters read ART.
 function hoyART(): string {
   return new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
-// ARS formatting for all prices shown on this page.
 function formatoARS(valor: number): string {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -24,14 +19,10 @@ function formatoARS(valor: number): string {
 
 export default function Turnos(): JSX.Element {
   const { getToken } = useAuth();
-  // Token is resolved once per page; the grid re-fetches when it arrives.
   const [token, setToken] = useState<string | null>(null);
   const [fecha, setFecha] = useState<string>(() => hoyART());
   const [seleccionado, setSeleccionado] = useState<SlotTurno | null>(null);
-  // Booking form: no hardcoded tipoTurno IDs (the API has no listing endpoint yet,
-  // so the ID comes from user input and the server validates it).
   const [tipoTurnoId, setTipoTurnoId] = useState<string>('');
-  // Slot length resolved by the server, reported back by the grid.
   const [duracionMinutos, setDuracionMinutos] = useState<number | null>(null);
   const [cantidadPersonas, setCantidadPersonas] = useState<number>(4);
   const [cantidadNoSocios, setCantidadNoSocios] = useState<number>(0);
@@ -39,7 +30,6 @@ export default function Turnos(): JSX.Element {
   const [errorReserva, setErrorReserva] = useState<string | null>(null);
   const [reservaOk, setReservaOk] = useState<ReservarTurnoResponse | null>(null);
 
-  // Lazily fetch the Clerk token on first render.
   useMemo(() => {
     void (async () => {
       try {
@@ -50,14 +40,12 @@ export default function Turnos(): JSX.Element {
     })();
   }, [getToken]);
 
-  // Clear the booking form outcome whenever the context changes.
   function reiniciarReserva(): void {
     setErrorReserva(null);
     setReservaOk(null);
     setReservando(false);
   }
 
-  // Reset the selection whenever the day changes.
   function cambiarFecha(valor: string): void {
     setFecha(valor);
     setSeleccionado(null);
@@ -65,13 +53,11 @@ export default function Turnos(): JSX.Element {
     reiniciarReserva();
   }
 
-  // Pick a slot from the grid and reset the previous booking outcome.
   function elegirSlot(slot: SlotTurno): void {
     setSeleccionado(slot);
     reiniciarReserva();
   }
 
-  // POST /turnos through lib/api; amounts and horaFin come back from the server.
   async function confirmarReserva(): Promise<void> {
     if (!seleccionado || reservando) {
       return;
@@ -102,42 +88,33 @@ export default function Turnos(): JSX.Element {
   }
 
   return (
-    <main
-      style={{
-        fontFamily: 'system-ui, sans-serif',
-        backgroundColor: '#F5F3EF',
-        color: '#384543',
-        minHeight: '100dvh',
-        padding: '2.5rem 1.5rem 3rem',
-      }}
-    >
-      <style>{`@media (max-width: 880px) { .turnos-split { grid-template-columns: 1fr !important; } }`}</style>
-      <div style={{ maxWidth: '1120px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <p style={{ margin: 0 }}>
-          <Link to="/" style={{ color: '#328161', fontWeight: 600 }}>
+    <main className="py-10 px-6 pb-12 font-sans bg-whisper text-musgo min-h-dvh">
+      <div className="max-w-[1120px] mx-auto flex flex-col gap-5">
+        <p className="m-0">
+          <Link to="/" className="text-peridot font-semibold">
             ← Volver al inicio
           </Link>
           {' · '}
-          <Link to="/mis-turnos" style={{ color: '#328161', fontWeight: 600 }}>
+          <Link to="/mis-turnos" className="text-peridot font-semibold">
             Ver mis turnos
           </Link>
         </p>
 
-        <header style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <p style={{ margin: 0, fontSize: '0.85rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A9A93' }}>
+        <header className="flex flex-col gap-2">
+          <p className="m-0 text-sm tracking-[0.08em] uppercase text-sereno">
             Club · Reserva de canchas
           </p>
-          <h1 style={{ margin: 0, fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', lineHeight: 1.1 }}>
+          <h1 className="m-0 text-[clamp(1.8rem,4vw,2.6rem)] leading-[1.1]">
             Elegí tu turno
           </h1>
-          <p style={{ margin: 0, maxWidth: '65ch' }}>
+          <p className="m-0 max-w-[65ch]">
             Mirá la disponibilidad real del día y tocá un horario libre para ver el detalle.
             La hora que ves es hora del club (ART).
           </p>
         </header>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <label htmlFor="fecha-turno" style={{ fontWeight: 600 }}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label htmlFor="fecha-turno" className="font-semibold">
             Día
           </label>
           <input
@@ -145,19 +122,11 @@ export default function Turnos(): JSX.Element {
             type="date"
             value={fecha}
             onChange={(event) => cambiarFecha(event.target.value)}
-            style={{
-              minHeight: '44px',
-              borderRadius: '0.75rem',
-              border: '1px solid #8A9A93',
-              padding: '0.5rem 0.75rem',
-              backgroundColor: '#FFFFFF',
-              color: '#384543',
-            }}
+            className="min-h-[44px] rounded-xl border border-sereno px-3 py-2 bg-white text-musgo"
           />
         </div>
 
-        {/* Asymmetric split: wide grid + narrow detail (stacks on mobile). */}
-        <div className="turnos-split" style={{ display: 'grid', gridTemplateColumns: '1.9fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
+        <div className="grid grid-cols-[1.9fr_1fr] gap-5 items-start max-[880px]:grid-cols-1">
           <section aria-label="Grilla semanal de turnos">
             <TurnoGrilla
               fecha={fecha}
@@ -170,68 +139,53 @@ export default function Turnos(): JSX.Element {
 
           <aside
             aria-label="Detalle del turno"
-            style={{
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #8A9A93',
-              borderRadius: '1rem',
-              padding: '1.25rem',
-              position: 'sticky',
-              top: '1rem',
-            }}
+            className="bg-white border border-sereno rounded-2xl p-5 sticky top-4"
           >
-            <h2 style={{ marginTop: 0 }}>Tu turno</h2>
+            <h2 className="mt-0">Tu turno</h2>
             {seleccionado ? (
               <>
-                <dl style={{ display: 'grid', gap: '0.4rem', margin: '0 0 1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                <dl className="grid gap-1 mb-4">
+                  <div className="flex justify-between gap-4">
                     <dt>Día</dt>
-                    <dd style={{ margin: 0, fontWeight: 600 }}>{fecha}</dd>
+                    <dd className="m-0 font-semibold">{fecha}</dd>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                  <div className="flex justify-between gap-4">
                     <dt>Horario</dt>
-                    <dd style={{ margin: 0, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    <dd className="m-0 font-semibold tabular-nums">
                       {seleccionado.horaInicio}–{seleccionado.horaFin} ART
                     </dd>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                  <div className="flex justify-between gap-4">
                     <dt>Cancha</dt>
-                    <dd style={{ margin: 0, fontWeight: 600 }}>{seleccionado.nroCancha}</dd>
+                    <dd className="m-0 font-semibold">{seleccionado.nroCancha}</dd>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+                  <div className="flex justify-between gap-4">
                     <dt>Luz</dt>
-                    <dd style={{ margin: 0, fontWeight: 600 }}>
+                    <dd className="m-0 font-semibold">
                       {seleccionado.requiereLuz ? 'Sí, con cargo compartido' : 'No hace falta'}
                     </dd>
                   </div>
                 </dl>
-                {/* Sparse purple accent (under 5%): provisional notice only. */}
-                <p style={{ fontSize: '0.85rem', color: '#68457A', margin: '0 0 1rem' }}>
+                <p className="text-sm text-[#68457A] mb-4">
                   El horario de fin real lo confirma el servidor según la duración elegida.
                   El importe lo calcula el servidor; acá solo mostramos lo que devuelve la API.
                 </p>
 
-                <fieldset style={{ border: '1px solid #8A9A93', borderRadius: '0.75rem', padding: '0.75rem', margin: '0 0 1rem' }}>
-                  <legend style={{ fontWeight: 700, padding: '0 0.4rem' }}>
+                <fieldset className="border border-sereno rounded-xl p-3 mb-4">
+                  <legend className="font-bold px-1.5">
                     Tipo de turno
                   </legend>
-                  <label style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>
+                  <label className="grid gap-1 font-semibold">
                     ID del tipo de turno
                     <input
                       type="text"
                       value={tipoTurnoId}
                       onChange={(event) => setTipoTurnoId(event.target.value)}
                       placeholder="UUID del tipo de turno"
-                      style={{
-                        minHeight: '44px',
-                        borderRadius: '0.75rem',
-                        border: '1px solid #8A9A93',
-                        padding: '0.5rem 0.75rem',
-                        backgroundColor: '#FFFFFF',
-                        color: '#384543',
-                      }}
+                      className="min-h-[44px] rounded-xl border border-sereno px-3 py-2 bg-white text-musgo"
                     />
                   </label>
-                  <p style={{ fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
+                  <p className="text-sm mt-2 mb-0">
                     Los turnos de este día duran
                     {duracionMinutos !== null ? ` ${duracionMinutos} min` : ' lo que indique el servidor'}.
                     La API todavía no expone el listado oficial de tipos: si el ID no existe,
@@ -239,25 +193,18 @@ export default function Turnos(): JSX.Element {
                   </p>
                 </fieldset>
 
-                <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <label style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>
+                <div className="grid gap-3 mb-4">
+                  <label className="grid gap-1 font-semibold">
                     Personas
                     <input
                       type="number"
                       min={1}
                       value={cantidadPersonas}
                       onChange={(event) => setCantidadPersonas(Number(event.target.value))}
-                      style={{
-                        minHeight: '44px',
-                        borderRadius: '0.75rem',
-                        border: '1px solid #8A9A93',
-                        padding: '0.5rem 0.75rem',
-                        backgroundColor: '#FFFFFF',
-                        color: '#384543',
-                      }}
+                      className="min-h-[44px] rounded-xl border border-sereno px-3 py-2 bg-white text-musgo"
                     />
                   </label>
-                  <label style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>
+                  <label className="grid gap-1 font-semibold">
                     No socios
                     <input
                       type="number"
@@ -265,14 +212,7 @@ export default function Turnos(): JSX.Element {
                       max={cantidadPersonas}
                       value={cantidadNoSocios}
                       onChange={(event) => setCantidadNoSocios(Number(event.target.value))}
-                      style={{
-                        minHeight: '44px',
-                        borderRadius: '0.75rem',
-                        border: '1px solid #8A9A93',
-                        padding: '0.5rem 0.75rem',
-                        backgroundColor: '#FFFFFF',
-                        color: '#384543',
-                      }}
+                      className="min-h-[44px] rounded-xl border border-sereno px-3 py-2 bg-white text-musgo"
                     />
                   </label>
                 </div>
@@ -282,25 +222,15 @@ export default function Turnos(): JSX.Element {
                   type="button"
                   disabled={reservando || tipoTurnoId.trim().length === 0}
                   onClick={() => void confirmarReserva()}
-                  style={{
-                    marginTop: '0.75rem',
-                    width: '100%',
-                    minHeight: '44px',
-                    backgroundColor: '#328161',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '0.75rem',
-                    padding: '0.7rem 1rem',
-                    fontWeight: 700,
-                    cursor: reservando ? 'wait' : 'pointer',
-                    opacity: reservando ? 0.75 : 1,
-                  }}
+                  className={`mt-3 w-full min-h-[44px] bg-peridot text-white border-none rounded-xl py-2.5 px-4 font-bold transition-opacity ${
+                    reservando ? 'opacity-75 cursor-wait' : 'opacity-100 cursor-pointer'
+                  }`}
                 >
                   {reservando ? 'Reservando…' : 'Confirmar reserva'}
                 </button>
 
                 {errorReserva && (
-                  <p role="alert" style={{ fontSize: '0.9rem', color: '#9B2C2C', marginBottom: 0 }}>
+                  <p role="alert" className="text-sm text-error mb-0">
                     No se pudo confirmar: {errorReserva}
                   </p>
                 )}
@@ -308,31 +238,25 @@ export default function Turnos(): JSX.Element {
                 {reservaOk && (
                   <div
                     role="status"
-                    style={{
-                      marginTop: '1rem',
-                      border: '1px solid #328161',
-                      borderRadius: '0.75rem',
-                      padding: '0.75rem',
-                      backgroundColor: '#F5F3EF',
-                    }}
+                    className="mt-4 border border-peridot rounded-xl p-3 bg-whisper"
                   >
-                    <p style={{ margin: '0 0 0.5rem', fontWeight: 700 }}>
+                    <p className="mb-2 font-bold">
                       Listo, tu turno quedó confirmado de {reservaOk.horaInicio} a {reservaOk.horaFin} ART.
                     </p>
-                    <p style={{ margin: '0 0 0.5rem', fontVariantNumeric: 'tabular-nums' }}>
+                    <p className="mb-2 tabular-nums">
                       Costo no socios: {formatoARS(reservaOk.costoTurnoNs)}
                       {reservaOk.cargoLuzCompartido !== null &&
                         ` · Luz compartida: ${formatoARS(reservaOk.cargoLuzCompartido)}`}
                     </p>
                     {reservaOk.avisos.length > 0 && (
-                      <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.9rem' }}>
+                      <ul className="m-0 ps-5 text-sm">
                         {reservaOk.avisos.map((aviso) => (
                           <li key={aviso}>{aviso}</li>
                         ))}
                       </ul>
                     )}
-                    <p style={{ margin: '0.5rem 0 0' }}>
-                      <Link to="/mis-turnos" style={{ color: '#328161', fontWeight: 600 }}>
+                    <p className="mt-2 mb-0">
+                      <Link to="/mis-turnos" className="text-peridot font-semibold">
                         Ver mis turnos
                       </Link>
                     </p>
@@ -341,7 +265,7 @@ export default function Turnos(): JSX.Element {
               </>
             ) : (
               <>
-                <p style={{ marginTop: 0 }}>
+                <p className="mt-0">
                   Todavía no elegiste horario. Tocá un bloque libre de la grilla y acá ves el
                   resumen para confirmar tu reserva.
                 </p>

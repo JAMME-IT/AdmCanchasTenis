@@ -165,7 +165,7 @@ export default function TurnoGrilla({
                       type="button"
                       disabled={!disponible}
                       onClick={() => onSeleccionar(slot)}
-                      className={`relative h-[70px] rounded-xl p-3 transition-all flex flex-col justify-between backdrop-blur-md ${
+                      className={`relative h-[70px] rounded-xl p-3 transition-all flex items-center justify-center backdrop-blur-md ${
                         !disponible
                           ? 'bg-gray-500/60 cursor-not-allowed opacity-60'
                           : activo
@@ -173,17 +173,18 @@ export default function TurnoGrilla({
                           : 'bg-white/15 text-white hover:bg-white/25 hover:scale-105 cursor-pointer'
                       }`}
                     >
-                      {/* Hora en una línea */}
-                      <div className="text-sm font-bold tabular-nums leading-tight">
+                      {/* Resplandor para turnos con luz */}
+                      {slot.requiereLuz && disponible && (
+                        <div className="absolute top-0 right-0 w-12 h-12 pointer-events-none">
+                          <div className="absolute top-1 right-1 w-8 h-8 rounded-full bg-pelota/40 blur-md"></div>
+                          <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-pelota/60 blur-sm"></div>
+                        </div>
+                      )}
+                      
+                      {/* Hora centrada */}
+                      <div className="text-sm font-bold tabular-nums">
                         {slot.horaInicio} - {slot.horaFin}
                       </div>
-                      
-                      {/* Indicador de luz */}
-                      {slot.requiereLuz && (
-                        <span className="text-xs text-pelota self-end">
-                          💡
-                        </span>
-                      )}
                     </button>
                   );
                 })}

@@ -96,13 +96,13 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
     <div className="font-body bg-whisper text-musgo min-h-dvh flex flex-col">
       <header className="sticky top-0 z-40 bg-wimbledon border-b border-white/15">
         <nav
-          className="w-full max-w-[1400px] h-16 mx-auto px-[clamp(1rem,4vw,2.5rem)] grid grid-cols-3 items-center"
+          className="w-full max-w-[1400px] h-16 mx-auto px-[clamp(1rem,4vw,2.5rem)] flex items-center justify-between"
           aria-label="Principal"
         >
           <Link
             to="/"
             aria-label="Tenis Ranch Club — Inicio"
-            className="inline-flex items-center justify-end gap-3 text-white no-underline focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px]"
+            className="inline-flex items-center gap-3 text-white no-underline focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px]"
           >
             <span className="flex flex-col leading-[1]">
               <span className="font-display text-[0.9rem] font-light tracking-[0.15em] uppercase text-white/90">
@@ -114,18 +114,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             </span>
           </Link>
 
-          <div className="flex justify-center" aria-hidden="true">
-            <svg width="60" height="36" viewBox="0 0 60 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="0" y="0" width="60" height="36" fill="#21875A" rx="2"/>
-              <rect x="2" y="2" width="56" height="32" fill="none" stroke="#FFFFFF" strokeWidth="1.5"/>
-              <line x1="30" y1="2" x2="30" y2="34" stroke="#FFFFFF" strokeWidth="1.5"/>
-              <line x1="2" y1="18" x2="58" y2="18" stroke="#FFFFFF" strokeWidth="2"/>
-              <line x1="16" y1="2" x2="16" y2="34" stroke="#FFFFFF" strokeWidth="1"/>
-              <line x1="44" y1="2" x2="44" y2="34" stroke="#FFFFFF" strokeWidth="1"/>
-            </svg>
-          </div>
-
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center gap-3">
             {isSignedIn && (
               <div className="hidden nav:flex items-center gap-1">
                 {navItems.map((item) => (

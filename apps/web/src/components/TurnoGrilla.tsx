@@ -148,70 +148,91 @@ export default function TurnoGrilla({
             ))}
           </div>
 
-          {/* Grilla horizontal de turnos */}
+          {/* Grilla horizontal de turnos con fondo de cancha */}
           {canchaSeleccionada !== null && porCancha.find(g => g.nro === canchaSeleccionada) && (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
-              {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
-                const key = `${slot.canchaId}-${slot.horaInicio}`;
-                const activo =
-                  seleccionado?.canchaId === slot.canchaId &&
-                  seleccionado?.horaInicio === slot.horaInicio;
-                const disponible = slot.disponible;
-                
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    disabled={!disponible}
-                    onClick={() => onSeleccionar(slot)}
-                    className={`relative h-[70px] rounded-xl p-3 transition-all flex flex-col justify-between ${
-                      !disponible
-                        ? 'bg-gray-50 border border-gray-200 cursor-not-allowed'
-                        : activo
-                        ? 'bg-gradient-to-br from-peridot to-fairway text-white shadow-xl scale-105 ring-2 ring-peridot/30'
-                        : 'bg-white border-2 border-sereno hover:border-peridot hover:shadow-lg hover:scale-105 cursor-pointer group'
-                    }`}
-                  >
-                    {/* Hora en una línea */}
-                    <div className={`text-sm font-bold tabular-nums leading-tight ${
-                      activo ? 'text-white' : disponible ? 'text-musgo' : 'text-gray-400'
-                    }`}>
-                      {slot.horaInicio} - {slot.horaFin}
-                    </div>
-                    
-                    {/* Footer con estado y luz */}
-                    <div className="flex items-center justify-between gap-1">
-                      {/* Badge de estado */}
-                      <span className={`inline-flex items-center gap-1 text-xs font-semibold ${
-                        activo
-                          ? 'text-white/95'
-                          : disponible
-                          ? 'text-peridot'
-                          : 'text-gray-400'
+            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-peridot/10 to-fairway/10 p-6">
+              {/* Cancha de tenis de fondo */}
+              <div className="absolute inset-0 opacity-[0.07]">
+                <div className="relative w-full h-full">
+                  {/* Líneas de la cancha */}
+                  <div className="absolute inset-[10%] border-[3px] border-musgo"></div>
+                  {/* Red central */}
+                  <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-musgo -translate-y-1/2"></div>
+                  {/* Líneas de servicio */}
+                  <div className="absolute top-[30%] left-[10%] right-[10%] h-[2px] bg-musgo"></div>
+                  <div className="absolute top-[70%] left-[10%] right-[10%] h-[2px] bg-musgo"></div>
+                  {/* Línea central de servicio */}
+                  <div className="absolute top-[30%] bottom-[30%] left-1/2 w-[2px] bg-musgo -translate-x-1/2"></div>
+                  {/* Marcas centrales */}
+                  <div className="absolute top-[10%] left-1/2 w-[2px] h-[10px] bg-musgo -translate-x-1/2"></div>
+                  <div className="absolute bottom-[10%] left-1/2 w-[2px] h-[10px] bg-musgo -translate-x-1/2"></div>
+                </div>
+              </div>
+
+              {/* Contenido de la grilla */}
+              <div className="relative z-10 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+                {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
+                  const key = `${slot.canchaId}-${slot.horaInicio}`;
+                  const activo =
+                    seleccionado?.canchaId === slot.canchaId &&
+                    seleccionado?.horaInicio === slot.horaInicio;
+                  const disponible = slot.disponible;
+                  
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      disabled={!disponible}
+                      onClick={() => onSeleccionar(slot)}
+                      className={`relative h-[70px] rounded-xl p-3 transition-all flex flex-col justify-between ${
+                        !disponible
+                          ? 'bg-gray-50 border border-gray-200 cursor-not-allowed'
+                          : activo
+                          ? 'bg-gradient-to-br from-peridot to-fairway text-white shadow-xl scale-105 ring-2 ring-peridot/30'
+                          : 'bg-white border-2 border-sereno hover:border-peridot hover:shadow-lg hover:scale-105 cursor-pointer group'
+                      }`}
+                    >
+                      {/* Hora en una línea */}
+                      <div className={`text-sm font-bold tabular-nums leading-tight ${
+                        activo ? 'text-white' : disponible ? 'text-musgo' : 'text-gray-400'
                       }`}>
-                        {disponible ? (
-                          <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-peridot"></span>
-                            <span>Libre</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                            <span>Ocupado</span>
-                          </>
-                        )}
-                      </span>
+                        {slot.horaInicio} - {slot.horaFin}
+                      </div>
                       
-                      {/* Indicador de luz */}
-                      {slot.requiereLuz && (
-                        <span className={`text-xs ${activo ? 'text-white/80' : 'text-pelota'}`}>
-                          💡
+                      {/* Footer con estado y luz */}
+                      <div className="flex items-center justify-between gap-1">
+                        {/* Badge de estado */}
+                        <span className={`inline-flex items-center gap-1 text-xs font-semibold ${
+                          activo
+                            ? 'text-white/95'
+                            : disponible
+                            ? 'text-peridot'
+                            : 'text-gray-400'
+                        }`}>
+                          {disponible ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-peridot"></span>
+                              <span>Libre</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                              <span>Ocupado</span>
+                            </>
+                          )}
                         </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+                        
+                        {/* Indicador de luz */}
+                        {slot.requiereLuz && (
+                          <span className={`text-xs ${activo ? 'text-white/80' : 'text-pelota'}`}>
+                            💡
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>

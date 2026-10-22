@@ -3,9 +3,6 @@ import { useAuth } from '@clerk/react';
 import { ApiError, api, type MiCuota } from '../lib/api';
 import { CuotaProgress, EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
-// Palette: refined green #384543, whisper white #F5F3EF,
-// peridot #328161, serene gray #8A9A93.
-
 function formatoARS(valor: number): string {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -14,8 +11,6 @@ function formatoARS(valor: number): string {
   }).format(valor);
 }
 
-// Date-only 'YYYY-MM-DD' must be formatted by string manipulation only:
-// new Date(fecha) parses as UTC and shifts the day in Argentina (UTC-3).
 function formatoFechaCorta(fecha: string): string {
   const partes = fecha.split('-');
   if (partes.length !== 3) {
@@ -25,8 +20,6 @@ function formatoFechaCorta(fecha: string): string {
   return `${dia}/${mes}/${anio}`;
 }
 
-// Pago timestamps may carry a time part ('YYYY-MM-DDTHH:mm…'): the day
-// is what matters, so strip the time before the date-only formatting.
 function formatoFechaPago(fechaPago: string): string {
   return formatoFechaCorta(fechaPago.split('T')[0]);
 }
@@ -92,27 +85,19 @@ export default function MisCuotas(): JSX.Element {
   }, [token, cargar]);
 
   return (
-    <main
-      style={{
-        fontFamily: 'system-ui, sans-serif',
-        backgroundColor: '#F5F3EF',
-        color: '#384543',
-        minHeight: '100dvh',
-        padding: '2.5rem 1.5rem 3rem',
-      }}
-    >
-      <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <header style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <p style={{ margin: 0, fontSize: '0.85rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A9A93' }}>
+    <main className="py-10 px-6 pb-12 font-sans bg-whisper text-musgo min-h-dvh">
+      <div className="max-w-[960px] mx-auto flex flex-col gap-5">
+        <header className="flex flex-col gap-2">
+          <p className="m-0 text-sm tracking-[0.08em] uppercase text-sereno">
             Club · Mi cuenta
           </p>
-          <h1 style={{ margin: 0, fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', lineHeight: 1.1 }}>
+          <h1 className="m-0 text-[clamp(1.8rem,4vw,2.6rem)] leading-[1.1]">
             Mis cuotas
           </h1>
-          <p style={{ margin: 0, maxWidth: '65ch' }}>
+          <p className="m-0 max-w-[65ch]">
             Acá ves tus cuotas con lo pagado, el saldo y cada pago registrado.
           </p>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: '#8A9A93' }}>
+          <p className="m-0 text-sm text-sereno">
             Se abona en el club: el pago se registra en caja, acá solo ves el estado.
           </p>
         </header>
@@ -128,33 +113,25 @@ export default function MisCuotas(): JSX.Element {
         )}
 
         {!cargando && !error && cuotas.length > 0 && (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <ul className="list-none m-0 p-0 flex flex-col gap-3">
             {cuotas.map((cuota) => (
               <li
                 key={cuota.id}
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #8A9A93',
-                  borderRadius: '1rem',
-                  padding: '1rem 1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.5rem',
-                }}
+                className="bg-white border border-sereno rounded-2xl px-5 py-4 flex flex-col gap-2"
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
                   <strong>
                     {formatoFechaCorta(cuota.fechaInicio)} · vence {formatoFechaCorta(cuota.fechaVencimiento)}
                   </strong>
                   <StatusPill estado={cuota.estadoActual} label={etiquetaEstado(cuota.estadoActual)} />
                 </div>
-                <p style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>
+                <p className="m-0 tabular-nums">
                   Total {formatoARS(cuota.montoTotal)} · Pagado {formatoARS(cuota.totalPagado)} · Saldo{' '}
                   {formatoARS(cuota.saldo)}
                 </p>
                 <CuotaProgress pagado={cuota.totalPagado} total={cuota.montoTotal} />
                 {cuota.pagos.length > 0 ? (
-                  <ul style={{ margin: 0, paddingInlineStart: '1.25rem', fontSize: '0.9rem' }}>
+                  <ul className="m-0 ps-5 text-sm">
                     {cuota.pagos.map((pago) => (
                       <li key={pago.id}>
                         Línea {pago.numeroLinea} · {formatoARS(pago.monto)} · pagado el{' '}
@@ -163,7 +140,7 @@ export default function MisCuotas(): JSX.Element {
                     ))}
                   </ul>
                 ) : (
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#8A9A93' }}>Sin pagos registrados</p>
+                  <p className="m-0 text-sm text-sereno">Sin pagos registrados</p>
                 )}
               </li>
             ))}

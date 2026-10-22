@@ -30,6 +30,7 @@ export default function TurnoGrilla({
   const [cargando, setCargando] = useState(false);
   const [errorApi, setErrorApi] = useState<string | null>(null);
   const [intento, setIntento] = useState(0);
+  const [canchaSeleccionada, setCanchaSeleccionada] = useState<number | null>(null);
   // Latest callback without retriggering the fetch when the parent re-renders.
   const observadorRef = useRef(onDisponibilidad);
   observadorRef.current = onDisponibilidad;
@@ -43,6 +44,11 @@ export default function TurnoGrilla({
         const data = await api.disponibilidad(token, fecha);
         if (active) {
           setSlots(data.slots);
+          // Inicializar con la primera cancha disponible
+          if (data.slots.length > 0) {
+            const primeraCancha = Math.min(...data.slots.map(s => s.nroCancha));
+            setCanchaSeleccionada(primeraCancha);
+          }
           observadorRef.current?.({
             fecha: data.fecha,
             duracionMinutos: data.duracionMinutos,
@@ -123,16 +129,34 @@ export default function TurnoGrilla({
       {porCancha.length === 0 ? (
         <p>No hay canchas configuradas para este día.</p>
       ) : (
-        <div className="grid gap-4">
-          {porCancha.map((grupo) => (
+        <>
+          {/* Botones de selección de cancha */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {porCancha.map((grupo) => (
+              <button
+                key={grupo.nro}
+                type="button"
+                onClick={() => setCanchaSeleccionada(grupo.nro)}
+                className={`min-h-[44px] px-4 py-2 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${
+                  canchaSeleccionada === grupo.nro
+                    ? 'bg-peridot text-white border-2 border-peridot'
+                    : 'bg-white text-musgo border-2 border-sereno hover:border-peridot'
+                }`}
+              >
+                Cancha {grupo.nro}
+              </button>
+            ))}
+          </div>
+
+          {/* Grilla de la cancha seleccionada */}
+          {canchaSeleccionada !== null && porCancha.find(g => g.nro === canchaSeleccionada) && (
             <section
-              key={grupo.nro}
-              aria-label={`Cancha ${grupo.nro}`}
+              aria-label={`Cancha ${canchaSeleccionada}`}
               className="bg-white border border-sereno rounded-2xl p-4"
             >
-              <h3 className="m-0 mb-3 text-base">Cancha {grupo.nro}</h3>
+              <h3 className="m-0 mb-3 text-base">Cancha {canchaSeleccionada}</h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
-                {grupo.lista.map((slot) => {
+                {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
                   const key = `${slot.canchaId}-${slot.horaInicio}`;
                   const activo =
                     seleccionado?.canchaId === slot.canchaId &&
@@ -170,8 +194,8 @@ export default function TurnoGrilla({
                 })}
               </div>
             </section>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

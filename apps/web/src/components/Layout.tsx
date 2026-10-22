@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
 import { BottomNavigation, BottomNavigationAction, Paper, ThemeProvider, createTheme } from '@mui/material';
-import { Circle, Home, type LucideIcon } from 'lucide-react';
+import { Home, type LucideIcon } from 'lucide-react';
 import { api } from '../lib/api';
 
 const NAV: ReadonlyArray<{
@@ -96,22 +96,14 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
     <div className="font-body bg-whisper text-musgo min-h-dvh flex flex-col">
       <header className="sticky top-0 z-40 bg-wimbledon border-b border-white/15">
         <nav
-          className="w-full max-w-[1400px] h-16 mx-auto px-[clamp(1rem,4vw,2.5rem)] flex items-center gap-[clamp(0.75rem,2vw,1.5rem)]"
+          className="w-full max-w-[1400px] h-16 mx-auto px-[clamp(1rem,4vw,2.5rem)] flex items-center justify-between gap-[clamp(0.75rem,2vw,1.5rem)]"
           aria-label="Principal"
         >
           <Link
             to="/"
             aria-label="Tenis Ranch Club — Inicio"
-            className="inline-flex flex-1 min-w-0 items-center justify-center gap-3 text-white no-underline focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px]"
+            className="inline-flex min-w-0 items-center gap-3 text-white no-underline focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px]"
           >
-            <span aria-hidden="true" className="inline-flex items-center justify-center text-pelota">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                <path d="M12 2C12 2 8 8 8 12C8 16 12 22 12 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M12 2C12 2 16 8 16 12C16 16 12 22 12 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
-            </span>
             <span className="flex flex-col leading-[1]">
               <span className="font-display text-[0.9rem] font-light tracking-[0.15em] uppercase text-white/90">
                 Tenis
@@ -122,26 +114,16 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             </span>
           </Link>
 
-          {isSignedIn && (
-            <div className="hidden nav:flex flex-none items-center gap-1">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={'end' in item ? item.end : false}
-                  className={({ isActive }) =>
-                    `inline-flex items-center min-h-10 px-3.5 rounded-[0.65rem] text-[0.9rem] font-semibold no-underline whitespace-nowrap transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px] ${
-                      isActive
-                        ? 'bg-white/25 text-white'
-                        : 'text-white/85 hover:bg-white/15 hover:text-white'
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-          )}
+          <div className="flex-none" aria-hidden="true">
+            <svg width="60" height="36" viewBox="0 0 60 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="0" y="0" width="60" height="36" fill="#21875A" rx="2"/>
+              <rect x="2" y="2" width="56" height="32" fill="none" stroke="#FFFFFF" strokeWidth="1.5"/>
+              <line x1="30" y1="2" x2="30" y2="34" stroke="#FFFFFF" strokeWidth="1.5"/>
+              <line x1="2" y1="18" x2="58" y2="18" stroke="#FFFFFF" strokeWidth="2"/>
+              <line x1="16" y1="2" x2="16" y2="34" stroke="#FFFFFF" strokeWidth="1"/>
+              <line x1="44" y1="2" x2="44" y2="34" stroke="#FFFFFF" strokeWidth="1"/>
+            </svg>
+          </div>
 
           <div className="flex flex-none items-center">
             <UserButton />

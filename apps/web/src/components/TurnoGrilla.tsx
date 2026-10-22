@@ -150,7 +150,7 @@ export default function TurnoGrilla({
 
           {/* Grilla horizontal de turnos */}
           {canchaSeleccionada !== null && porCancha.find(g => g.nro === canchaSeleccionada) && (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
               {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
                 const key = `${slot.canchaId}-${slot.horaInicio}`;
                 const activo =
@@ -164,40 +164,51 @@ export default function TurnoGrilla({
                     type="button"
                     disabled={!disponible}
                     onClick={() => onSeleccionar(slot)}
-                    className={`relative rounded-lg p-2.5 transition-all text-left ${
+                    className={`relative h-[70px] rounded-xl p-3 transition-all flex flex-col justify-between ${
                       !disponible
-                        ? 'bg-gray-100 border border-gray-300 cursor-not-allowed opacity-50'
+                        ? 'bg-gray-50 border border-gray-200 cursor-not-allowed'
                         : activo
-                        ? 'bg-peridot text-white border-2 border-peridot shadow-lg scale-105'
-                        : 'bg-white border-2 border-sereno hover:border-peridot hover:shadow-md hover:scale-105 cursor-pointer'
+                        ? 'bg-gradient-to-br from-peridot to-fairway text-white shadow-xl scale-105 ring-2 ring-peridot/30'
+                        : 'bg-white border-2 border-sereno hover:border-peridot hover:shadow-lg hover:scale-105 cursor-pointer group'
                     }`}
                   >
                     {/* Hora en una línea */}
-                    <div className={`text-sm font-bold tabular-nums mb-1.5 ${
-                      activo ? 'text-white' : disponible ? 'text-musgo' : 'text-gray-500'
+                    <div className={`text-sm font-bold tabular-nums leading-tight ${
+                      activo ? 'text-white' : disponible ? 'text-musgo' : 'text-gray-400'
                     }`}>
                       {slot.horaInicio} - {slot.horaFin}
                     </div>
                     
-                    {/* Estado */}
-                    <div className={`text-xs font-medium ${
-                      activo
-                        ? 'text-white/90'
-                        : disponible
-                        ? 'text-peridot font-semibold'
-                        : 'text-gray-500'
-                    }`}>
-                      {disponible ? 'Libre' : 'Ocupado'}
-                    </div>
-                    
-                    {/* Indicador de luz */}
-                    {slot.requiereLuz && (
-                      <div className={`text-xs mt-1 ${
-                        activo ? 'text-white/80' : 'text-musgo'
+                    {/* Footer con estado y luz */}
+                    <div className="flex items-center justify-between gap-1">
+                      {/* Badge de estado */}
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold ${
+                        activo
+                          ? 'text-white/95'
+                          : disponible
+                          ? 'text-peridot'
+                          : 'text-gray-400'
                       }`}>
-                        💡
-                      </div>
-                    )}
+                        {disponible ? (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-peridot"></span>
+                            <span>Libre</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                            <span>Ocupado</span>
+                          </>
+                        )}
+                      </span>
+                      
+                      {/* Indicador de luz */}
+                      {slot.requiereLuz && (
+                        <span className={`text-xs ${activo ? 'text-white/80' : 'text-pelota'}`}>
+                          💡
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}

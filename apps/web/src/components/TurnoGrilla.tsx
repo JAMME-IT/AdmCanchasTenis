@@ -125,13 +125,13 @@ export default function TurnoGrilla({
   }
 
   return (
-    <div className="bg-white rounded-2xl border-2 border-sereno p-6">
+    <div>
       {porCancha.length === 0 ? (
         <p className="text-center text-sereno py-8">No hay canchas configuradas para este día.</p>
       ) : (
         <>
           {/* Botones de selección de cancha */}
-          <div className="flex gap-3 mb-6 flex-wrap">
+          <div className="flex gap-3 mb-5 flex-wrap">
             {porCancha.map((grupo) => (
               <button
                 key={grupo.nro}
@@ -150,7 +150,7 @@ export default function TurnoGrilla({
 
           {/* Grilla horizontal de turnos */}
           {canchaSeleccionada !== null && porCancha.find(g => g.nro === canchaSeleccionada) && (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
               {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
                 const key = `${slot.canchaId}-${slot.horaInicio}`;
                 const activo =
@@ -164,45 +164,38 @@ export default function TurnoGrilla({
                     type="button"
                     disabled={!disponible}
                     onClick={() => onSeleccionar(slot)}
-                    className={`relative rounded-xl p-3 transition-all text-left ${
+                    className={`relative rounded-lg p-2.5 transition-all text-left ${
                       !disponible
-                        ? 'bg-gray-100 border-2 border-gray-200 cursor-not-allowed opacity-60'
+                        ? 'bg-gray-100 border border-gray-300 cursor-not-allowed opacity-50'
                         : activo
-                        ? 'bg-peridot text-white border-2 border-peridot shadow-xl scale-105'
-                        : 'bg-whisper border-2 border-sereno hover:border-peridot hover:shadow-lg hover:scale-105 cursor-pointer'
+                        ? 'bg-peridot text-white border-2 border-peridot shadow-lg scale-105'
+                        : 'bg-white border-2 border-sereno hover:border-peridot hover:shadow-md hover:scale-105 cursor-pointer'
                     }`}
                   >
-                    {/* Hora principal */}
-                    <div className={`text-lg font-bold tabular-nums mb-2 ${
+                    {/* Hora en una línea */}
+                    <div className={`text-sm font-bold tabular-nums mb-1.5 ${
                       activo ? 'text-white' : disponible ? 'text-musgo' : 'text-gray-500'
                     }`}>
-                      {slot.horaInicio}
-                    </div>
-                    
-                    {/* Hora fin */}
-                    <div className={`text-xs font-medium mb-2 ${
-                      activo ? 'text-white/80' : 'text-sereno'
-                    }`}>
-                      hasta {slot.horaFin}
+                      {slot.horaInicio} - {slot.horaFin}
                     </div>
                     
                     {/* Estado */}
-                    <div className={`text-xs font-semibold ${
+                    <div className={`text-xs font-medium ${
                       activo
-                        ? 'text-white'
+                        ? 'text-white/90'
                         : disponible
-                        ? 'text-peridot'
+                        ? 'text-peridot font-semibold'
                         : 'text-gray-500'
                     }`}>
-                      {disponible ? '✓ Libre' : '✗ Ocupado'}
+                      {disponible ? 'Libre' : 'Ocupado'}
                     </div>
                     
                     {/* Indicador de luz */}
                     {slot.requiereLuz && (
                       <div className={`text-xs mt-1 ${
-                        activo ? 'text-white/90' : 'text-musgo'
+                        activo ? 'text-white/80' : 'text-musgo'
                       }`}>
-                        💡 Luz
+                        💡
                       </div>
                     )}
                   </button>

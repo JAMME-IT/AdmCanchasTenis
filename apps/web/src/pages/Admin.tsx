@@ -13,7 +13,6 @@ import {
   type TurnoAdmin,
 } from '../lib/api';
 import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
-import { tokens } from '../styles/tokens';
 
 type Tab = 'turnos' | 'pagos' | 'reportes';
 
@@ -35,21 +34,6 @@ function formatoFechaCorta(fecha: string): string {
   const [anio, mes, dia] = fecha.slice(0, 10).split('-');
   return `${dia}/${mes}/${anio}`;
 }
-
-const cardStyle = {
-  backgroundColor: tokens.colors.blanco,
-  border: `1px solid ${tokens.colors.sereno}`,
-  borderRadius: tokens.radius.lg,
-  padding: tokens.spacing.lg,
-} as const;
-
-const inputStyle = {
-  minHeight: '44px',
-  borderRadius: tokens.radius.md,
-  border: `1px solid ${tokens.colors.sereno}`,
-  padding: '0.6rem 0.75rem',
-  fontSize: '1rem',
-} as const;
 
 export default function Admin(): JSX.Element {
   const { getToken } = useAuth();
@@ -139,13 +123,13 @@ export default function Admin(): JSX.Element {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacing.lg }}>
+    <div className="flex flex-col gap-6">
       <header>
-        <p style={{ margin: 0, color: tokens.colors.sereno, fontWeight: 600 }}>Club · Admin</p>
-        <h1 style={{ margin: '0.25rem 0 0' }}>Panel admin</h1>
+        <p className="m-0 text-sereno font-semibold">Club · Admin</p>
+        <h1 className="mt-1 mb-0">Panel admin</h1>
       </header>
 
-      <div style={{ display: 'flex', gap: tokens.spacing.xs }} role="tablist" aria-label="Panel admin">
+      <div className="flex gap-2" role="tablist" aria-label="Panel admin">
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -153,16 +137,11 @@ export default function Admin(): JSX.Element {
             role="tab"
             aria-selected={tab === item.id}
             onClick={() => setTab(item.id)}
-            style={{
-              minHeight: '44px',
-              borderRadius: tokens.radius.pill,
-              padding: '0.5rem 1rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              backgroundColor: tab === item.id ? tokens.colors.musgo : tokens.colors.blanco,
-              color: tab === item.id ? tokens.colors.whisper : tokens.colors.musgo,
-              border: `1px solid ${tab === item.id ? tokens.colors.musgo : tokens.colors.sereno}`,
-            }}
+            className={`min-h-[44px] rounded-full px-4 py-2 font-semibold cursor-pointer transition-colors ${
+              tab === item.id
+                ? 'bg-musgo text-whisper border-musgo'
+                : 'bg-white text-musgo border-sereno'
+            } border`}
           >
             {item.label}
           </button>
@@ -170,13 +149,13 @@ export default function Admin(): JSX.Element {
       </div>
 
       {tab === 'turnos' && (
-        <section aria-label="Turnos" style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacing.md }}>
+        <section aria-label="Turnos" className="flex flex-col gap-4">
           <form
             onSubmit={(event) => {
               event.preventDefault();
               void cargar(token, 'turnos');
             }}
-            style={{ display: 'flex', gap: tokens.spacing.sm, flexWrap: 'wrap' }}
+            className="flex gap-3 flex-wrap"
           >
             <input
               type="search"
@@ -184,27 +163,18 @@ export default function Admin(): JSX.Element {
               placeholder="Buscar socio…"
               value={busqueda}
               onChange={(event) => setBusqueda(event.target.value)}
-              style={inputStyle}
+              className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base"
             />
             <input
               type="date"
               aria-label="Fecha exacta"
               value={fecha}
               onChange={(event) => setFecha(event.target.value)}
-              style={inputStyle}
+              className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base"
             />
             <button
               type="submit"
-              style={{
-                minHeight: '44px',
-                borderRadius: tokens.radius.md,
-                padding: '0.6rem 1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                backgroundColor: tokens.colors.peridot,
-                color: tokens.colors.whisper,
-                border: 'none',
-              }}
+              className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none"
             >
               Filtrar
             </button>
@@ -216,10 +186,10 @@ export default function Admin(): JSX.Element {
           ) : turnos.length === 0 ? (
             <EmptyState message="No hay turnos para esos filtros." />
           ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: tokens.spacing.sm }}>
+            <ul className="list-none m-0 p-0 grid gap-3">
               {turnos.map((turno) => (
-                <li key={turno.id} style={cardStyle}>
-                  <div style={{ display: 'flex', gap: tokens.spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
+                <li key={turno.id} className="bg-white border border-sereno rounded-lg p-6">
+                  <div className="flex gap-3 flex-wrap items-center">
                     <StatusPill estado={turno.estadoActual} />
                     <StatusPill estado={turno.estadoPago} />
                     <strong>
@@ -238,7 +208,7 @@ export default function Admin(): JSX.Element {
       )}
 
       {tab === 'pagos' && (
-        <section aria-label="Pagos" style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacing.md }}>
+        <section aria-label="Pagos" className="flex flex-col gap-4">
           {cargando ? (
             <Skeleton rows={4} label="Cargando pagos…" />
           ) : error ? (
@@ -246,10 +216,10 @@ export default function Admin(): JSX.Element {
           ) : pagos.length === 0 ? (
             <EmptyState message="Todavía no hay pagos registrados." />
           ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: tokens.spacing.sm }}>
+            <ul className="list-none m-0 p-0 grid gap-3">
               {pagos.map((pago) => (
-                <li key={pago.id} style={cardStyle}>
-                  <div style={{ display: 'flex', gap: tokens.spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
+                <li key={pago.id} className="bg-white border border-sereno rounded-lg p-6">
+                  <div className="flex gap-3 flex-wrap items-center">
                     <strong>{formatoMoneda(pago.montoTotalTurno)}</strong>
                     <span>
                       {pago.usuario.nombre} {pago.usuario.apellido}
@@ -264,37 +234,37 @@ export default function Admin(): JSX.Element {
       )}
 
       {tab === 'reportes' && (
-        <section aria-label="Reportes" style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacing.md }}>
+        <section aria-label="Reportes" className="flex flex-col gap-4">
           {cargando ? (
             <Skeleton rows={3} label="Cargando reportes…" />
           ) : error ? (
             <ErrorCard message={error} onRetry={() => void cargar(token, 'reportes')} />
           ) : estadisticas && financiero ? (
             <>
-              <article style={cardStyle}>
-                <h2 style={{ marginTop: 0 }}>Turnos</h2>
-                <p style={{ fontSize: '2rem', margin: '0.25rem 0', fontVariantNumeric: 'tabular-nums' }}>
+              <article className="bg-white border border-sereno rounded-lg p-6">
+                <h2 className="mt-0">Turnos</h2>
+                <p className="text-3xl my-1 tabular-nums">
                   {estadisticas.turnos.total}
                 </p>
-                <p style={{ margin: 0, color: tokens.colors.sereno }}>
+                <p className="m-0 text-sereno">
                   Socios activos: {estadisticas.usuarios.sociosActivos} · Morosos:{' '}
                   {estadisticas.usuarios.morosos}
                 </p>
               </article>
-              <article style={cardStyle}>
-                <h2 style={{ marginTop: 0 }}>Ingresos</h2>
-                <p style={{ fontSize: '2rem', margin: '0.25rem 0', fontVariantNumeric: 'tabular-nums' }}>
+              <article className="bg-white border border-sereno rounded-lg p-6">
+                <h2 className="mt-0">Ingresos</h2>
+                <p className="text-3xl my-1 tabular-nums">
                   {formatoMoneda(financiero.ingresos.total)}
                 </p>
-                <p style={{ margin: 0, color: tokens.colors.sereno }}>
+                <p className="m-0 text-sereno">
                   Turnos: {formatoMoneda(financiero.ingresos.pagosTurno)} · Luz:{' '}
                   {formatoMoneda(financiero.ingresos.pagosLuz)} · Cuotas:{' '}
                   {formatoMoneda(financiero.ingresos.cuotasCobradas)}
                 </p>
               </article>
-              <article style={cardStyle}>
-                <h2 style={{ marginTop: 0 }}>Cuotas</h2>
-                <p style={{ margin: 0 }}>
+              <article className="bg-white border border-sereno rounded-lg p-6">
+                <h2 className="mt-0">Cuotas</h2>
+                <p className="m-0">
                   Emitidas: {financiero.cuotas.emitidas} · Pagadas: {financiero.cuotas.pagadas} ·
                   Adeudadas: {financiero.cuotas.adeudadas}
                 </p>

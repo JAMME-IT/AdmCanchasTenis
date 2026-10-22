@@ -148,9 +148,9 @@ export default function TurnoGrilla({
             ))}
           </div>
 
-          {/* Timeline de turnos */}
+          {/* Grilla horizontal de turnos */}
           {canchaSeleccionada !== null && porCancha.find(g => g.nro === canchaSeleccionada) && (
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
               {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
                 const key = `${slot.canchaId}-${slot.horaInicio}`;
                 const activo =
@@ -164,60 +164,47 @@ export default function TurnoGrilla({
                     type="button"
                     disabled={!disponible}
                     onClick={() => onSeleccionar(slot)}
-                    className={`relative w-full text-left rounded-xl p-4 transition-all ${
+                    className={`relative rounded-xl p-3 transition-all text-left ${
                       !disponible
                         ? 'bg-gray-100 border-2 border-gray-200 cursor-not-allowed opacity-60'
                         : activo
-                        ? 'bg-peridot text-white border-2 border-peridot shadow-xl scale-[1.02]'
-                        : 'bg-whisper border-2 border-sereno hover:border-peridot hover:shadow-lg hover:scale-[1.01] cursor-pointer'
+                        ? 'bg-peridot text-white border-2 border-peridot shadow-xl scale-105'
+                        : 'bg-whisper border-2 border-sereno hover:border-peridot hover:shadow-lg hover:scale-105 cursor-pointer'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        {/* Hora */}
-                        <div className={`text-2xl font-bold tabular-nums mb-1 ${
-                          activo ? 'text-white' : disponible ? 'text-musgo' : 'text-gray-500'
-                        }`}>
-                          {slot.horaInicio} – {slot.horaFin}
-                        </div>
-                        
-                        {/* Estado y detalles */}
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                            activo
-                              ? 'bg-white/20 text-white'
-                              : disponible
-                              ? 'bg-peridot/10 text-peridot'
-                              : 'bg-gray-200 text-gray-600'
-                          }`}>
-                            {disponible ? '✓ Disponible' : '✗ Ocupado'}
-                          </span>
-                          
-                          {slot.requiereLuz && (
-                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                              activo ? 'bg-white/20 text-white' : 'bg-pelota/20 text-musgo'
-                            }`}>
-                              💡 Con luz
-                            </span>
-                          )}
-                          
-                          {!disponible && slot.motivo && (
-                            <span className="text-xs text-gray-500 italic">
-                              {slot.motivo}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Indicador visual de selección */}
-                      {activo && (
-                        <div className="flex-shrink-0">
-                          <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
-                            <span className="text-white text-xl">→</span>
-                          </div>
-                        </div>
-                      )}
+                    {/* Hora principal */}
+                    <div className={`text-lg font-bold tabular-nums mb-2 ${
+                      activo ? 'text-white' : disponible ? 'text-musgo' : 'text-gray-500'
+                    }`}>
+                      {slot.horaInicio}
                     </div>
+                    
+                    {/* Hora fin */}
+                    <div className={`text-xs font-medium mb-2 ${
+                      activo ? 'text-white/80' : 'text-sereno'
+                    }`}>
+                      hasta {slot.horaFin}
+                    </div>
+                    
+                    {/* Estado */}
+                    <div className={`text-xs font-semibold ${
+                      activo
+                        ? 'text-white'
+                        : disponible
+                        ? 'text-peridot'
+                        : 'text-gray-500'
+                    }`}>
+                      {disponible ? '✓ Libre' : '✗ Ocupado'}
+                    </div>
+                    
+                    {/* Indicador de luz */}
+                    {slot.requiereLuz && (
+                      <div className={`text-xs mt-1 ${
+                        activo ? 'text-white/90' : 'text-musgo'
+                      }`}>
+                        💡 Luz
+                      </div>
+                    )}
                   </button>
                 );
               })}

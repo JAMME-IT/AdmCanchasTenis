@@ -11,11 +11,11 @@ Objetivo: Migrar todo el frontend de CSS-in-JS/inline styles a Tailwind CSS. Bra
 
 ## Tasks
 
-- T1 (S1, route: inline, status: pending): Instalar Tailwind CSS v3 + configurar postcss, tailwind.config.js, e index.css
-- T2 (S2, route: inline, status: pending): Migrar Layout.tsx (header, nav, dock, footer) a Tailwind
-- T3 (S2, route: inline, status: pending): Migrar Home.tsx a Tailwind
-- T4 (S2, route: inline, status: pending): Migrar páginas restantes (Admin, Turnos, MisTurnos, MisCuotas, CompletarPerfil, Ingresar, Registro)
-- T5 (S2, route: inline, status: pending): Migrar componentes (Feedback, AuthMarca, TurnoGrilla, BloqueoTemporal)
+- T1 (S1, route: inline, status: done, commit: 7cadb65): Instalar Tailwind CSS v3 + configurar postcss, tailwind.config.js, e index.css
+- T2 (S2, route: inline, status: done, commit: 37bdf4d): Migrar Layout.tsx (header, nav, dock, footer) a Tailwind
+- T3 (S2, route: inline, status: done, commit: 53d9589): Migrar Home.tsx a Tailwind
+- T4 (S2, route: inline, status: done, commits: a12da75, 8d60b56, 1b37016, c8485e6, 66336a5): Migrar páginas restantes (Admin, CompletarPerfil, Ingresar, Registro, MisTurnos, MisCuotas, Turnos)
+- T5 (S2, route: inline, status: done, commits: aad1526, e39fe1b): Migrar componentes (Feedback, AuthMarca, TurnoGrilla, BloqueoTemporal). AuthMarca mantiene CSS por ser componente visual/de marca con cancha animada.
 - T6 (S2+S3, route: inline, status: pending): Verificar build + limpieza de tokens innecesarios
 
 ## Log

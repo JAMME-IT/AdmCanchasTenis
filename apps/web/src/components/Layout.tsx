@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
 import { BottomNavigation, BottomNavigationAction, Paper, ThemeProvider, createTheme } from '@mui/material';
 import { Home, type LucideIcon } from 'lucide-react';
@@ -125,7 +125,27 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             </svg>
           </div>
 
-          <div className="flex items-center justify-start">
+          <div className="flex items-center justify-end gap-3">
+            {isSignedIn && (
+              <div className="hidden nav:flex items-center gap-1">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={'end' in item ? item.end : false}
+                    className={({ isActive }) =>
+                      `inline-flex items-center min-h-10 px-3.5 rounded-[0.65rem] text-[0.9rem] font-semibold no-underline whitespace-nowrap transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px] ${
+                        isActive
+                          ? 'bg-white/25 text-white'
+                          : 'text-white/85 hover:bg-white/15 hover:text-white'
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
             <UserButton />
           </div>
         </nav>

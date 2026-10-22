@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
 import { BottomNavigation, BottomNavigationAction, Paper, ThemeProvider, createTheme } from '@mui/material';
-import { CalendarDays, History, Home, ReceiptText, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Circle, Home, type LucideIcon } from 'lucide-react';
 import { api } from '../lib/api';
 import { tokens } from '../styles/tokens';
 
@@ -13,10 +13,6 @@ const NAV: ReadonlyArray<{
   icon: LucideIcon;
 }> = [
   { to: '/', label: 'Inicio', end: true, icon: Home },
-  { to: '/turnos', label: 'Turnos', icon: CalendarDays },
-  { to: '/mis-turnos', label: 'Mis turnos', icon: History },
-  { to: '/mis-cuotas', label: 'Mis cuotas', icon: ReceiptText },
-  { to: '/admin', label: 'Admin', icon: ShieldCheck },
 ];
 
 type ApiState = 'checking' | 'ok' | 'down';
@@ -33,10 +29,10 @@ const API_DOT: Record<ApiState, string> = {
   down: tokens.colors.error,
 };
 
-// Tema MUI solo para el dock mobile: verde del club en el item activo.
+// Tema MUI solo para el dock mobile: verde Wimbledon en el item activo.
 const temaMui = createTheme({
   palette: {
-    primary: { main: tokens.colors.peridot },
+    primary: { main: tokens.colors.wimbledon },
     text: { secondary: '#5A6661' },
   },
   typography: { fontFamily: tokens.fonts.body },
@@ -120,10 +116,8 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           position: sticky;
           top: 0;
           z-index: 40;
-          background: rgba(255, 255, 255, 0.92);
-          -webkit-backdrop-filter: blur(14px);
-          backdrop-filter: blur(14px);
-          border-bottom: 1px solid ${tokens.colors.sereno};
+          background: ${tokens.colors.wimbledon};
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
         .layout-bar {
           width: 100%;
@@ -140,17 +134,16 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           flex: 1 1 auto;
           min-width: 0;
           align-items: center;
+          justify-content: center;
           gap: 0.6rem;
-          color: ${tokens.colors.musgo};
+          color: #FFFFFF;
           text-decoration: none;
         }
         .layout-brand-ball {
-          width: 16px;
-          height: 16px;
-          flex: none;
-          border-radius: 50%;
-          background: radial-gradient(circle at 35% 30%, #F8F86A 0%, ${tokens.colors.pelota} 45%, #C6C61F 100%);
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: ${tokens.colors.pelota};
         }
         .layout-brand-name {
           font-family: ${tokens.fonts.display};
@@ -175,7 +168,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           min-height: 40px;
           padding: 0 0.85rem;
           border-radius: 0.65rem;
-          color: #5A6661;
+          color: rgba(255, 255, 255, 0.85);
           font-size: 0.9rem;
           font-weight: 600;
           text-decoration: none;
@@ -183,12 +176,12 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
           transition: background-color 150ms ease, color 150ms ease;
         }
         .layout-link:hover {
-          background-color: ${tokens.colors.whisper};
-          color: ${tokens.colors.musgo};
+          background-color: rgba(255, 255, 255, 0.15);
+          color: #FFFFFF;
         }
         .layout-link[aria-current="page"] {
-          background-color: ${tokens.colors.whisper};
-          color: ${tokens.colors.peridot};
+          background-color: rgba(255, 255, 255, 0.25);
+          color: #FFFFFF;
         }
         .layout-actions {
           display: flex;
@@ -198,7 +191,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
         .layout-focus:focus-visible,
         .layout-header :focus-visible,
         .layout-footer :focus-visible {
-          outline: 2px solid ${tokens.colors.peridot};
+          outline: 2px solid ${tokens.colors.pelota};
           outline-offset: 3px;
         }
         @media (max-width: 56rem) {
@@ -240,7 +233,9 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
       <header className="layout-header">
         <nav className="layout-bar" aria-label="Principal">
           <Link to="/" aria-label="Tenis Ranch Club — Inicio" className="layout-brand layout-focus">
-            <span aria-hidden="true" className="layout-brand-ball" />
+            <span aria-hidden="true" className="layout-brand-ball">
+              <Circle size={16} strokeWidth={2} fill="currentColor" />
+            </span>
             <span className="layout-brand-name">Tenis Ranch Club</span>
           </Link>
 

@@ -12,6 +12,7 @@ export const tokens = {
     fairway: '#21875A',
     pelota: '#E9E633',
     error: '#9B2C2C',
+    wimbledon: '#006B3F',
   },
   radius: {
     sm: '0.5rem',

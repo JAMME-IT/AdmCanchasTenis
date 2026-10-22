@@ -1,82 +1,62 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
+import { Calendar, Clock, CreditCard, Shield, TrendingUp } from 'lucide-react';
 import { ApiError, api, type Usuario } from '../lib/api';
 import { Skeleton } from '../components/Feedback';
 
-// Palette: refined green #384543, whisper white #F5F3EF,
-// peridot accent #328161, serene gray #8A9A93.
 const pageStyle: React.CSSProperties = {
   fontFamily: 'system-ui, sans-serif',
   backgroundColor: '#F5F3EF',
   color: '#384543',
   minHeight: '100dvh',
-  padding: '1rem 1.5rem 3rem',
+  padding: '2rem 1.5rem 3rem',
 };
 
 const shellStyle: React.CSSProperties = {
-  maxWidth: '960px',
+  maxWidth: '1100px',
   margin: '0 auto',
   display: 'flex',
   flexDirection: 'column',
-  gap: '1.5rem',
+  gap: '2rem',
 };
 
-const cardStyle: React.CSSProperties = {
-  backgroundColor: '#FFFFFF',
-  border: '1px solid #8A9A93',
-  borderRadius: '1rem',
-  padding: '1.5rem',
+const welcomeStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.5rem',
+};
+
+const welcomeTitleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '2rem',
+  fontWeight: 700,
+  color: '#384543',
+};
+
+const welcomeSubtitleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '1rem',
+  color: '#5A6661',
+};
+
+const sectionStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '1rem',
+};
+
+const sectionHeaderStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '1.25rem',
+  fontWeight: 600,
+  color: '#384543',
 };
 
 const gridStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '1rem',
-};
-
-const heroStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '1.5rem',
-  padding: '2rem 0',
-};
-
-const heroAvatarStyle: React.CSSProperties = {
-  width: '5rem',
-  height: '5rem',
-  borderRadius: '50%',
-  flex: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontFamily: '"Archivo Black", "Archivo", system-ui, sans-serif',
-  fontSize: '1.8rem',
-  fontWeight: 400,
-  color: '#FFFFFF',
-  background: 'radial-gradient(circle at 35% 30%, #3FA67E 0%, #328161 55%, #1F6B45 100%)',
-  boxShadow: '0 4px 12px rgba(56, 69, 67, 0.35)',
-};
-
-const heroInfoStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '0.3rem',
-};
-
-const heroGreetingStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: '2rem',
-  fontWeight: 800,
-  lineHeight: 1.1,
-  color: '#384543',
-};
-
-const heroNameStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: '1.1rem',
-  fontWeight: 500,
-  color: '#5A6661',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '1.25rem',
 };
 
 export default function Home(): JSX.Element {
@@ -84,7 +64,6 @@ export default function Home(): JSX.Element {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [perfilIncompleto, setPerfilIncompleto] = useState(false);
 
-  // Load the connected profile once the session is ready.
   const cargarPerfil = useCallback(async () => {
     setPerfilIncompleto(false);
     try {
@@ -113,148 +92,289 @@ export default function Home(): JSX.Element {
     );
   }
 
-  // Guest home: Layout already shows the API status dot in the footer.
   if (!isSignedIn) {
     return (
       <main style={pageStyle}>
         <div style={shellStyle}>
-          <section style={cardStyle}>
-            <h1>Tenis Ranch Club</h1>
-            <p>Gestión simple del club: tu sesión, tu perfil y tus turnos.</p>
-            <p>
-              <Link to="/ingresar">Ingresar</Link> {'·'} <Link to="/registro">Crear cuenta</Link>
+          <section style={{ backgroundColor: '#FFFFFF', border: '1px solid #8A9A93', borderRadius: '1rem', padding: '2rem' }}>
+            <h1 style={{ margin: '0 0 1rem 0' }}>Tenis Ranch Club</h1>
+            <p style={{ margin: '0 0 1.5rem 0', color: '#5A6661' }}>
+              Gestión simple del club: tu sesión, tu perfil y tus turnos.
             </p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <Link to="/ingresar" style={{ textDecoration: 'none' }}>
+                <button style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#328161',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}>
+                  Ingresar
+                </button>
+              </Link>
+              <Link to="/registro" style={{ textDecoration: 'none' }}>
+                <button style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#FFFFFF',
+                  color: '#328161',
+                  border: '2px solid #328161',
+                  borderRadius: '0.5rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}>
+                  Crear cuenta
+                </button>
+              </Link>
+            </div>
           </section>
         </div>
       </main>
     );
   }
 
-  // Session home: Layout provides the header nav and footer status dot.
   return (
     <main style={pageStyle}>
       <div style={shellStyle}>
         {perfilIncompleto && (
-          <p>
-            Tu perfil está incompleto. <Link to="/completar-perfil">Completar perfil</Link>
-          </p>
+          <div style={{
+            backgroundColor: '#FFF4E5',
+            border: '1px solid #F5A623',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            color: '#8B6914',
+          }}>
+            Tu perfil está incompleto. <Link to="/completar-perfil" style={{ color: '#328161', fontWeight: 600 }}>Completar perfil</Link>
+          </div>
         )}
 
-        {/* Hero de bienvenida con perfil */}
+        {/* Saludo simple */}
         {usuario && (
-          <div style={heroStyle}>
-            <span style={heroAvatarStyle} aria-hidden="true">
-              {(usuario.nombre.charAt(0) + usuario.apellido.charAt(0)).toUpperCase()}
-            </span>
-            <div style={heroInfoStyle}>
-              <p style={heroGreetingStyle}>Hola, {usuario.nombre}</p>
-              <p style={heroNameStyle}>@{usuario.username}</p>
-            </div>
+          <div style={welcomeStyle}>
+            <h1 style={welcomeTitleStyle}>
+              ¡Hola, {usuario.nombre}! 👋
+            </h1>
+            <p style={welcomeSubtitleStyle}>
+              ¿Qué querés hacer hoy?
+            </p>
           </div>
         )}
 
-        {/* Panel del club: acciones directas */}
-        <div>
-          <style>{`
-            .club-card {
-              display: block;
-              background-color: #FFFFFF;
-              border: 1px solid #8A9A93;
-              border-radius: 1rem;
-              padding: 1.5rem;
-              text-decoration: none;
-              color: #384543;
-              transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
-              cursor: pointer;
-              position: relative;
-              overflow: hidden;
-            }
-            .club-card::before {
-              content: '';
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              height: 4px;
-              background: var(--card-accent, #328161);
-              transition: height 200ms ease;
-            }
-            .club-card:hover {
-              transform: translateY(-4px);
-              box-shadow: 0 8px 20px rgba(56, 69, 67, 0.15);
-              border-color: var(--card-accent, #328161);
-            }
-            .club-card:hover::before {
-              height: 6px;
-            }
-            .club-card:hover .club-card-icon {
-              transform: scale(1.1);
-            }
-            .club-card:active {
-              transform: translateY(-2px);
-              box-shadow: 0 4px 12px rgba(56, 69, 67, 0.12);
-            }
-            .club-card-icon {
-              width: 2.5rem;
-              height: 2.5rem;
-              border-radius: 0.75rem;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 1.3rem;
-              margin-bottom: 0.75rem;
-              background: var(--card-accent, #328161);
-              color: #FFFFFF;
-              transition: transform 200ms ease;
-            }
-            .club-card h3 {
-              margin: 0 0 0.5rem 0;
-              font-size: 1.2rem;
-              font-weight: 700;
-              transition: color 200ms ease;
-            }
-            .club-card:hover h3 {
-              color: var(--card-accent, #328161);
-            }
-            .club-card p {
-              margin: 0;
-              color: #5A6661;
-              line-height: 1.5;
-            }
-          `}</style>
-          <h2 style={{ marginBottom: '0.5rem' }}>Panel del club</h2>
+        {/* Acciones rápidas */}
+        <section style={sectionStyle}>
+          <h2 style={sectionHeaderStyle}>Acciones rápidas</h2>
           <div style={gridStyle}>
-            <Link to="/turnos" className="club-card" style={{ '--card-accent': '#328161' } as React.CSSProperties}>
-              <div className="club-card-icon">📅</div>
-              <h3>Turnos y reserva</h3>
-              <p>Mirá la disponibilidad real del día y elegí tu horario.</p>
+            <Link to="/turnos" style={{
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '1rem',
+              padding: '1.5rem',
+              textDecoration: 'none',
+              color: '#384543',
+              border: '2px solid transparent',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(56, 69, 67, 0.08)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#328161';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(50, 129, 97, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'transparent';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(56, 69, 67, 0.08)';
+            }}>
+              <div style={{
+                width: '3rem',
+                height: '3rem',
+                borderRadius: '0.75rem',
+                backgroundColor: '#E8F5F0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1rem',
+              }}>
+                <Calendar size={24} color="#328161" strokeWidth={2} />
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 600 }}>
+                Reservar cancha
+              </h3>
+              <p style={{ margin: 0, color: '#5A6661', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                Elegí tu horario y reservá tu cancha
+              </p>
             </Link>
-            <Link to="/mis-turnos" className="club-card" style={{ '--card-accent': '#21875A' } as React.CSSProperties}>
-              <div className="club-card-icon">🎾</div>
-              <h3>Mis turnos</h3>
-              <p>Revisá tus turnos vigentes, cancelá o mirá tu historial.</p>
+
+            <Link to="/mis-turnos" style={{
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '1rem',
+              padding: '1.5rem',
+              textDecoration: 'none',
+              color: '#384543',
+              border: '2px solid transparent',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(56, 69, 67, 0.08)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#21875A';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(33, 135, 90, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'transparent';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(56, 69, 67, 0.08)';
+            }}>
+              <div style={{
+                width: '3rem',
+                height: '3rem',
+                borderRadius: '0.75rem',
+                backgroundColor: '#E8F5F0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1rem',
+              }}>
+                <Clock size={24} color="#21875A" strokeWidth={2} />
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 600 }}>
+                Mis turnos
+              </h3>
+              <p style={{ margin: 0, color: '#5A6661', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                Revisá tus turnos y cancelá si es necesario
+              </p>
             </Link>
-            <Link to="/mis-cuotas" className="club-card" style={{ '--card-accent': '#3FA67E' } as React.CSSProperties}>
-              <div className="club-card-icon">💰</div>
-              <h3>Mis cuotas</h3>
-              <p>Mirá tus cuotas con lo pagado, el saldo y cada pago.</p>
+
+            <Link to="/mis-cuotas" style={{
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '1rem',
+              padding: '1.5rem',
+              textDecoration: 'none',
+              color: '#384543',
+              border: '2px solid transparent',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(56, 69, 67, 0.08)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#3FA67E';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(63, 166, 126, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'transparent';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(56, 69, 67, 0.08)';
+            }}>
+              <div style={{
+                width: '3rem',
+                height: '3rem',
+                borderRadius: '0.75rem',
+                backgroundColor: '#E8F5F0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1rem',
+              }}>
+                <CreditCard size={24} color="#3FA67E" strokeWidth={2} />
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 600 }}>
+                Mis cuotas
+              </h3>
+              <p style={{ margin: 0, color: '#5A6661', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                Controlá tus pagos y saldo pendiente
+              </p>
             </Link>
-            {usuario?.rol === 'admin' && (
-              <>
-                <Link to="/admin" className="club-card" style={{ '--card-accent': '#384543' } as React.CSSProperties}>
-                  <div className="club-card-icon">🛡️</div>
-                  <h3>Panel admin</h3>
-                  <p>Turnos con filtros, pagos y reportes del club.</p>
-                </Link>
-                <Link to="/admin" className="club-card" style={{ '--card-accent': '#8A9A93' } as React.CSSProperties}>
-                  <div className="club-card-icon">📊</div>
-                  <h3>Reportes</h3>
-                  <p>Estadísticas e ingresos, dentro del panel admin.</p>
-                </Link>
-              </>
-            )}
           </div>
-        </div>
+        </section>
+
+        {/* Admin section */}
+        {usuario?.rol === 'admin' && (
+          <section style={sectionStyle}>
+            <h2 style={sectionHeaderStyle}>Administración</h2>
+            <div style={gridStyle}>
+              <Link to="/admin" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '1rem',
+                padding: '1.5rem',
+                textDecoration: 'none',
+                color: '#384543',
+                border: '2px solid transparent',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(56, 69, 67, 0.08)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#384543';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(56, 69, 67, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(56, 69, 67, 0.08)';
+              }}>
+                <div style={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: '0.75rem',
+                  backgroundColor: '#F0F0F0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '1rem',
+                }}>
+                  <Shield size={24} color="#384543" strokeWidth={2} />
+                </div>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 600 }}>
+                  Panel admin
+                </h3>
+                <p style={{ margin: 0, color: '#5A6661', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                  Gestioná turnos, pagos y usuarios
+                </p>
+              </Link>
+
+              <Link to="/admin" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '1rem',
+                padding: '1.5rem',
+                textDecoration: 'none',
+                color: '#384543',
+                border: '2px solid transparent',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(56, 69, 67, 0.08)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#8A9A93';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(138, 154, 147, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'transparent';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(56, 69, 67, 0.08)';
+              }}>
+                <div style={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: '0.75rem',
+                  backgroundColor: '#F0F0F0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '1rem',
+                }}>
+                  <TrendingUp size={24} color="#8A9A93" strokeWidth={2} />
+                </div>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 600 }}>
+                  Reportes
+                </h3>
+                <p style={{ margin: 0, color: '#5A6661', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                  Estadísticas e ingresos del club
+                </p>
+              </Link>
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

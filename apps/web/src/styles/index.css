@@ -1,3 +1,25 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-musgo: #384543;
+  --color-whisper: #F5F3EF;
+  --color-peridot: #328161;
+  --color-sereno: #8A9A93;
+  --color-fairway: #21875A;
+  --color-pelota: #E9E633;
+  --color-wimbledon: #006B3F;
+  --color-error: #9B2C2C;
+  --font-display: "Archivo Black", "Archivo", system-ui, sans-serif;
+  --font-body: "Archivo", system-ui, sans-serif;
+  --breakpoint-nav: 896px;
+}
+
+/* Reduced motion: desactiva transiciones y animaciones globalmente. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

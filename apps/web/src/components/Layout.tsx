@@ -4,7 +4,6 @@ import { UserButton, useAuth } from '@clerk/react';
 import { BottomNavigation, BottomNavigationAction, Paper, ThemeProvider, createTheme } from '@mui/material';
 import { Circle, Home, type LucideIcon } from 'lucide-react';
 import { api } from '../lib/api';
-import { tokens } from '../styles/tokens';
 
 const NAV: ReadonlyArray<{
   to: string;
@@ -24,21 +23,21 @@ const API_LABEL: Record<ApiState, string> = {
 };
 
 const API_DOT: Record<ApiState, string> = {
-  checking: tokens.colors.sereno,
-  ok: tokens.colors.peridot,
-  down: tokens.colors.error,
+  checking: 'bg-sereno',
+  ok: 'bg-peridot',
+  down: 'bg-error',
 };
 
 // Tema MUI solo para el dock mobile: verde Wimbledon en el item activo.
 const temaMui = createTheme({
   palette: {
-    primary: { main: tokens.colors.wimbledon },
+    primary: { main: '#006B3F' },
     text: { secondary: '#5A6661' },
   },
-  typography: { fontFamily: tokens.fonts.body },
+  typography: { fontFamily: '"Archivo", system-ui, sans-serif' },
 });
 
-// Layout comun: cabecera blanca de alto fijo con la marca y navegacion
+// Layout comun: cabecera verde Wimbledon de alto fijo con la marca y navegacion
 // centrada en desktop, dock inferior con tabs en mobile, contenido
 // centrado y pie con el estado de la API.
 export default function Layout({ children }: { children: ReactNode }): JSX.Element {
@@ -94,159 +93,39 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
   const navItems = NAV.filter((item) => item.to !== '/admin' || rol === 'admin');
 
   return (
-    <div
-      className="layout-root"
-      style={{
-        fontFamily: tokens.fonts.body,
-        backgroundColor: tokens.colors.whisper,
-        color: tokens.colors.musgo,
-        minHeight: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <style>{`
-        .layout-root,
-        .layout-root *,
-        .layout-root *::before,
-        .layout-root *::after {
-          box-sizing: border-box;
-        }
-        .layout-header {
-          position: sticky;
-          top: 0;
-          z-index: 40;
-          background: ${tokens.colors.wimbledon};
-          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-        }
-        .layout-bar {
-          width: 100%;
-          max-width: ${tokens.shell.maxWidth};
-          height: 64px;
-          margin: 0 auto;
-          padding: 0 ${tokens.shell.gutter};
-          display: flex;
-          align-items: center;
-          gap: clamp(0.75rem, 2vw, 1.5rem);
-        }
-        .layout-brand {
-          display: inline-flex;
-          flex: 1 1 auto;
-          min-width: 0;
-          align-items: center;
-          justify-content: center;
-          gap: 0.6rem;
-          color: #FFFFFF;
-          text-decoration: none;
-        }
-        .layout-brand-ball {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          color: ${tokens.colors.pelota};
-        }
-        .layout-brand-name {
-          font-family: ${tokens.fonts.display};
-          font-size: 1.05rem;
-          line-height: 1.1;
-          font-weight: 400;
-          letter-spacing: 0.02em;
-          text-transform: uppercase;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .layout-desktop-nav {
-          display: flex;
-          flex: none;
-          align-items: center;
-          gap: 0.25rem;
-        }
-        .layout-link {
-          display: inline-flex;
-          align-items: center;
-          min-height: 40px;
-          padding: 0 0.85rem;
-          border-radius: 0.65rem;
-          color: rgba(255, 255, 255, 0.85);
-          font-size: 0.9rem;
-          font-weight: 600;
-          text-decoration: none;
-          white-space: nowrap;
-          transition: background-color 150ms ease, color 150ms ease;
-        }
-        .layout-link:hover {
-          background-color: rgba(255, 255, 255, 0.15);
-          color: #FFFFFF;
-        }
-        .layout-link[aria-current="page"] {
-          background-color: rgba(255, 255, 255, 0.25);
-          color: #FFFFFF;
-        }
-        .layout-actions {
-          display: flex;
-          flex: none;
-          align-items: center;
-        }
-        .layout-focus:focus-visible,
-        .layout-header :focus-visible,
-        .layout-footer :focus-visible {
-          outline: 2px solid ${tokens.colors.pelota};
-          outline-offset: 3px;
-        }
-        @media (max-width: 56rem) {
-          .layout-desktop-nav,
-          .layout-desktop-actions {
-            display: none;
-          }
-          .layout-footer {
-            /* El dock fixed tapa el pie: reservamos su alto. */
-            padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
-          }
-        }
-        /* Dock inferior mobile (MUI BottomNavigation). */
-        .layout-dock {
-          display: none;
-        }
-        @media (max-width: 56rem) {
-          .layout-dock {
-            display: flex;
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 45;
-            border-radius: 0;
-            padding-bottom: env(safe-area-inset-bottom);
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .layout-root *,
-          .layout-root *::before,
-          .layout-root *::after {
-            transition-duration: 0.01ms !important;
-            animation-duration: 0.01ms !important;
-          }
-        }
-      `}</style>
-
-      <header className="layout-header">
-        <nav className="layout-bar" aria-label="Principal">
-          <Link to="/" aria-label="Tenis Ranch Club — Inicio" className="layout-brand layout-focus">
-            <span aria-hidden="true" className="layout-brand-ball">
+    <div className="font-body bg-whisper text-musgo min-h-dvh flex flex-col">
+      <header className="sticky top-0 z-40 bg-wimbledon border-b border-white/15">
+        <nav
+          className="w-full max-w-[1400px] h-16 mx-auto px-[clamp(1rem,4vw,2.5rem)] flex items-center gap-[clamp(0.75rem,2vw,1.5rem)]"
+          aria-label="Principal"
+        >
+          <Link
+            to="/"
+            aria-label="Tenis Ranch Club — Inicio"
+            className="inline-flex flex-1 min-w-0 items-center justify-center gap-2.5 text-white no-underline focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px]"
+          >
+            <span aria-hidden="true" className="inline-flex items-center justify-center text-pelota">
               <Circle size={16} strokeWidth={2} fill="currentColor" />
             </span>
-            <span className="layout-brand-name">Tenis Ranch Club</span>
+            <span className="font-display text-[1.05rem] leading-[1.1] font-normal tracking-[0.02em] uppercase truncate">
+              Tenis Ranch Club
+            </span>
           </Link>
 
           {isSignedIn && (
-            <div className="layout-desktop-nav">
+            <div className="hidden nav:flex flex-none items-center gap-1">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   end={'end' in item ? item.end : false}
-                  className="layout-link layout-focus"
+                  className={({ isActive }) =>
+                    `inline-flex items-center min-h-10 px-3.5 rounded-[0.65rem] text-[0.9rem] font-semibold no-underline whitespace-nowrap transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px] ${
+                      isActive
+                        ? 'bg-white/25 text-white'
+                        : 'text-white/85 hover:bg-white/15 hover:text-white'
+                    }`
+                  }
                 >
                   {item.label}
                 </NavLink>
@@ -254,21 +133,13 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             </div>
           )}
 
-          <div className="layout-actions">
+          <div className="flex flex-none items-center">
             <UserButton />
           </div>
         </nav>
       </header>
 
-      <main
-        style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: tokens.shell.maxWidth,
-          margin: '0 auto',
-          padding: `${tokens.spacing.lg} ${tokens.shell.gutter} ${tokens.spacing.xl}`,
-        }}
-      >
+      <main className="flex-1 w-full max-w-[1400px] mx-auto py-6 px-[clamp(1rem,4vw,2.5rem)] pb-10">
         {children}
       </main>
 
@@ -276,7 +147,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
         <ThemeProvider theme={temaMui}>
           <Paper
             component="nav"
-            className="layout-dock"
+            className="flex nav:hidden fixed left-0 right-0 bottom-0 z-45 rounded-none pb-[env(safe-area-inset-bottom)]"
             aria-label="Navegación mobile"
             elevation={8}
             sx={{ bgcolor: 'rgba(255,255,255,0.96)' }}
@@ -300,30 +171,13 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
         </ThemeProvider>
       )}
 
-      <footer className="layout-footer" style={{ borderTop: `1px solid ${tokens.colors.sereno}` }}>
-        <div
-          style={{
-            maxWidth: tokens.shell.maxWidth,
-            margin: '0 auto',
-            padding: `${tokens.spacing.sm} ${tokens.shell.gutter}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: tokens.spacing.md,
-            flexWrap: 'wrap',
-            fontSize: '0.85rem',
-          }}
-        >
+      <footer className="border-t border-sereno pb-[calc(4.5rem+env(safe-area-inset-bottom))] nav:pb-0">
+        <div className="max-w-[1400px] mx-auto py-3 px-[clamp(1rem,4vw,2.5rem)] flex items-center justify-between gap-4 flex-wrap text-[0.85rem]">
           <span>Tenis Ranch Club · Tus canchas, tus turnos</span>
-          <span role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span role="status" className="inline-flex items-center gap-1.5">
             <span
               aria-hidden="true"
-              style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: API_DOT[apiState],
-              }}
+              className={`w-2.5 h-2.5 rounded-full ${API_DOT[apiState]}`}
             />
             {API_LABEL[apiState]}
           </span>

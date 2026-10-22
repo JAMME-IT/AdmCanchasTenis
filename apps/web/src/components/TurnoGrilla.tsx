@@ -175,14 +175,15 @@ export default function TurnoGrilla({
                     >
                       {/* Resplandor para turnos con luz */}
                       {slot.requiereLuz && disponible && (
-                        <div className="absolute top-0 right-0 w-12 h-12 pointer-events-none">
-                          <div className="absolute top-1 right-1 w-8 h-8 rounded-full bg-pelota/40 blur-md"></div>
-                          <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-pelota/60 blur-sm"></div>
+                        <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none">
+                          <div className="absolute -top-2 -right-2 w-14 h-14 rounded-full bg-pelota/80 blur-xl"></div>
+                          <div className="absolute -top-1 -right-1 w-10 h-10 rounded-full bg-pelota/90 blur-lg"></div>
+                          <div className="absolute top-0 right-0 w-6 h-6 rounded-full bg-pelota blur-md"></div>
                         </div>
                       )}
                       
                       {/* Hora centrada */}
-                      <div className="text-sm font-bold tabular-nums">
+                      <div className="text-lg font-bold tabular-nums">
                         {slot.horaInicio} - {slot.horaFin}
                       </div>
                     </button>

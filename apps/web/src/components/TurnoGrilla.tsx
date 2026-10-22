@@ -125,22 +125,22 @@ export default function TurnoGrilla({
   }
 
   return (
-    <div>
+    <div className="bg-white rounded-2xl border-2 border-sereno p-6">
       {porCancha.length === 0 ? (
-        <p>No hay canchas configuradas para este día.</p>
+        <p className="text-center text-sereno py-8">No hay canchas configuradas para este día.</p>
       ) : (
         <>
           {/* Botones de selección de cancha */}
-          <div className="flex gap-2 mb-4 flex-wrap">
+          <div className="flex gap-3 mb-6 flex-wrap">
             {porCancha.map((grupo) => (
               <button
                 key={grupo.nro}
                 type="button"
                 onClick={() => setCanchaSeleccionada(grupo.nro)}
-                className={`min-h-[44px] px-4 py-2 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all cursor-pointer ${
                   canchaSeleccionada === grupo.nro
-                    ? 'bg-peridot text-white border-2 border-peridot'
-                    : 'bg-white text-musgo border-2 border-sereno hover:border-peridot'
+                    ? 'bg-peridot text-white shadow-lg scale-105'
+                    : 'bg-whisper text-musgo border-2 border-sereno hover:border-peridot hover:shadow-md'
                 }`}
               >
                 Cancha {grupo.nro}
@@ -148,52 +148,80 @@ export default function TurnoGrilla({
             ))}
           </div>
 
-          {/* Grilla de la cancha seleccionada */}
+          {/* Timeline de turnos */}
           {canchaSeleccionada !== null && porCancha.find(g => g.nro === canchaSeleccionada) && (
-            <section
-              aria-label={`Cancha ${canchaSeleccionada}`}
-              className="bg-white border border-sereno rounded-2xl p-4"
-            >
-              <h3 className="m-0 mb-3 text-base">Cancha {canchaSeleccionada}</h3>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
-                {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
-                  const key = `${slot.canchaId}-${slot.horaInicio}`;
-                  const activo =
-                    seleccionado?.canchaId === slot.canchaId &&
-                    seleccionado?.horaInicio === slot.horaInicio;
-                  const bloqueado = !slot.disponible;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      disabled={bloqueado}
-                      onClick={() => onSeleccionar(slot)}
-                      title={slot.motivo ?? `${slot.horaInicio} ART disponible`}
-                      className={`min-h-[44px] text-left rounded-xl px-3 py-2.5 font-semibold text-sm transition-colors ${
-                        bloqueado
-                          ? 'cursor-not-allowed opacity-72'
-                          : 'cursor-pointer'
-                      } ${
-                        activo
-                          ? 'border-2 border-peridot border-l-4 border-l-peridot bg-peridot text-white'
-                          : 'border border-sereno border-l-4 ' +
-                            (slot.disponible
-                              ? 'border-l-peridot bg-whisper text-musgo'
-                              : 'border-l-sereno bg-whisper text-musgo')
-                      }`}
-                    >
-                      <span className="block tabular-nums">
-                        {slot.horaInicio}–{slot.horaFin} ART
-                      </span>
-                      <span className="block text-xs font-medium">
-                        {slot.disponible ? 'Libre' : (slot.motivo ?? 'Ocupado')}
-                        {slot.requiereLuz ? ' · con luz' : ''}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+            <div className="flex flex-col gap-3">
+              {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
+                const key = `${slot.canchaId}-${slot.horaInicio}`;
+                const activo =
+                  seleccionado?.canchaId === slot.canchaId &&
+                  seleccionado?.horaInicio === slot.horaInicio;
+                const disponible = slot.disponible;
+                
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={!disponible}
+                    onClick={() => onSeleccionar(slot)}
+                    className={`relative w-full text-left rounded-xl p-4 transition-all ${
+                      !disponible
+                        ? 'bg-gray-100 border-2 border-gray-200 cursor-not-allowed opacity-60'
+                        : activo
+                        ? 'bg-peridot text-white border-2 border-peridot shadow-xl scale-[1.02]'
+                        : 'bg-whisper border-2 border-sereno hover:border-peridot hover:shadow-lg hover:scale-[1.01] cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        {/* Hora */}
+                        <div className={`text-2xl font-bold tabular-nums mb-1 ${
+                          activo ? 'text-white' : disponible ? 'text-musgo' : 'text-gray-500'
+                        }`}>
+                          {slot.horaInicio} – {slot.horaFin}
+                        </div>
+                        
+                        {/* Estado y detalles */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                            activo
+                              ? 'bg-white/20 text-white'
+                              : disponible
+                              ? 'bg-peridot/10 text-peridot'
+                              : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            {disponible ? '✓ Disponible' : '✗ Ocupado'}
+                          </span>
+                          
+                          {slot.requiereLuz && (
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                              activo ? 'bg-white/20 text-white' : 'bg-pelota/20 text-musgo'
+                            }`}>
+                              💡 Con luz
+                            </span>
+                          )}
+                          
+                          {!disponible && slot.motivo && (
+                            <span className="text-xs text-gray-500 italic">
+                              {slot.motivo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Indicador visual de selección */}
+                      {activo && (
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-white/30 flex items-center justify-center">
+                            <span className="text-white text-xl">→</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           )}
         </>
       )}

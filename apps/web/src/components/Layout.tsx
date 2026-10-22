@@ -105,7 +105,7 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
             className="inline-flex flex-1 min-w-0 items-center justify-center gap-3 text-white no-underline focus-visible:outline-2 focus-visible:outline-pelota focus-visible:outline-offset-[3px]"
           >
             <span aria-hidden="true" className="inline-flex items-center justify-center text-pelota">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
                 <path d="M12 2C12 2 8 8 8 12C8 16 12 22 12 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 <path d="M12 2C12 2 16 8 16 12C16 16 12 22 12 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -113,10 +113,10 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
               </svg>
             </span>
             <span className="flex flex-col leading-[1]">
-              <span className="font-display text-[0.75rem] font-light tracking-[0.15em] uppercase text-white/90">
+              <span className="font-display text-[0.9rem] font-light tracking-[0.15em] uppercase text-white/90">
                 Tenis
               </span>
-              <span className="font-display text-[1.1rem] font-bold tracking-[0.05em] uppercase">
+              <span className="font-display text-[1.5rem] font-bold tracking-[0.05em] uppercase">
                 Ranch Club
               </span>
             </span>

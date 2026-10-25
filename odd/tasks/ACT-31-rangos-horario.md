@@ -96,7 +96,7 @@ por concurrencia (dos admins escribiendo a la vez) no se mapea a 409 y hoy saldr
 
 ## Commits
 
-- `feat(api): rangos horarios GET/PUT en config (ACT-31, RF-34)` — pendiente de registrar hash.
+- `b5476b4` — `feat(api): rangos horarios GET/PUT en config (ACT-31, RF-34)`.
 
 ## Verificación (a manual por el usuario)
 

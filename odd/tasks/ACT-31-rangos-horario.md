@@ -97,6 +97,19 @@ por concurrencia (dos admins escribiendo a la vez) no se mapea a 409 y hoy saldr
 ## Commits
 
 - `b5476b4` — `feat(api): rangos horarios GET/PUT en config (ACT-31, RF-34)`.
+- `428fc96` — `docs(odd): registra ACT-31 rangos horarios y su evidencia`.
+
+## Review nativa (RDD)
+
+- `review assess`: `risk: medium`, `review_due: true` (`slice_budget_reached`, 966 líneas cambiadas).
+- Consentimiento del candidato: **otorgado** por el usuario.
+- `review start`: creó la transacción (`lineage review-9db7f7961adbe28e`, 1 lente `review-reliability`).
+- **Resultado: no disponible por defecto del transporte.** Las dos capturas del lente fueron rechazadas
+  con `opencode_review_transport_relay_refused (reason: binding_mismatch)`; STATUS reofreció el mismo
+  slot. Reportado como ocurrencia en `Gentleman-Programming/gentle-ai#5687`
+  (comentario `issuecomment-6400620462`). El usuario eligió reportar y continuar; se ejecutó el decline
+  candidato-scoped (`declined_this_candidate`) y no se hizo ninguna operación de lifecycle más.
+- Consecuencia: la entrega sigue bajo política ordinaria del repo (sin push ni PR todavía).
 
 ## Verificación (a manual por el usuario)
 

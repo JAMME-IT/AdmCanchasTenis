@@ -94,6 +94,24 @@ en la disponibilidad de turnos.
 Un body que intercambia nombres entre filas conservadas quedó cubierto; la colisión de unique
 por concurrencia (dos admins escribiendo a la vez) no se mapea a 409 y hoy saldría 500.
 
+### Hardening local (pedido del usuario, 2026-10-25)
+
+Revisión de seguridad sobre el endpoint: no hay SQL Injection (no existe SQL crudo; todo va por
+Prisma parametrizado) y las horas ya son numéricas (`^([01]\d|2[0-3]):[0-5]\d$`). Se cerraron tres
+gaps locales, sin filtro global ni cambios en otros endpoints:
+
+| Vector | Antes | Ahora |
+|---|---|---|
+| `nombre` con byte NUL (`U+0000`) | Postgres `22021` → **500** | `@Matches` de control chars → **400** |
+| `nombre` con `\n`, `\t` o DEL | se aceptaban | **400** |
+| Body con muchas franjas (100) | timeout Prisma 5000 ms → **500** | `@ArrayMaxSize(20)` → **400** |
+| Carrera de unicidad (`P2002`) | 500 | `ConflictException` → **409** |
+
+Verificado en vivo tras reiniciar la API: NUL 400, newline 400, 21 franjas 400, 100 franjas 400,
+nombre con acentos/emoji 200. Specs: 22 DTO + 18 service; suite completa y build en verde.
+El byte NUL también puede romper otros endpoints con texto libre: queda como follow-up transversal
+(filtro global Prisma/Postgres), fuera de ACT-31.
+
 ## Commits
 
 - `b5476b4` — `feat(api): rangos horarios GET/PUT en config (ACT-31, RF-34)`.

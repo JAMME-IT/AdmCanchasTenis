@@ -8,9 +8,10 @@ import { ActualizarRangosHorarioDto } from './actualizar-rangos-horario.dto';
 /**
  * DTO validation tests for RF-34 (PUT /config/rangos-horario,
  * docs/API-CONTRATO.md §5.6). The global ValidationPipe (main.ts) turns these
- * validation errors into HTTP 400: `rangos` cannot be empty, `nombre` is
- * required and at most 50 chars, `id` is an optional UUID and both hours must
- * match `HH:MM` with a valid 24-hour clock.
+ * validation errors into HTTP 400: `rangos` cannot be empty, holds at most 20
+ * entries, `nombre` is required, at most 50 chars and free of control
+ * characters, `id` is an optional UUID and both hours must match `HH:MM` with
+ * a valid 24-hour clock.
  */
 async function validar(payload: object) {
   return validate(plainToInstance(ActualizarRangosHorarioDto, payload));
@@ -118,6 +119,69 @@ describe('ActualizarRangosHorarioDto (RF-34)', () => {
     const errores = await validar({
       rangos: [{ id: 'no-es-uuid', nombre: 'apertura', horaInicio: '08:00', horaFin: '22:00' }],
     });
+    assert.ok(errores.length > 0);
+  });
+
+  it('rechaza un nombre con un byte NUL', async () => {
+    const errores = await validar({
+      rangos: [
+        { nombre: 'a' + String.fromCharCode(0) + 'b', horaInicio: '08:00', horaFin: '22:00' },
+      ],
+    });
+    assert.ok(errores.length > 0);
+  });
+
+  it('rechaza un nombre con un salto de linea', async () => {
+    const errores = await validar({
+      rangos: [{ nombre: 'apertura\n', horaInicio: '08:00', horaFin: '22:00' }],
+    });
+    assert.ok(errores.length > 0);
+  });
+
+  it('rechaza un nombre con un tabulador', async () => {
+    const errores = await validar({
+      rangos: [{ nombre: 'aper\ttura', horaInicio: '08:00', horaFin: '22:00' }],
+    });
+    assert.ok(errores.length > 0);
+  });
+
+  it('rechaza un nombre con DEL (U+007F)', async () => {
+    const errores = await validar({
+      rangos: [
+        {
+          nombre: 'apertura' + String.fromCharCode(127),
+          horaInicio: '08:00',
+          horaFin: '22:00',
+        },
+      ],
+    });
+    assert.ok(errores.length > 0);
+  });
+
+  it('acepta un nombre con acentos, enie y emoji', async () => {
+    const errores = await validar({
+      rangos: [{ nombre: 'Mañana 🎾', horaInicio: '08:00', horaFin: '22:00' }],
+    });
+    assert.equal(errores.length, 0);
+  });
+
+  it('acepta exactamente 20 rangos', async () => {
+    const rangos = Array.from({ length: 20 }, (_, indice) => ({
+      nombre: `rango-${indice}`,
+      horaInicio: '08:00',
+      horaFin: '22:00',
+    }));
+    const errores = await validar({ rangos });
+    assert.equal(errores.length, 0);
+  });
+
+  it('rechaza 21 rangos', async () => {
+    const rangos = Array.from({ length: 21 }, (_, indice) => ({
+      nombre: `rango-${indice}`,
+      horaInicio: '08:00',
+      horaFin: '22:00',
+    }));
+    const errores = await validar({ rangos });
     assert.ok(errores.length > 0);
   });
 });

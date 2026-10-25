@@ -113,6 +113,22 @@ function prismaStub(filas: FilaStub[] = []) {
   };
 }
 
+/**
+ * Stub whose `$transaction` rejects before running the callback, so the
+ * service's unique-violation translation can be exercised without a real
+ * database.
+ */
+function prismaStubConTransaccionFallida(error: unknown) {
+  return {
+    rangos_horario: {
+      findMany: async () => [],
+    },
+    $transaction: async () => {
+      throw error;
+    },
+  };
+}
+
 describe('RangosHorarioService.listar (ACT-31, GET /config/rangos-horario, RF-34)', () => {
   it('mapea snake_case a camelCase, formatea HH:MM y ordena por horaInicio', async () => {
     const { prisma } = prismaStub([
@@ -384,5 +400,32 @@ describe('RangosHorarioService.actualizar (ACT-31, PUT /config/rangos-horario, R
 
     await assert.rejects(() => service.actualizar({ rangos: [] }), BadRequestException);
     assert.equal(transacciones(), 0);
+  });
+
+  it('traduce una violacion de unicidad de Prisma (P2002) a ConflictException', async () => {
+    const prisma = prismaStubConTransaccionFallida({ code: 'P2002' });
+    const service = new RangosHorarioService(prisma as never);
+
+    await assert.rejects(
+      () =>
+        service.actualizar({
+          rangos: [{ nombre: 'apertura', horaInicio: '08:00', horaFin: '22:00' }],
+        }),
+      ConflictException,
+    );
+  });
+
+  it('repropaga sin cambios un error que no es de unicidad', async () => {
+    const boom = new Error('boom');
+    const prisma = prismaStubConTransaccionFallida(boom);
+    const service = new RangosHorarioService(prisma as never);
+
+    await assert.rejects(
+      () =>
+        service.actualizar({
+          rangos: [{ nombre: 'apertura', horaInicio: '08:00', horaFin: '22:00' }],
+        }),
+      (error) => error === boom,
+    );
   });
 });

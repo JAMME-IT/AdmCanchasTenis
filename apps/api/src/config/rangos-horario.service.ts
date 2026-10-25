@@ -64,53 +64,60 @@ export class RangosHorarioService {
       resueltos.push({ rango, fila });
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      // Delete first so a rename cannot collide with a row that leaves the set.
-      await tx.rangos_horario.deleteMany({
-        where: { id: { notIn: [...idsConservados] } },
-      });
-
-      const renombres: Array<{ id: string; nombre: string }> = [];
-
-      for (const { rango, fila } of resueltos) {
-        const data = {
-          nombre: rango.nombre,
-          hora_inicio: horaDesdeTexto(rango.horaInicio),
-          hora_fin: horaDesdeTexto(rango.horaFin),
-          updated_at: new Date(),
-        };
-        if (!fila) {
-          await tx.rangos_horario.upsert({
-            where: { nombre: rango.nombre },
-            update: data,
-            create: {
-              nombre: rango.nombre,
-              hora_inicio: data.hora_inicio,
-              hora_fin: data.hora_fin,
-            },
-          });
-        } else if (fila.nombre === rango.nombre) {
-          await tx.rangos_horario.update({ where: { id: fila.id }, data });
-        } else {
-          // Two-phase rename: another kept row may still hold the target name
-          // (e.g. two ranges swapping names), and Postgres checks the unique
-          // index on every statement. Release the name with a temporary one
-          // first, then write the final name in the second pass.
-          await tx.rangos_horario.update({
-            where: { id: fila.id },
-            data: { ...data, nombre: `tmp-${randomUUID()}` },
-          });
-          renombres.push({ id: fila.id, nombre: rango.nombre });
-        }
-      }
-
-      for (const renombre of renombres) {
-        await tx.rangos_horario.update({
-          where: { id: renombre.id },
-          data: { nombre: renombre.nombre },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Delete first so a rename cannot collide with a row that leaves the set.
+        await tx.rangos_horario.deleteMany({
+          where: { id: { notIn: [...idsConservados] } },
         });
+
+        const renombres: Array<{ id: string; nombre: string }> = [];
+
+        for (const { rango, fila } of resueltos) {
+          const data = {
+            nombre: rango.nombre,
+            hora_inicio: horaDesdeTexto(rango.horaInicio),
+            hora_fin: horaDesdeTexto(rango.horaFin),
+            updated_at: new Date(),
+          };
+          if (!fila) {
+            await tx.rangos_horario.upsert({
+              where: { nombre: rango.nombre },
+              update: data,
+              create: {
+                nombre: rango.nombre,
+                hora_inicio: data.hora_inicio,
+                hora_fin: data.hora_fin,
+              },
+            });
+          } else if (fila.nombre === rango.nombre) {
+            await tx.rangos_horario.update({ where: { id: fila.id }, data });
+          } else {
+            // Two-phase rename: another kept row may still hold the target name
+            // (e.g. two ranges swapping names), and Postgres checks the unique
+            // index on every statement. Release the name with a temporary one
+            // first, then write the final name in the second pass.
+            await tx.rangos_horario.update({
+              where: { id: fila.id },
+              data: { ...data, nombre: `tmp-${randomUUID()}` },
+            });
+            renombres.push({ id: fila.id, nombre: rango.nombre });
+          }
+        }
+
+        for (const renombre of renombres) {
+          await tx.rangos_horario.update({
+            where: { id: renombre.id },
+            data: { nombre: renombre.nombre },
+          });
+        }
+      });
+    } catch (error) {
+      if (esViolacionDeUnicidad(error)) {
+        throw new ConflictException('El nombre de la franja ya existe');
       }
-    });
+      throw error;
+    }
 
     return this.listar();
   }
@@ -161,4 +168,14 @@ export class RangosHorarioService {
       }
     }
   }
+}
+
+/** Prisma unique-violation (`uq_rangos_horario_nombre` race → 409). */
+function esViolacionDeUnicidad(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002'
+  );
 }

@@ -97,7 +97,14 @@ API reiniciada con el código nuevo; 18/18 PASS:
 
 ## Commits
 
-- Pendiente de registrar hash.
+- `9604dc0` — `feat(api): duracion configurable de tipos de turno (ACT-32, RF-15)`.
+
+## Review nativa (RDD)
+
+- `review assess`: `risk: medium`, `review_due: true` (`slice_budget_reached`, 433 líneas).
+- Consentimiento del candidato: **el usuario eligió saltar esta vez** (`declined_this_candidate`).
+  Se ejecutó el decline candidato-scoped; no se creó registro de review y la entrega sigue bajo
+  política ordinaria del repo. No se hizo ninguna operación de lifecycle adicional.
 
 ## Verificación (a manual por el usuario)
 

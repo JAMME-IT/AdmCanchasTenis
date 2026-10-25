@@ -116,6 +116,7 @@ El byte NUL también puede romper otros endpoints con texto libre: queda como fo
 
 - `b5476b4` — `feat(api): rangos horarios GET/PUT en config (ACT-31, RF-34)`.
 - `428fc96` — `docs(odd): registra ACT-31 rangos horarios y su evidencia`.
+- `7b5f417` — `fix(api): acota y sanea la entrada de rangos horarios (ACT-31)`.
 
 ## Review nativa (RDD)
 
@@ -128,6 +129,16 @@ El byte NUL también puede romper otros endpoints con texto libre: queda como fo
   (comentario `issuecomment-6400620462`). El usuario eligió reportar y continuar; se ejecutó el decline
   candidato-scoped (`declined_this_candidate`) y no se hizo ninguna operación de lifecycle más.
 - Consecuencia: la entrega sigue bajo política ordinaria del repo (sin push ni PR todavía).
+
+## Review nativa del hardening (7b5f417)
+
+- `review assess`: `risk: medium`, `review_due: true` (`slice_budget_reached`, 1131 líneas).
+- Consentimiento del candidato: otorgado.
+- `review start`: transacción `review-a2e73f2b3227239f`, lente `review-reliability`.
+- Mismo defecto de transporte: las dos capturas fallaron con
+  `opencode_review_transport_relay_refused (reason: binding_mismatch)` y STATUS reofreció el slot.
+- El usuario eligió **no volver a reportar** (el defecto ya está en `gentle-ai#5687`); se ejecutó el
+  decline candidato-scoped (`declined_this_candidate`) y no se hizo ninguna operación más de lifecycle.
 
 ## Verificación (a manual por el usuario)
 

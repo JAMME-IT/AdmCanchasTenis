@@ -112,6 +112,19 @@ nombre con acentos/emoji 200. Specs: 22 DTO + 18 service; suite completa y build
 El byte NUL también puede romper otros endpoints con texto libre: queda como follow-up transversal
 (filtro global Prisma/Postgres), fuera de ACT-31.
 
+## Review humano del PR #11 (2026-10-26)
+
+Tres hallazgos no bloqueantes del review, corregidos en la misma rama:
+
+| # | Hallazgo | Corrección |
+|---|---|---|
+| 1 | `findMany` de las filas actuales corría **antes** del `$transaction`: un `PUT` concurrente podía borrar una fila que este request todavía intentaba actualizar (`P2025` sin mapear → **500**) | La lectura y la resolución por `id`/`nombre` viven dentro de la transacción |
+| 2 | `$transaction` sin timeout explícito: el default son 5 s y el cap de 20 franjas puede necesitar ~40 statements secuenciales contra una base hosteada | `{ timeout: 15000, maxWait: 5000 }` |
+| 3 | `nombre` sin recorte: `" apertura "` y `"apertura"` eran franjas distintas y un nombre de solo espacios se guardaba en blanco | `@Transform` que recorta solo U+0020 en los extremos; el nombre en blanco cae en `@IsNotEmpty` → **400**. Los caracteres de control **no** se normalizan: siguen dando 400 |
+
+Evidencia: `rangos-horario.service.spec.ts` 19/19 · `actualizar-rangos-horario.dto.spec.ts` 24/24 ·
+`npm test --workspace=api` exit 0 · `npm run build --workspace=api` exit 0.
+
 ## Commits
 
 - `b5476b4` — `feat(api): rangos horarios GET/PUT en config (ACT-31, RF-34)`.

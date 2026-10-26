@@ -16,6 +16,13 @@ interface RangoResuelto {
 }
 
 /**
+ * Interactive transaction budget. Prisma defaults to 5 s, but the 20-range cap
+ * can need ~40 sequential statements (delete + upsert/update + two-phase
+ * rename) and a hosted database adds one round trip per statement.
+ */
+const TX_OPTIONS = { timeout: 15_000, maxWait: 5_000 } as const;
+
+/**
  * Opening time ranges business logic (API contract §5.6, RF-34).
  * The club's bookable hours are a replaceable set: `PUT` upserts the body's
  * ranges inside one transaction and deletes every stored row the body dropped.
@@ -44,28 +51,31 @@ export class RangosHorarioService {
     const rangos = dto.rangos;
     this.validarRangos(rangos);
 
-    const actuales = await this.prisma.rangos_horario.findMany();
-    const porId = new Map(actuales.map((fila) => [fila.id, fila]));
-    const porNombre = new Map(actuales.map((fila) => [fila.nombre, fila]));
-
-    const resueltos: RangoResuelto[] = [];
-    const idsConservados = new Set<string>();
-    for (const rango of rangos) {
-      const fila = rango.id ? porId.get(rango.id) : porNombre.get(rango.nombre);
-      if (rango.id && !fila) {
-        throw new BadRequestException(`El rango ${rango.id} no existe`);
-      }
-      if (fila) {
-        if (idsConservados.has(fila.id)) {
-          throw new ConflictException('Dos rangos del body apuntan a la misma franja');
-        }
-        idsConservados.add(fila.id);
-      }
-      resueltos.push({ rango, fila });
-    }
-
     try {
       await this.prisma.$transaction(async (tx) => {
+        // Read the current rows inside the transaction: a snapshot taken before
+        // it opened let a concurrent PUT delete a row this request then tried to
+        // update, surfacing Prisma's P2025 as an unmapped 500.
+        const actuales = await tx.rangos_horario.findMany();
+        const porId = new Map(actuales.map((fila) => [fila.id, fila]));
+        const porNombre = new Map(actuales.map((fila) => [fila.nombre, fila]));
+
+        const resueltos: RangoResuelto[] = [];
+        const idsConservados = new Set<string>();
+        for (const rango of rangos) {
+          const fila = rango.id ? porId.get(rango.id) : porNombre.get(rango.nombre);
+          if (rango.id && !fila) {
+            throw new BadRequestException(`El rango ${rango.id} no existe`);
+          }
+          if (fila) {
+            if (idsConservados.has(fila.id)) {
+              throw new ConflictException('Dos rangos del body apuntan a la misma franja');
+            }
+            idsConservados.add(fila.id);
+          }
+          resueltos.push({ rango, fila });
+        }
+
         // Delete first so a rename cannot collide with a row that leaves the set.
         await tx.rangos_horario.deleteMany({
           where: { id: { notIn: [...idsConservados] } },
@@ -111,7 +121,7 @@ export class RangosHorarioService {
             data: { nombre: renombre.nombre },
           });
         }
-      });
+      }, TX_OPTIONS);
     } catch (error) {
       if (esViolacionDeUnicidad(error)) {
         throw new ConflictException('El nombre de la franja ya existe');

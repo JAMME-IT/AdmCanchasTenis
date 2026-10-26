@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayNotEmpty,
@@ -23,6 +23,11 @@ export class RangoHorarioDto {
   @IsUUID(undefined, { message: 'id debe ser un UUID valido' })
   id?: string;
 
+  // Trim the surrounding spaces only (U+0020) so `" apertura "` and
+  // `"apertura"` are the same range and a blank name fails `@IsNotEmpty`.
+  // Control characters stay untouched: `\n` or `\t` must still hit the
+  // control-char rule below (400) instead of being silently normalized away.
+  @Transform(({ value }) => (typeof value === 'string' ? value.replace(/^ +| +$/g, '') : value))
   @IsString({ message: 'nombre debe ser un string' })
   @IsNotEmpty({ message: 'nombre no puede estar vacio' })
   @MaxLength(50, { message: 'nombre no puede superar los 50 caracteres' })

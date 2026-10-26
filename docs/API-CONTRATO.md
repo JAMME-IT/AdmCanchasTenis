@@ -103,6 +103,7 @@ Formato NestJS estándar:
 | `POST /canchas`, `PATCH /canchas/:id`, `PATCH /canchas/:id/estado` | — | Si | — | — |
 | `GET /config/rangos-horario`, `GET /config/dias-funcionamiento` | — | Si | Si | Si |
 | `PUT /config/rangos-horario`, `PUT /config/dias-funcionamiento` | — | Si | — | — |
+| `PATCH /config/tipos-turno/:id` | — | Si | — | — |
 | `GET /cuotas`, `POST /cuotas/:id/pagos` | — | Si | — | — |
 | `GET /cuotas/mias` | — | — | Si | — |
 | `GET /tarifas` | — | Si | Si | Si |
@@ -591,6 +592,20 @@ En listados del admin se agrega `usuario: { id, nombre, apellido, numeroSocio }`
 - **Response 200**: array actualizado.
 - **Errores**: 400, 401, 403.
 
+#### PATCH /config/tipos-turno/:id
+
+- **Roles**: admin.
+- **RF**: RF-15 (duración configurable; ver §7).
+- **Descripción**: actualiza `tipos_turno.duracion_max` de un tipo de turno. Aplica de inmediato a
+  `GET /turnos/disponibilidad` y a las reservas nuevas; los turnos ya reservados conservan su `hora_fin`.
+- **Request**: `{ "duracionMinutos": 75 }`.
+- **Validaciones**: entero entre 15 y 240 (supuesto de producto, ajustable); `id` UUID existente.
+- **Response 200**: `{ "id": "...", "duracionMinutos": 75 }`.
+- **Errores**: 400 (`id` no UUID o body inválido), 401, 403, 404 (tipo inexistente), 409
+  (`duracion_max` ya usada por otro tipo, `uq_tipos_turno_duracion_max`).
+- **Nota**: como `duracion_max` es único, intercambiar las duraciones de dos tipos requiere pasar por
+  un valor intermedio libre (60 → 75 → 90, no 60 ↔ 90 directo).
+
 ### 5.7 Cuotas
 
 #### GET /cuotas
@@ -795,7 +810,7 @@ Fuente de la lista: `docs/CONTEXTO.md` §6.
 | RF-12 | Reservar turno | `POST /turnos` | Cubierto |
 | RF-13 | Informar si requiere luz y costo adicional | `POST /turnos` (`requiereLuz`, `cargoLuzCompartido`, `avisos`) | Cubierto |
 | RF-14 | Cancelar hasta 1 hora antes | `POST /turnos/:id/cancelar` (RN-1) | Cubierto |
-| RF-15 | Admin modifica duración de turno | Sin endpoint en v1; `tipos_turno` con seeds 60/90. Propuesta: `PATCH /config/tipos-turno/:id` (ver §7) | Pendiente (v1.1) |
+| RF-15 | Admin modifica duración de turno | `PATCH /config/tipos-turno/:id` (`duracionMinutos`) | Cubierto |
 | RF-16 | Admin modifica franja de iluminación | `PUT /tarifas/luz` (`franjaHorarioInicio`, `franjaHorarioFin`) | Cubierto |
 | RF-17 | Admin asigna estado a cancha con motivo | `PATCH /canchas/:id/estado` | Cubierto |
 | RF-18 | Socio ve su historial de turnos | `GET /turnos/mios/historial` | Cubierto |
@@ -828,7 +843,7 @@ Fuente de la lista: `docs/CONTEXTO.md` §6.
 | RF-45 | Estadísticas financieras | `GET /reportes/financiero` | Cubierto |
 | RF-46 | Logout | `POST /auth/logout` | Cubierto |
 
-**Resumen**: 46/46 requerimientos tratados. 43 cubiertos por endpoints, 1 resuelto por job (RF-20), 1 fuera de la API por ser comportamiento de frontend (RF-8) y 1 pendiente de endpoint para v1.1 (RF-15).
+**Resumen**: 46/46 requerimientos tratados. 44 cubiertos por endpoints, 1 resuelto por job (RF-20) y 1 fuera de la API por ser comportamiento de frontend (RF-8). No quedan requerimientos pendientes de endpoint.
 
 ## 7. Supuestos y pendientes
 
@@ -840,7 +855,9 @@ Fuente de la lista: `docs/CONTEXTO.md` §6.
 6. **Feriados**: no están modelados. La duración de 90 min en feriados depende de que el frontend/admin elija el `tipoTurnoId` correcto; pendiente una tabla/config de feriados.
 7. **Vista admin de canchas**: `GET /canchas?conEstados=true` evita duplicar la ruta; `conEstados` es solo admin.
 8. **Lectura de configuración**: `GET /config/*` se habilita a todos los roles autenticados porque la agenda del frontend necesita franjas y días; la escritura (`PUT`) es solo admin.
-9. **RF-15 (duración configurable)**: pendiente de endpoint. La tabla `tipos_turno` ya tiene los seeds 60/90; se propone `PATCH /config/tipos-turno/:id` para v1.1.
+9. **RF-15 (duración configurable)**: resuelto en `PATCH /config/tipos-turno/:id` (§5.6). El rango
+   15..240 es un supuesto de producto; `duracion_max` es único en la base, así que dos tipos no pueden
+   compartir duración.
 10. **RF-16**: se resuelve en `PUT /tarifas/luz` porque costo y franja de iluminación viven en la fila única de `luz`; la franja no se versiona, solo el costo (`estados_luz`).
 11. **Unicidad de pagos**: se decide a nivel de servicio un pago de turno por turno y un pago de luz por turno (409 si ya existe). La base no tiene constraints de unicidad para esos casos; si el club necesita pagos parciales también en turnos, se revisa.
 12. **Sin paginación en v1**: los listados devuelven el conjunto completo. Pendiente si el volumen lo exige.

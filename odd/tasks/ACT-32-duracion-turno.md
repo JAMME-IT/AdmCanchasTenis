@@ -116,6 +116,24 @@ API reiniciada con el código nuevo; 18/18 PASS:
 - IDs actuales de los seeds: 60 min `016a91be-5bc3-4b73-ab3e-e671a2faf0fa`,
   90 min `e7d99191-7ed9-4bb6-8188-f5abc9078db8`.
 
+## Review humano del PR #12 (2026-10-26)
+
+Un solo hallazgo, de documentación: el PR implementaba el endpoint propuesto para RF-15 pero
+`docs/API-CONTRATO.md` seguía diciendo «sin endpoint en v1, pendiente de endpoint para v1.1».
+
+- §2 (tabla de roles): se agregó `PATCH /config/tipos-turno/:id` como solo admin.
+- §5.6: nueva subsección con roles, request, validaciones, response y errores (incluido el 409 por
+  `uq_tipos_turno_duracion_max` y la nota de que intercambiar duraciones necesita un valor intermedio).
+- §6: RF-15 pasa de `Pendiente (v1.1)` a `Cubierto`.
+- §7 nota 9: pasa de «pendiente de endpoint» a «resuelto en `PATCH /config/tipos-turno/:id`».
+- Resumen: 44 cubiertos por endpoints, sin pendientes de endpoint.
+
+No se tocó el DTO: rechazar `"75"` como string es una decisión deliberada (con test propio) y
+coincide con `actualizar-dias-funcionamiento.dto.ts`.
+
+Evidencia: rama actualizada con `main` (ya incluye el merge de #11), `npm test --workspace=api`
+exit 0 y `npm run build --workspace=api` exit 0.
+
 ## Next step
 
 Review nativa del work unit y, si se cierra, push de la rama y PR.

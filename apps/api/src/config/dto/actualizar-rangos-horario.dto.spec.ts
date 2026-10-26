@@ -101,6 +101,22 @@ describe('ActualizarRangosHorarioDto (RF-34)', () => {
     assert.ok(errores.length > 0);
   });
 
+  it('rechaza un nombre que solo tiene espacios', async () => {
+    const errores = await validar({
+      rangos: [{ nombre: '   ', horaInicio: '08:00', horaFin: '22:00' }],
+    });
+    assert.ok(errores.length > 0);
+  });
+
+  it('recorta los espacios del nombre antes de validar', async () => {
+    const dto = plainToInstance(ActualizarRangosHorarioDto, {
+      rangos: [{ nombre: '  apertura  ', horaInicio: '08:00', horaFin: '22:00' }],
+    });
+    const errores = await validate(dto);
+    assert.equal(errores.length, 0);
+    assert.equal(dto.rangos[0].nombre, 'apertura');
+  });
+
   it('rechaza un nombre que no es string', async () => {
     const errores = await validar({
       rangos: [{ nombre: 123, horaInicio: '08:00', horaFin: '22:00' }],

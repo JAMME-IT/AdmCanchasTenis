@@ -56,9 +56,14 @@ function prismaStub(filas: FilaStub[] = []) {
   const deleteManys: DeleteManyArgs[] = [];
   let transacciones = 0;
   let secuencia = 0;
+  let lecturasTx = 0;
 
   const tx = {
     rangos_horario: {
+      findMany: async () => {
+        lecturasTx += 1;
+        return estado.map((fila) => ({ ...fila }));
+      },
       deleteMany: async (args: DeleteManyArgs) => {
         deleteManys.push(args);
         const conservados = new Set(args.where.id.notIn);
@@ -110,6 +115,7 @@ function prismaStub(filas: FilaStub[] = []) {
     updates,
     deleteManys,
     transacciones: () => transacciones,
+    lecturasTx: () => lecturasTx,
   };
 }
 
@@ -217,6 +223,22 @@ describe('RangosHorarioService.actualizar (ACT-31, PUT /config/rangos-horario, R
     ]);
   });
 
+  it('lee las filas actuales dentro de la transaccion, no antes', async () => {
+    const { prisma, lecturasTx } = prismaStub([
+      { id: 'r1', nombre: 'apertura', hora_inicio: fecha('08:00'), hora_fin: fecha('20:00') },
+    ]);
+    const service = new RangosHorarioService(prisma as never);
+
+    await service.actualizar({
+      rangos: [{ id: 'r1', nombre: 'apertura', horaInicio: '09:00', horaFin: '21:00' }],
+    });
+
+    // La resolucion por id/nombre observa las filas ya bloqueadas por la
+    // transaccion: un PUT concurrente no puede borrar una fila que este todavia
+    // intenta actualizar (P2025 sin mapear).
+    assert.equal(lecturasTx(), 1);
+  });
+
   it('intercambia los nombres de dos filas conservadas sin chocar con la unique (rename en dos fases)', async () => {
     const { prisma, updates } = prismaStub([
       { id: 'r1', nombre: 'apertura', hora_inicio: fecha('08:00'), hora_fin: fecha('12:00') },
@@ -300,7 +322,9 @@ describe('RangosHorarioService.actualizar (ACT-31, PUT /config/rangos-horario, R
         }),
       ConflictException,
     );
-    assert.equal(transacciones(), 0);
+    // La resolucion vive dentro de la transaccion (lee las filas actuales); el
+    // throw la aborta antes de cualquier escritura.
+    assert.equal(transacciones(), 1);
   });
 
   it('rechaza un id duplicado en el body con BadRequestException', async () => {
@@ -335,7 +359,9 @@ describe('RangosHorarioService.actualizar (ACT-31, PUT /config/rangos-horario, R
         }),
       BadRequestException,
     );
-    assert.equal(transacciones(), 0);
+    // `id` inexistente: se detecta al resolver dentro de la transaccion, que
+    // queda abortada sin escrituras.
+    assert.equal(transacciones(), 1);
   });
 
   it('rechaza horaFin igual a horaInicio con BadRequestException', async () => {

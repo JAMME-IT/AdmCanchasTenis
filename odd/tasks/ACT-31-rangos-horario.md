@@ -1,0 +1,165 @@
+# ACT-31 — Rangos horarios (config) — Feature document
+
+> Branch: `feat/ACT-31-rangos-horario` (desde `main` e1ef696). RDD on: usuario verifica manualmente los tests.
+> Convención: commits en español con jerga técnica en inglés, Conventional Commits, sin `Co-Authored-By`.
+
+## Objective
+
+Implementar en `apps/api` los endpoints de **rangos horarios** del módulo `config`
+según `docs/API-CONTRATO.md` §5.6 y el requerimiento **RF-34`:
+
+- `GET /config/rangos-horario` (RF-34 consulta) — roles autenticados.
+- `PUT /config/rangos-horario` (RF-34 registro/modificación) — solo admin.
+
+## Problem / Why
+
+La tabla `rangos_horario` define la franja de apertura del club y **ya la consumen** la
+disponibilidad (`turnos.service.ts` → `GET /turnos/disponibilidad`) y la reserva: un turno
+fuera de toda franja devuelve 422. Hoy esas franjas solo se cargan por seed / a mano.
+Falta el ABM admin para consultarlas y reemplazarlas sin tocar la base. Impacta directamente
+en la disponibilidad de turnos.
+
+## Scope autorizado
+
+- `apps/api/src/config/` — solo rangos horarios.
+- Registro en `apps/api/src/app.module.ts` no hace falta (el módulo `config` ya está registrado).
+- Alta de los specs en el script `test` de `apps/api/package.json`.
+- Fuera de alcance: `PATCH /config/tipos-turno/:id` (ACT-32) y `PUT /tarifas/luz` (franja de iluminación).
+
+## Constraints / decisiones
+
+- **Contrato §5.6**:
+  - `GET` → `[{ "id": "...", "nombre": "apertura", "horaInicio": "08:00", "horaFin": "22:00" }]`; errores 401.
+  - `PUT` body `{ "rangos": [{ "id": "uuid-opcional", "nombre": "apertura", "horaInicio": "08:00", "horaFin": "22:00" }] }`; errores 400/401/403/409.
+  - `PUT` **reemplaza el conjunto** en una transacción (upsert por `id` o por `nombre`) y responde los rangos vigentes.
+  - Validaciones del contrato: `nombre` único de hasta 50 caracteres; `horaFin > horaInicio`.
+- **Jira (criterio)**: además valida **solapamientos** entre franjas; impacta en la disponibilidad.
+  Solapamiento se evalúa sobre intervalos `[horaInicio, horaFin)`: franjas contiguas (fin == inicio
+  siguiente) son válidas. Solapamiento → **400**.
+- **Reemplazo total**: las franjas vigentes que no vienen en el body se eliminan (reemplaza el conjunto).
+  `rangos` vacío → **400** (`ArrayNotEmpty`): evita dejar al club sin horario de apertura.
+- **Resolución de identidad**:
+  - `id` presente → debe existir (si no, **400**, el contrato no define 404 para esta ruta).
+  - sin `id` → match por `nombre` (update de horas) o alta si el nombre no existe.
+  - dos entradas del body que resuelven a la misma fila o repiten `nombre` → **409** (contrato: `nombre` duplicado).
+  - dos entradas con el mismo `id` → **400** (body inválido).
+- **Horas**: `@db.Time(6)` en Prisma llega como `Date`; se persiste con epoch `1970-01-01T HH:MM:00Z`
+  y se serializa `HH:MM` con el mismo criterio UTC que `turnos.service.ts`.
+- **Formato**: regex `^([01]\d|2[0-3]):[0-5]\d$` en el DTO (`@Matches`).
+- Patrón del repo: mappers `snake_case → camelCase` en `*-response.ts`; schema Swagger en
+  `*-response.schema.ts`; comentarios/JSDoc en inglés referenciando el contrato; tests `node:test` con stubs de Prisma.
+- **TDD estricto**: specs primero, RED observado, después implementación.
+
+## Tasks
+
+| ID | Tarea | Ruta | Trigger |
+|---|---|---|---|
+| T1 | Feature doc | inline | mecánico |
+| T2 | Specs (mapper/horas + service + DTO) en RED | delegate writer | 2+ archivos no triviales |
+| T3 | Implementación (response, schema, hora, dto, service, controller, module) → GREEN | delegate writer | 2+ archivos no triviales |
+| T4 | Cablear specs en `test` + suite completa + `build` | delegate writer | verificación |
+| T5 | Commit work-unit + actualizar doc de feature | inline | mecánico |
+
+## Acceptance criteria
+
+1. `GET /config/rangos-horario` responde `[{ id, nombre, horaInicio, horaFin }]` ordenado por `horaInicio`; cualquier rol autenticado.
+2. `PUT /config/rangos-horario` (admin) reemplaza el conjunto en una transacción y responde los rangos vigentes.
+3. Upsert por `id` o por `nombre`; las franjas omitidas se borran.
+4. `PUT` con formato de hora inválido, `horaFin <= horaInicio`, solapamiento, `id` inexistente, `id` duplicado o lista vacía → 400.
+5. `PUT` con `nombre` duplicado (en el body o contra otra fila) → 409.
+6. Roles: `GET` requiere autenticación (401 sin token); `PUT` requiere `admin` (403 para socio/no_socio).
+7. Tests unitarios (node:test) en verde; `npm run build --workspace=api` limpio.
+
+## Progreso
+
+| ID | Estado | Evidencia |
+|---|---|---|
+| T1 | ✅ | este documento |
+| T2 | ✅ RED observado | `Cannot find module './rangos-horario.service'` (MODULE_NOT_FOUND) y `Cannot find module './actualizar-rangos-horario.dto'` |
+| T3 | ✅ GREEN | `RangosHorarioService` 16/16 + `ActualizarRangosHorarioDto` 15/15 |
+| T4 | ✅ | suite completa `npm test --workspace=api` exit 0; `npm run build --workspace=api` → `tsc` limpio (`BUILD_EXIT=0`) |
+| T5 | ✅ | commit de este work unit (ver sección Commits) |
+
+### Correcciones del revisor (parent) sobre el output del writer
+
+1. **Swap de `nombre` entre filas conservadas**: renombrar dos filas que intercambian nombre
+   chocaba con `uq_rangos_horario_nombre` (Postgres valida la unique por statement). Se agregó
+   un rename en dos fases dentro de la transacción (nombre temporal `tmp-<uuid>`, luego el final)
+   y un test que lo cubre.
+2. **`nombre` sin `@IsString`**: un número pasaba `@IsNotEmpty`/`@MaxLength` y rompía en Prisma.
+   Se agregó `@IsString` y el test correspondiente.
+
+### Nota del writer (edge no cubierto por contrato)
+
+Un body que intercambia nombres entre filas conservadas quedó cubierto; la colisión de unique
+por concurrencia (dos admins escribiendo a la vez) no se mapea a 409 y hoy saldría 500.
+
+### Hardening local (pedido del usuario, 2026-10-25)
+
+Revisión de seguridad sobre el endpoint: no hay SQL Injection (no existe SQL crudo; todo va por
+Prisma parametrizado) y las horas ya son numéricas (`^([01]\d|2[0-3]):[0-5]\d$`). Se cerraron tres
+gaps locales, sin filtro global ni cambios en otros endpoints:
+
+| Vector | Antes | Ahora |
+|---|---|---|
+| `nombre` con byte NUL (`U+0000`) | Postgres `22021` → **500** | `@Matches` de control chars → **400** |
+| `nombre` con `\n`, `\t` o DEL | se aceptaban | **400** |
+| Body con muchas franjas (100) | timeout Prisma 5000 ms → **500** | `@ArrayMaxSize(20)` → **400** |
+| Carrera de unicidad (`P2002`) | 500 | `ConflictException` → **409** |
+
+Verificado en vivo tras reiniciar la API: NUL 400, newline 400, 21 franjas 400, 100 franjas 400,
+nombre con acentos/emoji 200. Specs: 22 DTO + 18 service; suite completa y build en verde.
+El byte NUL también puede romper otros endpoints con texto libre: queda como follow-up transversal
+(filtro global Prisma/Postgres), fuera de ACT-31.
+
+## Review humano del PR #11 (2026-10-26)
+
+Tres hallazgos no bloqueantes del review, corregidos en la misma rama:
+
+| # | Hallazgo | Corrección |
+|---|---|---|
+| 1 | `findMany` de las filas actuales corría **antes** del `$transaction`: un `PUT` concurrente podía borrar una fila que este request todavía intentaba actualizar (`P2025` sin mapear → **500**) | La lectura y la resolución por `id`/`nombre` viven dentro de la transacción |
+| 2 | `$transaction` sin timeout explícito: el default son 5 s y el cap de 20 franjas puede necesitar ~40 statements secuenciales contra una base hosteada | `{ timeout: 15000, maxWait: 5000 }` |
+| 3 | `nombre` sin recorte: `" apertura "` y `"apertura"` eran franjas distintas y un nombre de solo espacios se guardaba en blanco | `@Transform` que recorta solo U+0020 en los extremos; el nombre en blanco cae en `@IsNotEmpty` → **400**. Los caracteres de control **no** se normalizan: siguen dando 400 |
+
+Evidencia: `rangos-horario.service.spec.ts` 19/19 · `actualizar-rangos-horario.dto.spec.ts` 24/24 ·
+`npm test --workspace=api` exit 0 · `npm run build --workspace=api` exit 0.
+
+## Commits
+
+- `b5476b4` — `feat(api): rangos horarios GET/PUT en config (ACT-31, RF-34)`.
+- `428fc96` — `docs(odd): registra ACT-31 rangos horarios y su evidencia`.
+- `7b5f417` — `fix(api): acota y sanea la entrada de rangos horarios (ACT-31)`.
+
+## Review nativa (RDD)
+
+- `review assess`: `risk: medium`, `review_due: true` (`slice_budget_reached`, 966 líneas cambiadas).
+- Consentimiento del candidato: **otorgado** por el usuario.
+- `review start`: creó la transacción (`lineage review-9db7f7961adbe28e`, 1 lente `review-reliability`).
+- **Resultado: no disponible por defecto del transporte.** Las dos capturas del lente fueron rechazadas
+  con `opencode_review_transport_relay_refused (reason: binding_mismatch)`; STATUS reofreció el mismo
+  slot. Reportado como ocurrencia en `Gentleman-Programming/gentle-ai#5687`
+  (comentario `issuecomment-6400620462`). El usuario eligió reportar y continuar; se ejecutó el decline
+  candidato-scoped (`declined_this_candidate`) y no se hizo ninguna operación de lifecycle más.
+- Consecuencia: la entrega sigue bajo política ordinaria del repo (sin push ni PR todavía).
+
+## Review nativa del hardening (7b5f417)
+
+- `review assess`: `risk: medium`, `review_due: true` (`slice_budget_reached`, 1131 líneas).
+- Consentimiento del candidato: otorgado.
+- `review start`: transacción `review-a2e73f2b3227239f`, lente `review-reliability`.
+- Mismo defecto de transporte: las dos capturas fallaron con
+  `opencode_review_transport_relay_refused (reason: binding_mismatch)` y STATUS reofreció el slot.
+- El usuario eligió **no volver a reportar** (el defecto ya está en `gentle-ai#5687`); se ejecutó el
+  decline candidato-scoped (`declined_this_candidate`) y no se hizo ninguna operación más de lifecycle.
+
+## Verificación (a manual por el usuario)
+
+- Unit: `npm test --workspace=api` (incluye los nuevos specs).
+- Build: `npm run build --workspace=api`.
+- Manual (Swagger `/api/docs` o curl con token admin): `GET` y `PUT /config/rangos-horario`,
+  y luego `GET /turnos/disponibilidad` para confirmar que la franja nueva acota los slots.
+
+## Next step
+
+ACT-32 — `PATCH /config/tipos-turno/:id` (RF-15, v1.1) en la rama `feat/ACT-32-duracion-turno`.

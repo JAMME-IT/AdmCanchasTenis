@@ -199,6 +199,34 @@ export interface PeriodoParams {
   hasta?: string;
 }
 
+/** GET /usuarios query filters (ACT-22, RF-9..RF-11). */
+export interface UsuariosParams {
+  busqueda?: string;
+  estado?: 'activo' | 'moroso' | 'suspendido' | 'inactivo';
+  rol?: 'admin' | 'socio' | 'no_socio';
+}
+
+/** PATCH /usuarios/:id body (ACT-23, RF-5/RN-4). */
+export interface EditarUsuarioBody {
+  nombre?: string;
+  apellido?: string;
+  telefono?: string | null;
+  dni?: string;
+  estadoActual?: 'activo' | 'moroso' | 'suspendido' | 'inactivo';
+}
+
+/** PATCH /usuarios/:id/rol body (ACT-24, RF-3). numeroSocio omitted: API generates. */
+export interface CambiarRolBody {
+  rol: 'admin' | 'socio' | 'no_socio';
+  numeroSocio?: string;
+}
+
+/** DELETE /usuarios/:id response: logical deactivation (ACT-26, RF-7). */
+export interface BajaUsuarioResponse {
+  id: string;
+  estadoActual: string;
+}
+
 export interface HistorialParams {
   estadoActual?: EstadoHistorial;
   desde?: string;
@@ -214,7 +242,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PUT';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   token?: string | null;
   body?: unknown;
 }
@@ -377,4 +405,28 @@ export const api = {
     rangos: RangoHorarioBody[],
   ): Promise<RangoHorario[]> =>
     request<RangoHorario[]>('/config/rangos-horario', { method: 'PUT', token, body: { rangos } }),
+  usuarios: (token: string | null, params?: UsuariosParams): Promise<Usuario[]> => {
+    const query = new URLSearchParams();
+    if (params?.busqueda) {
+      query.set('busqueda', params.busqueda);
+    }
+    if (params?.estado) {
+      query.set('estado', params.estado);
+    }
+    if (params?.rol) {
+      query.set('rol', params.rol);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<Usuario[]>(`/usuarios${suffix}`, { token });
+  },
+  editarUsuario: (token: string | null, id: string, body: EditarUsuarioBody): Promise<Usuario> =>
+    request<Usuario>(`/usuarios/${id}`, { method: 'PATCH', token, body }),
+  cambiarRolUsuario: (
+    token: string | null,
+    id: string,
+    body: CambiarRolBody,
+  ): Promise<Usuario> =>
+    request<Usuario>(`/usuarios/${id}/rol`, { method: 'PATCH', token, body }),
+  darDeBajaUsuario: (token: string | null, id: string): Promise<BajaUsuarioResponse> =>
+    request<BajaUsuarioResponse>(`/usuarios/${id}`, { method: 'DELETE', token }),
 };

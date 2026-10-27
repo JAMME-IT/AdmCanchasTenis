@@ -30,6 +30,7 @@ export default function TurnoGrilla({
   const [cargando, setCargando] = useState(false);
   const [errorApi, setErrorApi] = useState<string | null>(null);
   const [intento, setIntento] = useState(0);
+  const [canchaSeleccionada, setCanchaSeleccionada] = useState<number | null>(null);
   // Latest callback without retriggering the fetch when the parent re-renders.
   const observadorRef = useRef(onDisponibilidad);
   observadorRef.current = onDisponibilidad;
@@ -43,6 +44,11 @@ export default function TurnoGrilla({
         const data = await api.disponibilidad(token, fecha);
         if (active) {
           setSlots(data.slots);
+          // Inicializar con la primera cancha disponible
+          if (data.slots.length > 0) {
+            const primeraCancha = Math.min(...data.slots.map(s => s.nroCancha));
+            setCanchaSeleccionada(primeraCancha);
+          }
           observadorRef.current?.({
             fecha: data.fecha,
             duracionMinutos: data.duracionMinutos,
@@ -87,11 +93,11 @@ export default function TurnoGrilla({
   if (cargando) {
     // Skeletal loader matching the grid shape, no generic spinner.
     return (
-      <div aria-busy="true" aria-label="Cargando turnos" style={{ display: 'grid', gap: '0.75rem' }}>
+      <div aria-busy="true" aria-label="Cargando turnos" className="grid gap-3">
         {[0, 1, 2].map((fila) => (
           <div
             key={fila}
-            style={{ height: '3.5rem', borderRadius: '0.75rem', backgroundColor: '#EAE7E0' }}
+            className="h-14 rounded-xl bg-[#EAE7E0]"
           />
         ))}
       </div>
@@ -103,32 +109,14 @@ export default function TurnoGrilla({
     return (
       <div
         role="alert"
-        style={{
-          backgroundColor: '#FFFFFF',
-          border: '1px solid #8A9A93',
-          borderRadius: '1rem',
-          padding: '1.25rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.75rem',
-        }}
+        className="bg-white border border-sereno rounded-2xl p-5 flex flex-col gap-3"
       >
-        <p style={{ margin: 0, fontWeight: 600 }}>No se pudo cargar la disponibilidad.</p>
-        <p style={{ margin: 0, fontSize: '0.9rem', color: '#9B2C2C' }}>{errorApi}</p>
+        <p className="m-0 font-semibold">No se pudo cargar la disponibilidad.</p>
+        <p className="m-0 text-sm text-error">{errorApi}</p>
         <button
           type="button"
           onClick={() => setIntento((previo) => previo + 1)}
-          style={{
-            minHeight: '44px',
-            alignSelf: 'flex-start',
-            backgroundColor: '#328161',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '0.75rem',
-            padding: '0.7rem 1.25rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
+          className="min-h-[44px] self-start bg-peridot text-white border-none rounded-xl px-5 py-2.5 font-bold cursor-pointer"
         >
           Reintentar
         </button>
@@ -139,71 +127,72 @@ export default function TurnoGrilla({
   return (
     <div>
       {porCancha.length === 0 ? (
-        <p>No hay canchas configuradas para este día.</p>
+        <p className="text-center text-sereno py-8">No hay canchas configuradas para este día.</p>
       ) : (
-        <div style={{ display: 'grid', gap: '1rem' }}>
-          {porCancha.map((grupo) => (
-            <section
-              key={grupo.nro}
-              aria-label={`Cancha ${grupo.nro}`}
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #8A9A93',
-                borderRadius: '1rem',
-                padding: '1rem',
-              }}
-            >
-              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Cancha {grupo.nro}</h3>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                  gap: '0.6rem',
-                }}
+        <>
+          {/* Botones de selección de cancha */}
+          <div className="flex gap-3 mb-5 flex-wrap">
+            {porCancha.map((grupo) => (
+              <button
+                key={grupo.nro}
+                type="button"
+                onClick={() => setCanchaSeleccionada(grupo.nro)}
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all cursor-pointer ${
+                  canchaSeleccionada === grupo.nro
+                    ? 'bg-peridot text-white shadow-lg scale-105'
+                    : 'bg-whisper text-musgo border-2 border-sereno hover:border-peridot hover:shadow-md'
+                }`}
               >
-                {grupo.lista.map((slot) => {
+                Cancha {grupo.nro}
+              </button>
+            ))}
+          </div>
+
+          {/* Grilla horizontal de turnos */}
+          {canchaSeleccionada !== null && porCancha.find(g => g.nro === canchaSeleccionada) && (
+            <div className="bg-wimbledon/90 rounded-2xl p-6">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+                {porCancha.find(g => g.nro === canchaSeleccionada)!.lista.map((slot) => {
                   const key = `${slot.canchaId}-${slot.horaInicio}`;
                   const activo =
                     seleccionado?.canchaId === slot.canchaId &&
                     seleccionado?.horaInicio === slot.horaInicio;
-                  const bloqueado = !slot.disponible;
+                  const disponible = slot.disponible;
+                  
                   return (
                     <button
                       key={key}
                       type="button"
-                      disabled={bloqueado}
+                      disabled={!disponible}
                       onClick={() => onSeleccionar(slot)}
-                      title={slot.motivo ?? `${slot.horaInicio} ART disponible`}
-                      style={{
-                        minHeight: '44px',
-                        textAlign: 'left',
-                        borderRadius: '0.75rem',
-                        padding: '0.6rem 0.75rem',
-                        cursor: bloqueado ? 'not-allowed' : 'pointer',
-                        border: activo ? '2px solid #328161' : '1px solid #8A9A93',
-                        borderLeft: slot.disponible
-                          ? '4px solid #328161'
-                          : '4px solid #8A9A93',
-                        backgroundColor: activo ? '#328161' : '#F5F3EF',
-                        color: activo ? '#FFFFFF' : '#384543',
-                        opacity: bloqueado ? 0.72 : 1,
-                        fontWeight: 600,
-                      }}
+                      className={`relative h-[70px] rounded-xl p-3 transition-all flex items-center justify-center backdrop-blur-md ${
+                        !disponible
+                          ? 'bg-gray-500/60 cursor-not-allowed opacity-60'
+                          : activo
+                          ? 'bg-white/30 text-white border-2 border-white shadow-xl scale-105'
+                          : 'bg-white/15 text-white hover:bg-white/25 hover:scale-105 cursor-pointer'
+                      }`}
                     >
-                      <span style={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}>
-                        {slot.horaInicio}–{slot.horaFin} ART
-                      </span>
-                      <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500 }}>
-                        {slot.disponible ? 'Libre' : (slot.motivo ?? 'Ocupado')}
-                        {slot.requiereLuz ? ' · con luz' : ''}
-                      </span>
+                      {/* Resplandor para turnos con luz */}
+                      {slot.requiereLuz && disponible && (
+                        <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none">
+                          <div className="absolute -top-2 -right-2 w-14 h-14 rounded-full bg-pelota/80 blur-xl"></div>
+                          <div className="absolute -top-1 -right-1 w-10 h-10 rounded-full bg-pelota/90 blur-lg"></div>
+                          <div className="absolute top-0 right-0 w-6 h-6 rounded-full bg-pelota blur-md"></div>
+                        </div>
+                      )}
+                      
+                      {/* Hora centrada */}
+                      <div className="text-lg font-bold tabular-nums">
+                        {slot.horaInicio} - {slot.horaFin}
+                      </div>
                     </button>
                   );
                 })}
               </div>
-            </section>
-          ))}
-        </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

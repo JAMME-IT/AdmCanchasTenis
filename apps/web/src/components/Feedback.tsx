@@ -2,7 +2,7 @@
 // empty states, semantic status pills and the cuota progress bar.
 // Every page uses these instead of bare <p> so loading, error and
 // empty states look and behave the same across the club front.
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 // ---------------------------------------------------------------------------
 // Skeleton rows (shimmer; disabled under prefers-reduced-motion).
@@ -29,22 +29,15 @@ export function Skeleton({
           }
         }
       `}</style>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div className="flex flex-col gap-3">
         {Array.from({ length: rows }, (_, index) => (
           <div
             // eslint-disable-next-line react/no-array-index-key
             key={index}
             aria-hidden="true"
-            className="feedback-skeleton-row"
+            className="feedback-skeleton-row h-[4.5rem] rounded-2xl border border-sereno bg-[#ECEEEB] bg-[length:400px_100%] bg-no-repeat"
             style={{
-              height: '4.5rem',
-              borderRadius: '1rem',
-              border: '1px solid #8A9A93',
-              backgroundColor: '#ECEEEB',
-              backgroundImage:
-                'linear-gradient(90deg, #ECEEEB 0px, #FFFFFF 100px, #ECEEEB 200px)',
-              backgroundSize: '400px 100%',
-              backgroundRepeat: 'no-repeat',
+              backgroundImage: 'linear-gradient(90deg, #ECEEEB 0px, #FFFFFF 100px, #ECEEEB 200px)',
               animation: `${SHIMMER_KEYFRAMES} 1.4s ease-in-out infinite`,
             }}
           />
@@ -68,31 +61,13 @@ export function ErrorCard({
   return (
     <div
       role="alert"
-      style={{
-        backgroundColor: '#FFFFFF',
-        border: '1px solid #8A9A93',
-        borderRadius: '1rem',
-        padding: '1.25rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.75rem',
-      }}
+      className="bg-white border border-sereno rounded-2xl p-5 flex flex-col gap-3"
     >
-      <p style={{ margin: 0, color: '#9B2C2C' }}>{message}</p>
+      <p className="m-0 text-error">{message}</p>
       <button
         type="button"
         onClick={onRetry}
-        style={{
-          alignSelf: 'flex-start',
-          minHeight: '44px',
-          backgroundColor: '#328161',
-          color: '#FFFFFF',
-          border: 'none',
-          borderRadius: '0.75rem',
-          padding: '0.6rem 1rem',
-          fontWeight: 700,
-          cursor: 'pointer',
-        }}
+        className="self-start min-h-[44px] bg-peridot text-white border-none rounded-xl px-4 py-2.5 font-bold cursor-pointer"
       >
         Reintentar
       </button>
@@ -105,7 +80,7 @@ export function ErrorCard({
 // ---------------------------------------------------------------------------
 export function EmptyState({ message }: { message: string }): JSX.Element {
   return (
-    <p role="status" style={{ margin: 0, color: '#5A6661' }}>
+    <p role="status" className="m-0 text-[#5A6661]">
       {message}
     </p>
   );
@@ -117,15 +92,15 @@ export function EmptyState({ message }: { message: string }): JSX.Element {
 // amber: adeudada / pendiente / parcial · red: vencida / no_asistio
 // Color never stands alone: the estado label is always rendered as text.
 // ---------------------------------------------------------------------------
-const PILL_STYLES: Record<string, CSSProperties> = {
-  green: { backgroundColor: '#DDF0E3', color: '#1F6B45', border: '1px solid #328161' },
-  gray: { backgroundColor: '#ECEEEB', color: '#5A6661', border: '1px solid #8A9A93' },
-  amber: { backgroundColor: '#FDF0D5', color: '#7A5200', border: '1px solid #C99A2B' },
-  red: { backgroundColor: '#FBE3E3', color: '#9B2C2C', border: '1px solid #9B2C2C' },
-  neutral: { backgroundColor: '#F5F3EF', color: '#384543', border: '1px solid #8A9A93' },
+const PILL_CLASSES: Record<string, string> = {
+  green: 'bg-[#DDF0E3] text-[#1F6B45] border border-peridot',
+  gray: 'bg-[#ECEEEB] text-[#5A6661] border border-sereno',
+  amber: 'bg-[#FDF0D5] text-[#7A5200] border border-[#C99A2B]',
+  red: 'bg-[#FBE3E3] text-error border border-error',
+  neutral: 'bg-whisper text-musgo border border-sereno',
 };
 
-function pillTone(estado: string): keyof typeof PILL_STYLES {
+function pillTone(estado: string): keyof typeof PILL_CLASSES {
   const key = estado.trim().toLowerCase();
   if (key === 'confirmado' || key === 'confirmada' || key === 'finalizado' || key === 'pagada') {
     return 'green';
@@ -156,14 +131,7 @@ export function StatusPill({
 }): JSX.Element {
   return (
     <span
-      style={{
-        fontSize: '0.8rem',
-        fontWeight: 700,
-        borderRadius: '999px',
-        padding: '0.25rem 0.75rem',
-        whiteSpace: 'nowrap',
-        ...PILL_STYLES[pillTone(estado)],
-      }}
+      className={`text-xs font-bold rounded-full px-3 py-1 whitespace-nowrap ${PILL_CLASSES[pillTone(estado)]}`}
     >
       {label ?? estado}
     </span>
@@ -185,7 +153,7 @@ export function CuotaProgress({
   const percent = total > 0 ? Math.min(100, Math.max(0, (pagado / total) * 100)) : 0;
   const text = label ?? `${Math.round(percent)} % pagado`;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+    <div className="flex flex-col gap-1">
       <div
         role="progressbar"
         aria-valuemin={0}
@@ -193,24 +161,15 @@ export function CuotaProgress({
         aria-valuenow={Math.round(percent)}
         aria-label={text}
         title={text}
-        style={{
-          height: '0.5rem',
-          borderRadius: '999px',
-          backgroundColor: '#ECEEEB',
-          overflow: 'hidden',
-        }}
+        className="h-2 rounded-full bg-[#ECEEEB] overflow-hidden"
       >
         <div
           aria-hidden="true"
-          style={{
-            width: `${percent}%`,
-            height: '100%',
-            borderRadius: '999px',
-            backgroundColor: '#328161',
-          }}
+          className="h-full rounded-full bg-peridot"
+          style={{ width: `${percent}%` }}
         />
       </div>
-      <span style={{ fontSize: '0.8rem', color: '#5A6661' }}>{text}</span>
+      <span className="text-xs text-[#5A6661]">{text}</span>
     </div>
   );
 }

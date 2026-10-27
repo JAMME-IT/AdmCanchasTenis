@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
 import { ApiError, api, type CompletarPerfilBody } from '../lib/api';
 import { useSignOut } from '../lib/useSignOut';
-import { tokens } from '../styles/tokens';
 
 const EMPTY_FORM: CompletarPerfilBody = {
   username: '',
@@ -43,19 +42,6 @@ function validar(form: CompletarPerfilBody): Errores {
   }
   return errores;
 }
-
-const inputStyle: React.CSSProperties = {
-  minHeight: '44px',
-  borderRadius: tokens.radius.md,
-  border: `1px solid ${tokens.colors.sereno}`,
-  padding: '0.5rem 0.75rem',
-  backgroundColor: tokens.colors.blanco,
-  color: tokens.colors.musgo,
-  fontFamily: 'inherit',
-  fontSize: '1rem',
-  width: '100%',
-  boxSizing: 'border-box',
-};
 
 export default function CompletarPerfil(): JSX.Element {
   const { getToken } = useAuth();
@@ -103,7 +89,7 @@ export default function CompletarPerfil(): JSX.Element {
     const invalido = id in errores;
     return (
       <div>
-        <label htmlFor={`completar-perfil-${id}`} style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>
+        <label htmlFor={`completar-perfil-${id}`} className="grid gap-1 font-semibold">
           {ETIQUETAS[id]}
           <input
             id={`completar-perfil-${id}`}
@@ -111,15 +97,14 @@ export default function CompletarPerfil(): JSX.Element {
             onChange={(event) => update(id, event.target.value)}
             aria-invalid={invalido}
             aria-describedby={invalido ? errorId : undefined}
-            style={{
-              ...inputStyle,
-              borderColor: invalido ? tokens.colors.error : tokens.colors.sereno,
-            }}
+            className={`min-h-[44px] rounded-md border px-3 py-2 bg-white text-musgo font-[inherit] text-base w-full box-border ${
+              invalido ? 'border-error' : 'border-sereno'
+            }`}
             {...props}
           />
         </label>
         {invalido && (
-          <p id={errorId} role="alert" style={{ margin: '0.25rem 0 0', fontSize: '0.9rem', color: tokens.colors.error }}>
+          <p id={errorId} role="alert" className="mt-1 text-sm text-error">
             {errores[id]}
           </p>
         )}
@@ -130,36 +115,21 @@ export default function CompletarPerfil(): JSX.Element {
   return (
     <section
       aria-labelledby="completar-perfil-titulo"
-      style={{
-        backgroundColor: tokens.colors.blanco,
-        border: `1px solid ${tokens.colors.sereno}`,
-        borderRadius: tokens.radius.lg,
-        padding: tokens.spacing.lg,
-        maxWidth: '480px',
-        margin: '0 auto',
-      }}
+      className="bg-white border border-sereno rounded-lg p-6 max-w-[480px] mx-auto"
     >
-      <p
-        style={{
-          margin: `0 0 ${tokens.spacing.sm}`,
-          fontSize: '0.85rem',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: tokens.colors.sereno,
-        }}
-      >
+      <p className="mb-3 text-sm tracking-[0.08em] uppercase text-sereno">
         Club · Tu cuenta
       </p>
       <h1
         id="completar-perfil-titulo"
-        style={{ margin: `0 0 ${tokens.spacing.xs}`, fontFamily: tokens.fonts.display, fontWeight: 400 }}
+        className="mb-2 font-display font-normal"
       >
         Completar perfil
       </h1>
-      <p style={{ margin: `0 0 ${tokens.spacing.md}`, lineHeight: 1.5 }}>
+      <p className="mb-4 leading-relaxed">
         Las credenciales las gestiona Clerk. Solo faltan los datos del club.
       </p>
-      <form onSubmit={(event) => void submit(event)} noValidate style={{ display: 'grid', gap: tokens.spacing.sm }}>
+      <form onSubmit={(event) => void submit(event)} noValidate className="grid gap-3">
         {campo('username', { minLength: 3, maxLength: 50 })}
         {campo('nombre', { maxLength: 100 })}
         {campo('apellido', { maxLength: 100 })}
@@ -168,40 +138,22 @@ export default function CompletarPerfil(): JSX.Element {
         <button
           type="submit"
           disabled={saving}
-          style={{
-            minHeight: '44px',
-            backgroundColor: tokens.colors.peridot,
-            color: tokens.colors.blanco,
-            border: 'none',
-            borderRadius: tokens.radius.md,
-            padding: '0.7rem 1rem',
-            fontWeight: 700,
-            cursor: saving ? 'wait' : 'pointer',
-            opacity: saving ? 0.75 : 1,
-          }}
+          className={`min-h-[44px] bg-peridot text-white border-none rounded-md py-2.5 px-4 font-bold cursor-pointer transition-opacity ${
+            saving ? 'opacity-75 cursor-wait' : 'opacity-100'
+          }`}
         >
           {saving ? 'Guardando…' : 'Guardar'}
         </button>
       </form>
       {error && (
-        <p role="alert" style={{ color: tokens.colors.error }}>
+        <p role="alert" className="text-error">
           {error}
         </p>
       )}
       <button
         type="button"
         onClick={() => void signOutEverywhere()}
-        style={{
-          marginTop: tokens.spacing.sm,
-          minHeight: '44px',
-          backgroundColor: 'transparent',
-          color: tokens.colors.musgo,
-          border: `1px solid ${tokens.colors.sereno}`,
-          borderRadius: tokens.radius.md,
-          padding: '0.6rem 1rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
+        className="mt-3 min-h-[44px] bg-transparent text-musgo border border-sereno rounded-md py-2.5 px-4 font-semibold cursor-pointer"
       >
         Cerrar sesión
       </button>

@@ -1,61 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
+import { Calendar, Clock, CreditCard, Shield, TrendingUp } from 'lucide-react';
 import { ApiError, api, type Usuario } from '../lib/api';
-import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
-
-// Palette: refined green #384543, whisper white #F5F3EF,
-// peridot accent #328161, serene gray #8A9A93.
-const pageStyle: React.CSSProperties = {
-  fontFamily: 'system-ui, sans-serif',
-  backgroundColor: '#F5F3EF',
-  color: '#384543',
-  minHeight: '100dvh',
-  padding: '3rem 1.5rem',
-};
-
-const shellStyle: React.CSSProperties = {
-  maxWidth: '960px',
-  margin: '0 auto',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '1.5rem',
-};
-
-const cardStyle: React.CSSProperties = {
-  backgroundColor: '#FFFFFF',
-  border: '1px solid #8A9A93',
-  borderRadius: '1rem',
-  padding: '1.5rem',
-};
-
-const gridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '1rem',
-};
-
-const buttonPrimary: React.CSSProperties = {
-  backgroundColor: '#328161',
-  color: '#FFFFFF',
-  border: 'none',
-  borderRadius: '0.75rem',
-  padding: '0.6rem 1rem',
-  fontWeight: 600,
-  cursor: 'pointer',
-};
+import { Skeleton } from '../components/Feedback';
 
 export default function Home(): JSX.Element {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [perfilIncompleto, setPerfilIncompleto] = useState(false);
-  const [cargandoPerfil, setCargandoPerfil] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load the connected profile once the session is ready.
   const cargarPerfil = useCallback(async () => {
-    setCargandoPerfil(true);
-    setError(null);
     setPerfilIncompleto(false);
     try {
       const token = await getToken();
@@ -64,11 +19,7 @@ export default function Home(): JSX.Element {
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 403) {
         setPerfilIncompleto(true);
-      } else {
-        setError(caught instanceof ApiError ? caught.message : 'No se pudo cargar el perfil');
       }
-    } finally {
-      setCargandoPerfil(false);
     }
   }, [getToken]);
 
@@ -81,165 +32,140 @@ export default function Home(): JSX.Element {
 
   if (!isLoaded) {
     return (
-      <main style={pageStyle}>
+      <main className="py-8 px-6 pb-12 min-h-dvh font-sans bg-whisper text-musgo">
         <Skeleton rows={2} label="Cargando tu sesión…" />
       </main>
     );
   }
 
-  // Guest home: Layout already shows the API status dot in the footer.
   if (!isSignedIn) {
     return (
-      <main style={pageStyle}>
-        <div style={shellStyle}>
-          <section style={cardStyle}>
-            <h1>Tenis Ranch Club</h1>
-            <p>Gestión simple del club: tu sesión, tu perfil y tus turnos.</p>
-            <p>
-              <Link to="/ingresar">Ingresar</Link> {'·'} <Link to="/registro">Crear cuenta</Link>
+      <main className="py-8 px-6 pb-12 min-h-dvh font-sans bg-whisper text-musgo">
+        <div className="max-w-[1100px] mx-auto flex flex-col gap-8">
+          <section className="bg-white border border-sereno rounded-2xl p-8">
+            <h1 className="mb-4">Tenis Ranch Club</h1>
+            <p className="mb-6 text-[#5A6661]">
+              Gestión simple del club: tu sesión, tu perfil y tus turnos.
             </p>
+            <div className="flex gap-4">
+              <Link to="/ingresar" className="no-underline">
+                <button className="px-6 py-3 bg-peridot text-white border-none rounded-lg font-semibold cursor-pointer">
+                  Ingresar
+                </button>
+              </Link>
+              <Link to="/registro" className="no-underline">
+                <button className="px-6 py-3 bg-white text-peridot border-2 border-peridot rounded-lg font-semibold cursor-pointer">
+                  Crear cuenta
+                </button>
+              </Link>
+            </div>
           </section>
         </div>
       </main>
     );
   }
 
-  // Session home: Layout provides the header nav and footer status dot.
   return (
-    <main style={pageStyle}>
-      <div style={shellStyle}>
-        <div>
-          <h1 style={{ margin: 0 }}>Tenis Ranch Club</h1>
-          <p style={{ margin: '0.25rem 0 0' }}>Gestión simple del club.</p>
-        </div>
-
+    <main className="py-8 px-6 pb-12 min-h-dvh font-sans bg-whisper text-musgo">
+      <div className="max-w-[1100px] mx-auto flex flex-col gap-8">
         {perfilIncompleto && (
-          <p>
-            Tu perfil está incompleto. <Link to="/completar-perfil">Completar perfil</Link>
-          </p>
+          <div className="bg-[#FFF4E5] border border-[#F5A623] rounded-lg p-4 text-[#8B6914]">
+            Tu perfil está incompleto.{' '}
+            <Link to="/completar-perfil" className="text-peridot font-semibold">
+              Completar perfil
+            </Link>
+          </div>
         )}
 
-        {/* Connected section: profile loaded from GET /auth/me. */}
-        <section style={cardStyle}>
-          <h2 style={{ marginTop: 0 }}>Mi perfil</h2>
-          {cargandoPerfil && !usuario ? (
-            <Skeleton rows={2} label="Cargando tu perfil…" />
-          ) : error ? (
-            <ErrorCard message={error} onRetry={() => void cargarPerfil()} />
-          ) : usuario ? (
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: '4rem',
-                  height: '4rem',
-                  borderRadius: '50%',
-                  flex: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: '"Archivo Black", "Archivo", system-ui, sans-serif',
-                  fontSize: '1.4rem',
-                  color: '#FFFFFF',
-                  background: 'radial-gradient(circle at 35% 30%, #3FA67E 0%, #328161 55%, #1F6B45 100%)',
-                  boxShadow: '0 2px 8px rgba(56, 69, 67, 0.3)',
-                }}
-              >
-                {(usuario.nombre.charAt(0) + usuario.apellido.charAt(0)).toUpperCase()}
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: '1 1 16rem' }}>
-                <p style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>
-                  Hola, {usuario.nombre}
-                </p>
-                <p style={{ margin: 0, color: '#5A6661' }}>
-                  @{usuario.username} · {usuario.email}
-                </p>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <StatusPill estado={usuario.rol ?? 'sin asignar'} label={usuario.rol ?? 'Sin rol'} />
-                  <StatusPill estado={usuario.estadoActual} />
-                  {usuario.numeroSocio && (
-                    <span
-                      style={{
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        borderRadius: '999px',
-                        padding: '0.25rem 0.75rem',
-                        backgroundColor: '#384543',
-                        color: '#E9E633',
-                      }}
-                    >
-                      Socio {usuario.numeroSocio}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <EmptyState message="Todavía no se cargó tu perfil." />
-          )}
-        </section>
+        {usuario && (
+          <div className="flex flex-col gap-2">
+            <h1 className="m-0 text-3xl font-bold text-musgo">
+              ¡Hola, {usuario.nombre}! 👋
+            </h1>
+            <p className="m-0 text-base text-[#5A6661]">
+              ¿Querés hacer hoy?
+            </p>
+          </div>
+        )}
 
-        {/* Blocked section: no new endpoints, all actions disabled. */}
-        <section style={cardStyle}>
-          <h2 style={{ marginTop: 0 }}>Panel del club</h2>
-          <p>Estas funciones están en preparación y todavía no se conectan.</p>
-          <div style={gridStyle}>
-            <article style={cardStyle}>
-              <h3>Turnos y reserva</h3>
-              <p>Mirá la disponibilidad real del día y elegí tu horario.</p>
-              <Link
-                to="/turnos"
-                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
-              >
-                Ver turnos
-              </Link>
-            </article>
-            <article style={cardStyle}>
-              <h3>Mis turnos</h3>
-              <p>Revisá tus turnos vigentes, cancelá o mirá tu historial.</p>
-              <Link
-                to="/mis-turnos"
-                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
-              >
-                Ver mis turnos
-              </Link>
-            </article>
-            <article style={cardStyle}>
-              <h3>Mis cuotas</h3>
-              <p>Mirá tus cuotas con lo pagado, el saldo y cada pago.</p>
-              <Link
-                to="/mis-cuotas"
-                style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
-              >
-                Ver mis cuotas
-              </Link>
-            </article>
-            {usuario?.rol === 'admin' && (
-              <>
-                <article style={cardStyle}>
-                  <h3>Panel admin</h3>
-                  <p>Turnos con filtros, pagos y reportes del club.</p>
-                  <Link
-                    to="/admin"
-                    style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
-                  >
-                    Abrir panel
-                  </Link>
-                </article>
-                <article style={cardStyle}>
-                  <h3>Reportes</h3>
-                  <p>Estadísticas e ingresos, dentro del panel admin.</p>
-                  <Link
-                    to="/admin"
-                    style={{ ...buttonPrimary, display: 'inline-block', textDecoration: 'none' }}
-                  >
-                    Ver reportes
-                  </Link>
-                </article>
-              </>
-            )}
+        {/* Acciones rápidas */}
+        <section className="flex flex-col gap-4">
+          <h2 className="m-0 text-xl font-semibold text-musgo">Acciones rápidas</h2>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-5">
+            <Link
+              to="/turnos"
+              className="flex flex-col bg-white rounded-2xl p-6 no-underline text-musgo border-2 border-transparent transition-all duration-200 shadow-[0_2px_8px_rgba(56,69,67,0.08)] hover:border-peridot hover:shadow-[0_4px_16px_rgba(50,129,97,0.15)]"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[#E8F5F0] flex items-center justify-center mb-4">
+                <Calendar size={24} color="#328161" strokeWidth={2} />
+              </div>
+              <h3 className="m-0 mb-2 text-lg font-semibold">Reservar cancha</h3>
+              <p className="m-0 text-[#5A6661] text-sm leading-relaxed">
+                Elegí tu horario y reservá tu cancha
+              </p>
+            </Link>
+
+            <Link
+              to="/mis-turnos"
+              className="flex flex-col bg-white rounded-2xl p-6 no-underline text-musgo border-2 border-transparent transition-all duration-200 shadow-[0_2px_8px_rgba(56,69,67,0.08)] hover:border-fairway hover:shadow-[0_4px_16px_rgba(33,135,90,0.15)]"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[#E8F5F0] flex items-center justify-center mb-4">
+                <Clock size={24} color="#21875A" strokeWidth={2} />
+              </div>
+              <h3 className="m-0 mb-2 text-lg font-semibold">Mis turnos</h3>
+              <p className="m-0 text-[#5A6661] text-sm leading-relaxed">
+                Revisá tus turnos y cancelá si es necesario
+              </p>
+            </Link>
+
+            <Link
+              to="/mis-cuotas"
+              className="flex flex-col bg-white rounded-2xl p-6 no-underline text-musgo border-2 border-transparent transition-all duration-200 shadow-[0_2px_8px_rgba(56,69,67,0.08)] hover:border-[#3FA67E] hover:shadow-[0_4px_16px_rgba(63,166,126,0.15)]"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[#E8F5F0] flex items-center justify-center mb-4">
+                <CreditCard size={24} color="#3FA67E" strokeWidth={2} />
+              </div>
+              <h3 className="m-0 mb-2 text-lg font-semibold">Mis cuotas</h3>
+              <p className="m-0 text-[#5A6661] text-sm leading-relaxed">
+                Controlá tus pagos y saldo pendiente
+              </p>
+            </Link>
           </div>
         </section>
+
+        {/* Admin section */}
+        {usuario?.rol === 'admin' && (
+          <section className="flex flex-col gap-4">
+            <h2 className="m-0 text-xl font-semibold text-musgo">Administración</h2>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-5">
+              <Link
+                to="/admin"
+                className="flex flex-col bg-white rounded-2xl p-6 no-underline text-musgo border-2 border-transparent transition-all duration-200 shadow-[0_2px_8px_rgba(56,69,67,0.08)] hover:border-musgo hover:shadow-[0_4px_16px_rgba(56,69,67,0.15)]"
+              >
+                <div className="w-12 h-12 rounded-xl bg-[#F0F0F0] flex items-center justify-center mb-4">
+                  <Shield size={24} color="#384543" strokeWidth={2} />
+                </div>
+                <h3 className="m-0 mb-2 text-lg font-semibold">Panel admin</h3>
+                <p className="m-0 text-[#5A6661] text-sm leading-relaxed">
+                  Gestioná turnos, pagos y usuarios
+                </p>
+              </Link>
+
+              <Link
+                to="/admin"
+                className="flex flex-col bg-white rounded-2xl p-6 no-underline text-musgo border-2 border-transparent transition-all duration-200 shadow-[0_2px_8px_rgba(56,69,67,0.08)] hover:border-sereno hover:shadow-[0_4px_16px_rgba(138,154,147,0.15)]"
+              >
+                <div className="w-12 h-12 rounded-xl bg-[#F0F0F0] flex items-center justify-center mb-4">
+                  <TrendingUp size={24} color="#8A9A93" strokeWidth={2} />
+                </div>
+                <h3 className="m-0 mb-2 text-lg font-semibold">Reportes</h3>
+                <p className="m-0 text-[#5A6661] text-sm leading-relaxed">
+                  Estadísticas e ingresos del club
+                </p>
+              </Link>
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

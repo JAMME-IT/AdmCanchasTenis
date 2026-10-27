@@ -171,9 +171,60 @@ export interface FinancieroResponse {
   usoCanchas: { turnosTotal: number; horasOcupadas: number; ocupacionPromedio: number };
 }
 
+/** GET /config/dias-funcionamiento item (ACT-30, RF-35): ISO-8601 weekday 1..7.
+ * Same shape as the PUT body row, so one interface serves both. */
+export interface DiaFuncionamiento {
+  diaSemana: number;
+  habilitado: boolean;
+}
+
+/** GET /config/rangos-horario item (ACT-31, RF-34). */
+export interface RangoHorario {
+  id: string;
+  nombre: string;
+  horaInicio: string;
+  horaFin: string;
+}
+
+/** Row of the PUT /config/rangos-horario body: `id` only for existing ranges. */
+export interface RangoHorarioBody {
+  id?: string;
+  nombre: string;
+  horaInicio: string;
+  horaFin: string;
+}
+
 export interface PeriodoParams {
   desde?: string;
   hasta?: string;
+}
+
+/** GET /usuarios query filters (ACT-22, RF-9..RF-11). */
+export interface UsuariosParams {
+  busqueda?: string;
+  estado?: 'activo' | 'moroso' | 'suspendido' | 'inactivo';
+  rol?: 'admin' | 'socio' | 'no_socio';
+}
+
+/** PATCH /usuarios/:id body (ACT-23, RF-5/RN-4). */
+export interface EditarUsuarioBody {
+  nombre?: string;
+  apellido?: string;
+  telefono?: string | null;
+  dni?: string;
+  estadoActual?: 'activo' | 'moroso' | 'suspendido' | 'inactivo';
+}
+
+/** PATCH /usuarios/:id/rol body (ACT-24, RF-3). numeroSocio omitted: API generates. */
+export interface CambiarRolBody {
+  rol: 'admin' | 'socio' | 'no_socio';
+  numeroSocio?: string;
+}
+
+/** DELETE /usuarios/:id response: logical deactivation (ACT-26, RF-7). */
+export interface BajaUsuarioResponse {
+  id: string;
+  estadoActual: string;
 }
 
 export interface HistorialParams {
@@ -191,7 +242,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   token?: string | null;
   body?: unknown;
 }
@@ -336,4 +387,46 @@ export const api = {
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
     return request<FinancieroResponse>(`/reportes/financiero${suffix}`, { token });
   },
+  diasFuncionamiento: (token: string | null): Promise<DiaFuncionamiento[]> =>
+    request<DiaFuncionamiento[]>('/config/dias-funcionamiento', { token }),
+  guardarDiasFuncionamiento: (
+    token: string | null,
+    dias: DiaFuncionamiento[],
+  ): Promise<DiaFuncionamiento[]> =>
+    request<DiaFuncionamiento[]>('/config/dias-funcionamiento', {
+      method: 'PUT',
+      token,
+      body: { dias },
+    }),
+  rangosHorario: (token: string | null): Promise<RangoHorario[]> =>
+    request<RangoHorario[]>('/config/rangos-horario', { token }),
+  guardarRangosHorario: (
+    token: string | null,
+    rangos: RangoHorarioBody[],
+  ): Promise<RangoHorario[]> =>
+    request<RangoHorario[]>('/config/rangos-horario', { method: 'PUT', token, body: { rangos } }),
+  usuarios: (token: string | null, params?: UsuariosParams): Promise<Usuario[]> => {
+    const query = new URLSearchParams();
+    if (params?.busqueda) {
+      query.set('busqueda', params.busqueda);
+    }
+    if (params?.estado) {
+      query.set('estado', params.estado);
+    }
+    if (params?.rol) {
+      query.set('rol', params.rol);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<Usuario[]>(`/usuarios${suffix}`, { token });
+  },
+  editarUsuario: (token: string | null, id: string, body: EditarUsuarioBody): Promise<Usuario> =>
+    request<Usuario>(`/usuarios/${id}`, { method: 'PATCH', token, body }),
+  cambiarRolUsuario: (
+    token: string | null,
+    id: string,
+    body: CambiarRolBody,
+  ): Promise<Usuario> =>
+    request<Usuario>(`/usuarios/${id}/rol`, { method: 'PATCH', token, body }),
+  darDeBajaUsuario: (token: string | null, id: string): Promise<BajaUsuarioResponse> =>
+    request<BajaUsuarioResponse>(`/usuarios/${id}`, { method: 'DELETE', token }),
 };

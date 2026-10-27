@@ -8,10 +8,37 @@
   --color-fairway: #21875A;
   --color-pelota: #E9E633;
   --color-wimbledon: #006B3F;
+  --color-polvo: #BE5B3B;
   --color-error: #9B2C2C;
   --font-display: "Archivo Black", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo", system-ui, sans-serif;
   --breakpoint-nav: 896px;
+}
+
+/* Resplandor de los turnos con luz: foco de cancha en la esquina superior
+   derecha. Tres capas — 1) el foco, casi blanco; 2) el bloom amarillo;
+   3) el derrame diagonal sobre la superficie.
+   El radio es explícito a propósito: con el centro sobre la esquina,
+   `closest-side`/`closest-corner` valen 0 y el degradado no pinta nada. */
+.glow-luz {
+  background-image:
+    radial-gradient(
+      circle 9px at 100% 0%,
+      #FFFDF2 0%,
+      color-mix(in oklab, var(--color-pelota) 90%, transparent) 55%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle 46px at 100% 0%,
+      color-mix(in oklab, var(--color-pelota) 100%, transparent) 0%,
+      color-mix(in oklab, var(--color-pelota) 42%, transparent) 45%,
+      transparent 82%
+    ),
+    linear-gradient(
+      212deg,
+      color-mix(in oklab, var(--color-pelota) 24%, transparent) 0%,
+      transparent 38%
+    );
 }
 
 /* Reduced motion: desactiva transiciones y animaciones globalmente. */

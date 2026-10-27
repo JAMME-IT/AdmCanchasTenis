@@ -171,6 +171,29 @@ export interface FinancieroResponse {
   usoCanchas: { turnosTotal: number; horasOcupadas: number; ocupacionPromedio: number };
 }
 
+/** GET /config/dias-funcionamiento item (ACT-30, RF-35): ISO-8601 weekday 1..7.
+ * Same shape as the PUT body row, so one interface serves both. */
+export interface DiaFuncionamiento {
+  diaSemana: number;
+  habilitado: boolean;
+}
+
+/** GET /config/rangos-horario item (ACT-31, RF-34). */
+export interface RangoHorario {
+  id: string;
+  nombre: string;
+  horaInicio: string;
+  horaFin: string;
+}
+
+/** Row of the PUT /config/rangos-horario body: `id` only for existing ranges. */
+export interface RangoHorarioBody {
+  id?: string;
+  nombre: string;
+  horaInicio: string;
+  horaFin: string;
+}
+
 export interface PeriodoParams {
   desde?: string;
   hasta?: string;
@@ -191,7 +214,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT';
   token?: string | null;
   body?: unknown;
 }
@@ -336,4 +359,22 @@ export const api = {
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
     return request<FinancieroResponse>(`/reportes/financiero${suffix}`, { token });
   },
+  diasFuncionamiento: (token: string | null): Promise<DiaFuncionamiento[]> =>
+    request<DiaFuncionamiento[]>('/config/dias-funcionamiento', { token }),
+  guardarDiasFuncionamiento: (
+    token: string | null,
+    dias: DiaFuncionamiento[],
+  ): Promise<DiaFuncionamiento[]> =>
+    request<DiaFuncionamiento[]>('/config/dias-funcionamiento', {
+      method: 'PUT',
+      token,
+      body: { dias },
+    }),
+  rangosHorario: (token: string | null): Promise<RangoHorario[]> =>
+    request<RangoHorario[]>('/config/rangos-horario', { token }),
+  guardarRangosHorario: (
+    token: string | null,
+    rangos: RangoHorarioBody[],
+  ): Promise<RangoHorario[]> =>
+    request<RangoHorario[]>('/config/rangos-horario', { method: 'PUT', token, body: { rangos } }),
 };

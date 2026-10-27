@@ -7,20 +7,34 @@ import { Navigate } from 'react-router-dom';
 import {
   ApiError,
   api,
+  type DiaFuncionamiento,
   type EstadisticasResponse,
   type FinancieroResponse,
   type PagoTurno,
+  type RangoHorarioBody,
   type TurnoAdmin,
 } from '../lib/api';
 import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
-type Tab = 'turnos' | 'pagos' | 'reportes';
+type Tab = 'turnos' | 'pagos' | 'reportes' | 'config';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'turnos', label: 'Turnos' },
   { id: 'pagos', label: 'Pagos' },
   { id: 'reportes', label: 'Reportes' },
+  { id: 'config', label: 'Configuración' },
 ];
+
+/** ISO-8601 weekday 1..7 (API contract §5.6). */
+const NOMBRES_DIA: Record<number, string> = {
+  1: 'Lunes',
+  2: 'Martes',
+  3: 'Miércoles',
+  4: 'Jueves',
+  5: 'Viernes',
+  6: 'Sábado',
+  7: 'Domingo',
+};
 
 function formatoMoneda(valor: number): string {
   return new Intl.NumberFormat('es-AR', {
@@ -46,6 +60,10 @@ export default function Admin(): JSX.Element {
   const [financiero, setFinanciero] = useState<FinancieroResponse | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [fecha, setFecha] = useState('');
+  const [dias, setDias] = useState<DiaFuncionamiento[] | null>(null);
+  const [rangos, setRangos] = useState<RangoHorarioBody[] | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [errorConfig, setErrorConfig] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,6 +105,13 @@ export default function Admin(): JSX.Element {
           setTurnos(data);
         } else if (tabActual === 'pagos') {
           setPagos(await api.pagosTurno(authToken));
+        } else if (tabActual === 'config') {
+          const [diasConfig, rangosConfig] = await Promise.all([
+            api.diasFuncionamiento(authToken),
+            api.rangosHorario(authToken),
+          ]);
+          setDias(diasConfig);
+          setRangos(rangosConfig.map((rango) => ({ ...rango })));
         } else {
           const [est, fin] = await Promise.all([
             api.estadisticas(authToken),
@@ -115,6 +140,49 @@ export default function Admin(): JSX.Element {
     }
     void cargar(token, tab);
   }, [token, rol, tab, cargar]);
+
+  /** Saves one config block; validates ranges client-side (server re-checks). */
+  const guardarConfig = useCallback(
+    async (authToken: string | null, bloque: 'dias' | 'rangos') => {
+      setErrorConfig(null);
+      if (bloque === 'dias' && dias !== null) {
+        setGuardando(true);
+        try {
+          setDias(await api.guardarDiasFuncionamiento(authToken, dias));
+        } catch (caught) {
+          setErrorConfig(
+            caught instanceof ApiError ? caught.message : 'No se pudo guardar los días.',
+          );
+        } finally {
+          setGuardando(false);
+        }
+      } else if (bloque === 'rangos' && rangos !== null) {
+        const sinNombre = rangos.find((rango) => rango.nombre.trim() === '');
+        if (sinNombre) {
+          setErrorConfig('Cada franja necesita un nombre.');
+          return;
+        }
+        const malOrden = rangos.find((rango) => rango.horaFin <= rango.horaInicio);
+        if (malOrden) {
+          setErrorConfig(`La franja "${malOrden.nombre}" debe terminar después de empezar.`);
+          return;
+        }
+        setGuardando(true);
+        try {
+          setRangos(
+            (await api.guardarRangosHorario(authToken, rangos)).map((rango) => ({ ...rango })),
+          );
+        } catch (caught) {
+          setErrorConfig(
+            caught instanceof ApiError ? caught.message : 'No se pudo guardar las franjas.',
+          );
+        } finally {
+          setGuardando(false);
+        }
+      }
+    },
+    [dias, rangos],
+  );
 
   if (rol !== null && rol !== 'admin') {
     // No admin: no ve nada de este panel (RequireAdmin ya redirige;
@@ -272,6 +340,148 @@ export default function Admin(): JSX.Element {
             </>
           ) : (
             <EmptyState message="Sin datos para el período." />
+          )}
+        </section>
+      )}
+      {tab === 'config' && (
+        <section aria-label="Configuración" className="flex flex-col gap-4">
+          {cargando ? (
+            <Skeleton rows={4} label="Cargando configuración…" />
+          ) : error ? (
+            <ErrorCard message={error} onRetry={() => void cargar(token, 'config')} />
+          ) : dias !== null && rangos !== null ? (
+            <>
+              {errorConfig !== null && (
+                <div role="alert" className="bg-white border border-error rounded-lg p-6 text-error">
+                  {errorConfig}
+                </div>
+              )}
+
+              <article className="bg-white border border-sereno rounded-lg p-6">
+                <h2 className="mt-0">Días de funcionamiento</h2>
+                <div className="flex gap-3 flex-wrap">
+                  {dias.map((dia) => (
+                    <label
+                      key={dia.diaSemana}
+                      className={`flex items-center gap-1.5 min-h-[44px] px-2 rounded-md border cursor-pointer ${
+                        dia.habilitado ? 'border-peridot' : 'border-sereno'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={dia.habilitado}
+                        onChange={(event) =>
+                          setDias(
+                            dias.map((item) =>
+                              item.diaSemana === dia.diaSemana
+                                ? { ...item, habilitado: event.target.checked }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                      {NOMBRES_DIA[dia.diaSemana]}
+                    </label>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={() => void guardarConfig(token, 'dias')}
+                  className="mt-4 min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {guardando ? 'Guardando…' : 'Guardar días'}
+                </button>
+              </article>
+
+              <article className="bg-white border border-sereno rounded-lg p-6">
+                <h2 className="mt-0">Rangos horarios</h2>
+                <ul className="list-none m-0 p-0 grid gap-3">
+                  {rangos.map((rango, indice) => (
+                    <li key={rango.id ?? `nueva-${indice}`} className="flex gap-3 flex-wrap items-center">
+                      <input
+                        type="text"
+                        aria-label="Nombre de la franja"
+                        placeholder="apertura"
+                        maxLength={50}
+                        value={rango.nombre}
+                        onChange={(event) =>
+                          setRangos(
+                            rangos.map((item, i) =>
+                              i === indice ? { ...item, nombre: event.target.value } : item,
+                            ),
+                          )
+                        }
+                        className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base flex-[1_1_140px]"
+                      />
+                      <input
+                        type="time"
+                        aria-label="Hora de inicio"
+                        value={rango.horaInicio}
+                        onChange={(event) =>
+                          setRangos(
+                            rangos.map((item, i) =>
+                              i === indice ? { ...item, horaInicio: event.target.value } : item,
+                            ),
+                          )
+                        }
+                        className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base"
+                      />
+                      <input
+                        type="time"
+                        aria-label="Hora de fin"
+                        value={rango.horaFin}
+                        onChange={(event) =>
+                          setRangos(
+                            rangos.map((item, i) =>
+                              i === indice ? { ...item, horaFin: event.target.value } : item,
+                            ),
+                          )
+                        }
+                        className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base"
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Quitar franja ${rango.nombre || indice + 1}`}
+                        onClick={() => setRangos(rangos.filter((_, i) => i !== indice))}
+                        className="min-h-[44px] min-w-[44px] rounded-md cursor-pointer bg-white border border-sereno"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-3 mt-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRangos([...rangos, { nombre: '', horaInicio: '08:00', horaFin: '22:00' }])
+                    }
+                    className="min-h-[44px] rounded-md px-4 py-2.5 cursor-pointer bg-white border border-musgo text-musgo font-semibold"
+                  >
+                    + Agregar franja
+                  </button>
+                  <button
+                    type="button"
+                    disabled={guardando}
+                    onClick={() => void guardarConfig(token, 'rangos')}
+                    className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    {guardando ? 'Guardando…' : 'Guardar franjas'}
+                  </button>
+                </div>
+              </article>
+
+              <article className="bg-white border border-sereno rounded-lg p-6 text-sereno">
+                <h2 className="mt-0">Duración de turnos</h2>
+                <p className="m-0">
+                  Todavía no se puede editar acá: falta el listado de tipos de turno en la API
+                  (PATCH /config/tipos-turno/:id ya existe, el GET no). Queda pendiente del backend.
+                </p>
+              </article>
+            </>
+          ) : (
+            <EmptyState message="Sin datos de configuración." />
           )}
         </section>
       )}

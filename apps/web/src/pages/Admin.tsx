@@ -79,6 +79,165 @@ interface FormEdicionT {
   estadoActual: string;
 }
 
+interface FormEdicionUsuarioProps {
+  u: Usuario;
+  formEdicion: FormEdicionT;
+  rolElegido: string;
+  confirmandoBaja: boolean;
+  guardando: boolean;
+  onFormChange: Dispatch<SetStateAction<FormEdicionT | null>>;
+  onGuardarEdicion: () => void;
+  onRolElegido: (rol: string) => void;
+  onGuardarRol: () => void;
+  onPedirBaja: () => void;
+  onConfirmarBaja: () => void;
+  onCancelarBaja: () => void;
+}
+
+/** Admin edit + role change + logical deactivation for one user. Shared by the
+ * desktop table row and the mobile stacked card. */
+function FormEdicionUsuario(props: FormEdicionUsuarioProps): JSX.Element {
+  const {
+    u,
+    formEdicion,
+    rolElegido,
+    confirmandoBaja,
+    guardando,
+    onFormChange,
+    onGuardarEdicion,
+    onRolElegido,
+    onGuardarRol,
+    onPedirBaja,
+    onConfirmarBaja,
+    onCancelarBaja,
+  } = props;
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onGuardarEdicion();
+      }}
+      className="flex flex-col gap-3"
+    >
+      <div className="flex gap-3 flex-wrap">
+        <input
+          type="text"
+          aria-label="Nombre"
+          placeholder="Nombre"
+          maxLength={100}
+          value={formEdicion.nombre}
+          onChange={(event) => onFormChange({ ...formEdicion, nombre: event.target.value })}
+          className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white flex-[1_1_160px]"
+        />
+        <input
+          type="text"
+          aria-label="Apellido"
+          placeholder="Apellido"
+          maxLength={100}
+          value={formEdicion.apellido}
+          onChange={(event) => onFormChange({ ...formEdicion, apellido: event.target.value })}
+          className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white flex-[1_1_160px]"
+        />
+        <input
+          type="tel"
+          aria-label="Teléfono"
+          placeholder="Teléfono (opcional)"
+          maxLength={30}
+          value={formEdicion.telefono}
+          onChange={(event) => onFormChange({ ...formEdicion, telefono: event.target.value })}
+          className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white flex-[1_1_160px]"
+        />
+        <input
+          type="text"
+          aria-label="DNI"
+          placeholder="DNI"
+          maxLength={15}
+          value={formEdicion.dni}
+          onChange={(event) => onFormChange({ ...formEdicion, dni: event.target.value })}
+          className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white flex-[1_1_120px]"
+        />
+        <select
+          aria-label="Estado del usuario"
+          value={formEdicion.estadoActual}
+          onChange={(event) => onFormChange({ ...formEdicion, estadoActual: event.target.value })}
+          className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white"
+        >
+          {ESTADOS.map((estado) => (
+            <option key={estado} value={estado}>
+              {estado}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <button
+          type="submit"
+          disabled={guardando}
+          className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
+        >
+          {guardando ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </div>
+
+      <div className="flex gap-3 flex-wrap items-center pt-3 border-t border-[#ECEEEB]">
+        <label className="flex items-center gap-2 min-h-[44px]">
+          Cambiar rol:
+          <select
+            aria-label="Nuevo rol"
+            value={rolElegido}
+            onChange={(event) => onRolElegido(event.target.value)}
+            className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white"
+          >
+            <option value="">Elegir…</option>
+            {ROLES.filter((rol) => rol !== u.rol).map((rol) => (
+              <option key={rol} value={rol}>
+                {ETIQUETAS_ROL[rol] ?? rol}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          disabled={guardando || rolElegido === ''}
+          onClick={onGuardarRol}
+          className="min-h-[44px] rounded-md px-4 py-2.5 font-semibold cursor-pointer bg-musgo text-whisper border-none disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          Aplicar rol
+        </button>
+        {confirmandoBaja ? (
+          <>
+            <button
+              type="button"
+              disabled={guardando}
+              onClick={onConfirmarBaja}
+              className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-error text-white border-none disabled:opacity-60"
+            >
+              {guardando ? 'Dando de baja…' : 'Confirmar baja'}
+            </button>
+            <button
+              type="button"
+              onClick={onCancelarBaja}
+              className="min-h-[44px] rounded-md px-4 py-2.5 cursor-pointer bg-white border border-sereno"
+            >
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onPedirBaja}
+            disabled={guardando || u.estadoActual === 'inactivo'}
+            className="min-h-[44px] rounded-md px-4 py-2.5 cursor-pointer bg-white border border-error text-error font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Dar de baja
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
 interface TableRowUsuarioProps {
   u: Usuario;
   editando: boolean;
@@ -99,24 +258,7 @@ interface TableRowUsuarioProps {
 
 /** One user: data row plus its expanded editing row (colspan) when active. */
 function TableRowUsuario(props: TableRowUsuarioProps): JSX.Element {
-  const {
-    u,
-    editando,
-    formEdicion,
-    rolElegido,
-    confirmandoBaja,
-    guardando,
-    token,
-    onEditar,
-    onFormChange,
-    onGuardarEdicion,
-    onRolElegido,
-    onGuardarRol,
-    onPedirBaja,
-    onConfirmarBaja,
-    onCancelarBaja,
-  } = props;
-  void token;
+  const { u, editando, formEdicion, onEditar } = props;
 
   return (
     <>
@@ -137,13 +279,13 @@ function TableRowUsuario(props: TableRowUsuarioProps): JSX.Element {
             </div>
           </div>
         </td>
-        <td className="px-4 py-3 text-[#5A6661]">
-          <div>{u.email}</div>
-          <div className="text-[11px]">
-            DNI {u.dni}
-            {u.telefono !== null ? ` · ${u.telefono}` : ''}
-          </div>
+        <td className="px-4 py-3 text-[#5A6661] min-w-0">
+          <div className="break-all">{u.email}</div>
+          {u.telefono !== null && u.telefono !== '' && (
+            <div className="text-[11px] break-words">{u.telefono}</div>
+          )}
         </td>
+        <td className="px-4 py-3 text-[#5A6661] tabular-nums whitespace-nowrap">{u.dni}</td>
         <td className="px-4 py-3 text-center">
           {u.rol !== null ? (
             <span
@@ -192,131 +334,21 @@ function TableRowUsuario(props: TableRowUsuarioProps): JSX.Element {
 
       {editando && formEdicion !== null && (
         <tr>
-          <td colSpan={6} className="bg-[#FBFCFB] px-4 py-4">
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                onGuardarEdicion();
-              }}
-              className="flex flex-col gap-3"
-            >
-              <div className="flex gap-3 flex-wrap">
-                <input
-                  type="text"
-                  aria-label="Nombre"
-                  placeholder="Nombre"
-                  maxLength={100}
-                  value={formEdicion.nombre}
-                  onChange={(event) => onFormChange({ ...formEdicion, nombre: event.target.value })}
-                  className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white flex-[1_1_160px]"
-                />
-                <input
-                  type="text"
-                  aria-label="Apellido"
-                  placeholder="Apellido"
-                  maxLength={100}
-                  value={formEdicion.apellido}
-                  onChange={(event) => onFormChange({ ...formEdicion, apellido: event.target.value })}
-                  className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white flex-[1_1_160px]"
-                />
-                <input
-                  type="tel"
-                  aria-label="Teléfono"
-                  placeholder="Teléfono (opcional)"
-                  maxLength={30}
-                  value={formEdicion.telefono}
-                  onChange={(event) => onFormChange({ ...formEdicion, telefono: event.target.value })}
-                  className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white flex-[1_1_160px]"
-                />
-                <input
-                  type="text"
-                  aria-label="DNI"
-                  placeholder="DNI"
-                  maxLength={15}
-                  value={formEdicion.dni}
-                  onChange={(event) => onFormChange({ ...formEdicion, dni: event.target.value })}
-                  className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white flex-[1_1_120px]"
-                />
-                <select
-                  aria-label="Estado del usuario"
-                  value={formEdicion.estadoActual}
-                  onChange={(event) =>
-                    onFormChange({ ...formEdicion, estadoActual: event.target.value })
-                  }
-                  className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white"
-                >
-                  {ESTADOS.map((estado) => (
-                    <option key={estado} value={estado}>
-                      {estado}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <button
-                  type="submit"
-                  disabled={guardando}
-                  className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
-                >
-                  {guardando ? 'Guardando…' : 'Guardar cambios'}
-                </button>
-              </div>
-
-              <div className="flex gap-3 flex-wrap items-center pt-3 border-t border-[#ECEEEB]">
-                <label className="flex items-center gap-2 min-h-[44px]">
-                  Cambiar rol:
-                  <select
-                    aria-label="Nuevo rol"
-                    value={rolElegido}
-                    onChange={(event) => onRolElegido(event.target.value)}
-                    className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white"
-                  >
-                    <option value="">Elegir…</option>
-                    {ROLES.filter((rol) => rol !== u.rol).map((rol) => (
-                      <option key={rol} value={rol}>
-                        {rol}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  disabled={guardando || rolElegido === ''}
-                  onClick={onGuardarRol}
-                  className="min-h-[44px] rounded-md px-4 py-2.5 font-semibold cursor-pointer bg-musgo text-whisper border-none disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  Aplicar rol
-                </button>
-                {confirmandoBaja ? (
-                  <>
-                    <button
-                      type="button"
-                      disabled={guardando}
-                      onClick={onConfirmarBaja}
-                      className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-error text-white border-none disabled:opacity-60"
-                    >
-                      {guardando ? 'Dando de baja…' : 'Confirmar baja'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onCancelarBaja}
-                      className="min-h-[44px] rounded-md px-4 py-2.5 cursor-pointer bg-white border border-sereno"
-                    >
-                      Cancelar
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={onPedirBaja}
-                    disabled={guardando || u.estadoActual === 'inactivo'}
-                    className="min-h-[44px] rounded-md px-4 py-2.5 cursor-pointer bg-white border border-error text-error font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Dar de baja
-                  </button>
-                )}
-              </div>
-            </form>
+          <td colSpan={7} className="bg-[#FBFCFB] px-4 py-4">
+            <FormEdicionUsuario
+              u={u}
+              formEdicion={formEdicion}
+              rolElegido={props.rolElegido}
+              confirmandoBaja={props.confirmandoBaja}
+              guardando={props.guardando}
+              onFormChange={props.onFormChange}
+              onGuardarEdicion={props.onGuardarEdicion}
+              onRolElegido={props.onRolElegido}
+              onGuardarRol={props.onGuardarRol}
+              onPedirBaja={props.onPedirBaja}
+              onConfirmarBaja={props.onConfirmarBaja}
+              onCancelarBaja={props.onCancelarBaja}
+            />
           </td>
         </tr>
       )}
@@ -598,8 +630,20 @@ export default function Admin(): JSX.Element {
     return usuarios
       .filter((u) => {
         const okEstado = filtroEstadoU === 'todos' || u.estadoActual === filtroEstadoU;
+        if (qU === '') {
+          return okEstado;
+        }
         const texto = `${u.nombre} ${u.apellido} ${u.email} ${u.username}`.toLowerCase();
-        return okEstado && (qU === '' || texto.includes(qU));
+        if (texto.includes(qU)) {
+          return okEstado;
+        }
+        // DNI inteligente: ignora puntos, espacios y guiones de ambos lados,
+        // así "30123456" encuentra "30.123.456" y viceversa.
+        const qDigitos = qU.replace(/\D/g, '');
+        const matchDni =
+          u.dni.toLowerCase().includes(qU) ||
+          (qDigitos !== '' && u.dni.replace(/\D/g, '').includes(qDigitos));
+        return okEstado && matchDni;
       })
       .sort((a, b) => {
         const x = ordenU.key === 'nombre' ? `${a.apellido} ${a.nombre}`.toLowerCase() : a.createdAt;
@@ -628,13 +672,17 @@ export default function Admin(): JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 min-w-0 max-w-full">
       <header>
         <p className="m-0 text-sereno font-semibold">Club · Admin</p>
         <h1 className="mt-1 mb-0">Panel admin</h1>
       </header>
 
-      <div className="flex gap-2" role="tablist" aria-label="Panel admin">
+      <div
+        className="flex gap-2 overflow-x-auto pb-1 max-w-full"
+        role="tablist"
+        aria-label="Panel admin"
+      >
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -642,7 +690,7 @@ export default function Admin(): JSX.Element {
             role="tab"
             aria-selected={tab === item.id}
             onClick={() => setTab(item.id)}
-            className={`min-h-[44px] rounded-full px-4 py-2 font-semibold cursor-pointer transition-colors ${
+            className={`min-h-[44px] shrink-0 rounded-full px-4 py-2 font-semibold cursor-pointer transition-colors ${
               tab === item.id
                 ? 'bg-musgo text-whisper border-musgo'
                 : 'bg-white text-musgo border-sereno'
@@ -693,7 +741,7 @@ export default function Admin(): JSX.Element {
           ) : (
             <ul className="list-none m-0 p-0 grid gap-3">
               {turnos.map((turno) => (
-                <li key={turno.id} className="bg-white border border-sereno rounded-lg p-6">
+                <li key={turno.id} className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
                   <div className="flex gap-3 flex-wrap items-center">
                     <StatusPill estado={turno.estadoActual} />
                     <StatusPill estado={turno.estadoPago} />
@@ -723,7 +771,7 @@ export default function Admin(): JSX.Element {
           ) : (
             <ul className="list-none m-0 p-0 grid gap-3">
               {pagos.map((pago) => (
-                <li key={pago.id} className="bg-white border border-sereno rounded-lg p-6">
+                <li key={pago.id} className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
                   <div className="flex gap-3 flex-wrap items-center">
                     <strong>{formatoMoneda(pago.montoTotalTurno)}</strong>
                     <span>
@@ -746,7 +794,7 @@ export default function Admin(): JSX.Element {
             <ErrorCard message={error} onRetry={() => void cargar(token, 'reportes')} />
           ) : estadisticas && financiero ? (
             <>
-              <article className="bg-white border border-sereno rounded-lg p-6">
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
                 <h2 className="mt-0">Turnos</h2>
                 <p className="text-3xl my-1 tabular-nums">
                   {estadisticas.turnos.total}
@@ -756,7 +804,7 @@ export default function Admin(): JSX.Element {
                   {estadisticas.usuarios.morosos}
                 </p>
               </article>
-              <article className="bg-white border border-sereno rounded-lg p-6">
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
                 <h2 className="mt-0">Ingresos</h2>
                 <p className="text-3xl my-1 tabular-nums">
                   {formatoMoneda(financiero.ingresos.total)}
@@ -767,7 +815,7 @@ export default function Admin(): JSX.Element {
                   {formatoMoneda(financiero.ingresos.cuotasCobradas)}
                 </p>
               </article>
-              <article className="bg-white border border-sereno rounded-lg p-6">
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
                 <h2 className="mt-0">Cuotas</h2>
                 <p className="m-0">
                   Emitidas: {financiero.cuotas.emitidas} · Pagadas: {financiero.cuotas.pagadas} ·
@@ -787,7 +835,7 @@ export default function Admin(): JSX.Element {
               <h2 className="m-0 text-lg font-semibold text-musgo">Usuarios del club</h2>
               <span
                 role="status"
-                className="rounded-full bg-[#E8F5F0] px-2.5 py-0.5 text-xs font-semibold text-musgo border border-sereno"
+                className="rounded-full bg-[#E8F5F0] px-2.5 py-0.5 text-xs font-semibold text-musgo"
               >
                 {usuariosVisibles.length}{' '}
                 {usuariosVisibles.length === 1 ? 'usuario' : 'usuarios'}
@@ -795,21 +843,21 @@ export default function Admin(): JSX.Element {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <label className="relative">
-                <span className="sr-only">Buscar por nombre, email o usuario</span>
+                <span className="sr-only">Buscar por nombre, email o DNI</span>
                 <Search
                   className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#5A6661]"
                   aria-hidden="true"
                 />
                 <input
                   type="search"
-                  placeholder="Buscar nombre o email…"
+                  placeholder="Buscar nombre, email o DNI…"
                   value={busquedaU}
                   onChange={(event) => setBusquedaU(event.target.value)}
                   className="min-h-[44px] w-56 rounded-lg bg-white pl-9 pr-3 text-sm text-musgo border border-sereno transition placeholder:text-[#5A6661] focus:outline-none focus:ring-2 focus:ring-peridot"
                 />
               </label>
               <div
-                className="flex gap-1 rounded-lg bg-white p-1 border border-sereno"
+                className="flex gap-1 flex-wrap max-w-full rounded-lg bg-white p-1 shadow-[0_2px_8px_rgba(56,69,67,0.08)]"
                 role="group"
                 aria-label="Filtrar por estado"
               >
@@ -819,7 +867,7 @@ export default function Admin(): JSX.Element {
                     type="button"
                     aria-pressed={filtroEstadoU === filtro}
                     onClick={() => setFiltroEstadoU(filtro)}
-                    className={`min-h-[36px] rounded-md px-3 text-xs font-semibold transition cursor-pointer ${
+                    className={`min-h-[36px] shrink-0 rounded-md px-3 text-xs font-semibold transition cursor-pointer ${
                       filtroEstadoU === filtro
                         ? 'bg-[#E8F5F0] text-peridot'
                         : 'text-[#5A6661] hover:text-musgo'
@@ -849,11 +897,11 @@ export default function Admin(): JSX.Element {
               tabIndex={0}
               role="region"
               aria-label="Usuarios, tabla deslizable"
-              className="relative max-h-[26rem] overflow-auto rounded-xl bg-white border border-sereno focus-visible:outline-2 focus-visible:outline-peridot"
+              className="relative max-h-[26rem] overflow-auto rounded-xl bg-white shadow-[0_2px_8px_rgba(56,69,67,0.08)] focus-visible:outline-2 focus-visible:outline-peridot hidden md:block"
             >
-              <table className="w-full min-w-[820px] border-collapse text-left text-[13px]">
+              <table className="w-full min-w-[920px] border-collapse text-left text-[13px]">
                 <caption className="sr-only">
-                  Usuarios del club con rol, estado, socio y fecha de alta
+                  Usuarios del club con contacto, DNI, rol, estado, socio y fecha de alta
                 </caption>
                 <thead>
                   <tr className="bg-[#E8F5F0] shadow-[inset_0_-1px_0_var(--color-sereno)]">
@@ -887,7 +935,13 @@ export default function Admin(): JSX.Element {
                       scope="col"
                       className="sticky top-0 z-10 bg-[#E8F5F0] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5A6661]"
                     >
-                      Email
+                      Contacto
+                    </th>
+                    <th
+                      scope="col"
+                      className="sticky top-0 z-10 bg-[#E8F5F0] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5A6661]"
+                    >
+                      DNI
                     </th>
                     <th
                       scope="col"
@@ -943,7 +997,7 @@ export default function Admin(): JSX.Element {
                   {usuariosVisibles.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-4 py-12 text-center text-[#5A6661]"
                       >
                         No hay usuarios para ese filtro.
@@ -953,6 +1007,103 @@ export default function Admin(): JSX.Element {
                 </tbody>
               </table>
             </div>
+          )}
+
+          {/* Mobile: the same list as stacked cards, zero horizontal scroll. */}
+          {!cargando && !error && usuarios.length > 0 && (
+            <ul className="md:hidden list-none m-0 p-0 grid gap-3">
+              {usuariosVisibles.map((u) => (
+                <li key={u.id} className="bg-white rounded-lg p-4 min-w-0 max-w-full overflow-hidden shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
+                  <div className="flex gap-3 items-center flex-wrap min-w-0">
+                    <span
+                      aria-hidden="true"
+                      className="grid size-10 shrink-0 place-items-center rounded-full bg-linear-135 from-musgo to-peridot text-xs font-semibold text-white"
+                    >
+                      {iniciales(u.nombre, u.apellido)}
+                    </span>
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
+                      <div className="flex gap-2 flex-wrap items-center">
+                        <strong>
+                          {u.nombre} {u.apellido}
+                        </strong>
+                        {u.rol !== null && (
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${
+                              CHIP_ROL[u.rol] ?? CHIP_ROL.no_socio
+                            }`}
+                          >
+                            {ETIQUETAS_ROL[u.rol] ?? u.rol}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-sm leading-snug text-musgo break-all">
+                          {u.email}
+                        </span>
+                        {u.telefono !== null && u.telefono !== '' && (
+                          <span className="text-[13px] leading-snug text-[#5A6661] break-words">
+                            {u.telefono}
+                          </span>
+                        )}
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[#5A6661]">
+                          <span className="whitespace-nowrap">DNI {u.dni}</span>
+                          {u.numeroSocio !== null && (
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                              <span
+                                aria-hidden="true"
+                                className="size-1 rounded-full bg-current opacity-40"
+                              />
+                              socio {u.numeroSocio}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={editandoId === u.id ? `Cerrar edición de ${u.nombre}` : `Editar ${u.nombre} ${u.apellido}`}
+                      aria-expanded={editandoId === u.id}
+                      onClick={() =>
+                        editandoId === u.id ? setEditandoId(null) : abrirEdicion(u)
+                      }
+                      className="grid size-11 place-items-center rounded-md text-[#5A6661] bg-white border border-sereno transition hover:text-peridot hover:border-peridot cursor-pointer focus-visible:outline-2 focus-visible:outline-peridot"
+                    >
+                      {editandoId === u.id ? (
+                        <X className="size-4" aria-hidden="true" />
+                      ) : (
+                        <Pencil className="size-4" aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+
+                  {editandoId === u.id && formEdicion !== null && (
+                    <div className="mt-4 pt-4 border-t border-sereno">
+                      <FormEdicionUsuario
+                        u={u}
+                        formEdicion={formEdicion}
+                        rolElegido={rolElegido[u.id] ?? ''}
+                        confirmandoBaja={confirmandoBaja === u.id}
+                        guardando={guardando}
+                        onFormChange={setFormEdicion}
+                        onGuardarEdicion={() => void guardarEdicion(token, u.id)}
+                        onRolElegido={(rol) =>
+                          setRolElegido((prev) => ({ ...prev, [u.id]: rol }))
+                        }
+                        onGuardarRol={() => void guardarRol(token, u)}
+                        onPedirBaja={() => setConfirmandoBaja(u.id)}
+                        onConfirmarBaja={() => void darDeBaja(token, u.id)}
+                        onCancelarBaja={() => setConfirmandoBaja(null)}
+                      />
+                    </div>
+                  )}
+                </li>
+              ))}
+              {usuariosVisibles.length === 0 && (
+                <li role="status" className="px-2 py-8 text-center text-[#5A6661]">
+                  No hay usuarios para ese filtro.
+                </li>
+              )}
+            </ul>
           )}
         </section>
       )}
@@ -971,7 +1122,7 @@ export default function Admin(): JSX.Element {
                 </div>
               )}
 
-              <article className="bg-white border border-sereno rounded-lg p-6">
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
                 <h2 className="mt-0">Días de funcionamiento</h2>
                 <div className="flex gap-3 flex-wrap">
                   {dias.map((dia) => (
@@ -1008,7 +1159,7 @@ export default function Admin(): JSX.Element {
                 </button>
               </article>
 
-              <article className="bg-white border border-sereno rounded-lg p-6">
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
                 <h2 className="mt-0">Rangos horarios</h2>
                 <ul className="list-none m-0 p-0 grid gap-3">
                   {rangos.map((rango, indice) => (
@@ -1086,7 +1237,7 @@ export default function Admin(): JSX.Element {
                 </div>
               </article>
 
-              <article className="bg-white border border-sereno rounded-lg p-6 text-sereno">
+              <article className="bg-white rounded-lg p-6 text-sereno shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
                 <h2 className="mt-0">Duración de turnos</h2>
                 <p className="m-0">
                   Todavía no se puede editar acá: falta el listado de tipos de turno en la API

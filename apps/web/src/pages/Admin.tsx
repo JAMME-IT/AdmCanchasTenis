@@ -57,6 +57,13 @@ const CHIP_ROL: Record<string, string> = {
   no_socio: 'bg-whisper text-musgo border border-sereno',
 };
 
+/** Pretty labels for the rol chips (the API stores lowercase). */
+const ETIQUETAS_ROL: Record<string, string> = {
+  admin: 'Admin',
+  socio: 'Socio',
+  no_socio: 'No Socio',
+};
+
 const ROLES = ['admin', 'socio', 'no_socio'] as const;
 const ESTADOS = ['activo', 'moroso', 'suspendido', 'inactivo'] as const;
 
@@ -137,14 +144,14 @@ function TableRowUsuario(props: TableRowUsuarioProps): JSX.Element {
             {u.telefono !== null ? ` · ${u.telefono}` : ''}
           </div>
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-3 text-center">
           {u.rol !== null ? (
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${
                 CHIP_ROL[u.rol] ?? CHIP_ROL.no_socio
               }`}
             >
-              {u.rol}
+              {ETIQUETAS_ROL[u.rol] ?? u.rol}
             </span>
           ) : (
             <span className="text-[#5A6661]">—</span>
@@ -884,7 +891,7 @@ export default function Admin(): JSX.Element {
                     </th>
                     <th
                       scope="col"
-                      className="sticky top-0 z-10 bg-[#E8F5F0] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5A6661]"
+                      className="sticky top-0 z-10 bg-[#E8F5F0] px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5A6661]"
                     >
                       Rol
                     </th>

@@ -79,3 +79,51 @@ eligió corregir sin recibo nativo. Estado por hallazgo:
 `db:generate` + `build`, así que el commit 6b345a7 habría roto CI.
 Fix: `apps/api/tsconfig.build.json` (extiende el tsconfig y excluye `**/*.spec.ts`)
 y script `build` apuntando a él. Verificado: build limpio.
+
+> **Nota de sincronización (2026-11-01):** `main` reemplazó Jest por el runner nativo
+> `node:test` + `ts-node --transpile-only` y eliminó `jest.config.js`/`tsconfig.build.json`.
+> Todo el trabajo nuevo (ACT-43 en adelante) sigue la convención nativa; las menciones a
+> Jest arriba son históricas de ACT-42.
+
+## ACT-43 — Luz: tarifa, franja y pagos (En curso)
+
+Rama: `feat/tarifas-luz-act43` (desde `main` 9c79716). Criterios: RF-16, RF-28, RF-33, RF-44.
+Decisión confirmada: `PUT /tarifas/luz` hace **upsert** de la fila operativa; el costo se
+versiona en `estados_luz` solo si cambia; la franja no se versiona.
+
+### Tareas TDD (node:test)
+
+| Tarea | Endpoint | Archivos | Estado |
+|---|---|---|---|
+| TAR-4 | `PUT /tarifas/luz` | `dto/actualizar-tarifa-luz.dto.ts`, `tarifas.service.ts`, `tarifas.controller.ts`, `tarifa-response.ts` + specs | ✅ GREEN |
+| TAR-5 | `POST /pagos-luz` | módulo nuevo `pagos-luz/` (controller/service/dto/response/module) + specs | pendiente |
+| TAR-6 | `GET /pagos-luz` | listado con filtros y expansiones en `pagos-luz/` + specs | pendiente |
+
+### TAR-4 — Evidencia RED
+
+Spec: `apps/api/src/tarifas/tarifas-luz.spec.ts` (registrado en la cadena `test` de `apps/api/package.json`).
+Comando: `npx ts-node --transpile-only src/tarifas/tarifas-luz.spec.ts`
+Resultado: **6/6 fallan** con `TypeError: service.actualizarTarifaLuz is not a function`.
+
+Cobertura del contrato en el RED:
+1. Crea la fila operativa con franja por defecto 18:30–22:00 si no existe.
+2. Actualiza costo + franja y versiona el costo en `estados_luz`.
+3. No versiona cuando el costo no cambia.
+4. Conserva la franja actual si el body la omite.
+5. Rechaza franja incompleta (400).
+6. Rechaza `franjaFin <= franjaInicio` (400).
+
+Hallazgo técnico para GREEN: las columnas `@db.Time` llegan como `Date` ancladas al epoch
+UTC (helper `time()` del seed), no como string. El mapper `aHora` actual usa
+`String(valor).slice(0,5)` y no formatea `Date`; hay que corregirlo leyendo `getUTCHours()`
+/`getUTCMinutes()` (mismo criterio que `config/hora.ts`).
+
+### TAR-4 — Evidencia GREEN
+
+- Spec: **6/6 pass** (`npx ts-node --transpile-only src/tarifas/tarifas-luz.spec.ts`).
+- Suite completa: **24/24 spec files, # fail 0, EXIT=0**.
+- Build: `tsc -p tsconfig.json` **EXIT=0**.
+- Implementado: DTO con `costoXHora >= 0` (2 decimales) y franja `HH:MM` opcional;
+  `actualizarTarifaLuz` con upsert transaccional, default 18:30–22:00 al crear,
+  versionado en `estados_luz` solo si el costo cambia, validación de franja
+  incompleta/orden; `PUT /tarifas/luz` admin; `aHora` ahora formatea `Date` y string.

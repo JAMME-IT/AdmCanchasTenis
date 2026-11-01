@@ -79,3 +79,47 @@ eligió corregir sin recibo nativo. Estado por hallazgo:
 `db:generate` + `build`, así que el commit 6b345a7 habría roto CI.
 Fix: `apps/api/tsconfig.build.json` (extiende el tsconfig y excluye `**/*.spec.ts`)
 y script `build` apuntando a él. Verificado: build limpio.
+
+## ACT-44 — Historial de tarifas con filtros (En curso)
+
+Rama: `feat/tarifas-historial-act44` (desde main actualizado; ACT-43 queda en el PR #15). Jira: ACT-44 movido a **En curso**;
+ACT-43 movido a **En revisión**. Criterios: RF-30, RF-31.
+Endpoint: `GET /tarifas/historial` (admin).
+
+### Plan (TAR-7)
+
+- DTO `ConsultarHistorialTarifasDto`: `tipo` (`turno|luz|cuota`, opcional), `desde`/`hasta`
+  ISO opcionales, `montoMin`/`montoMax` numéricos opcionales.
+- `TarifasService.obtenerHistorial`: consulta `valores_turno` (costo_x_hora/fecha_cambio),
+  `valores_cuota` (precio/fecha_cambio) y `estados_luz` (costo_x_hora/fecha) según `tipo`;
+  aplica los rangos en cada fuente; merge y orden por fecha descendente.
+- `GET /tarifas/historial` en `TarifasController` con `@Roles('admin')`.
+- Response `{ tipo, monto, fechaCambio }` con `formatearFechaCambio` (-03:00).
+- 400 por fecha inválida (y `tipo` fuera del enum vía DTO).
+
+### TAR-7 — Evidencia RED
+
+Spec: `apps/api/src/tarifas/tarifas-historial.spec.ts`, registrado en la cadena `test`.
+Comando: `npx ts-node --transpile-only src/tarifas/tarifas-historial.spec.ts`
+Resultado: **7/7 fallan** con `TypeError: service.obtenerHistorial is not a function`.
+
+Casos:
+1. Sin filtros: consulta las 3 fuentes y ordena por fecha desc.
+2. `tipo=cuota`: consulta solo `valores_cuota`.
+3. `tipo=luz`: monto desde `costo_x_hora` y fecha desde `estados_luz.fecha`.
+4. Rango `desde`/`hasta` aplicado a `fecha_cambio` (turno/cuota) y `fecha` (luz).
+5. Rango `montoMin`/`montoMax` aplicado a `costo_x_hora`/`precio`.
+6. 400 si `desde` es inválida.
+7. Array vacío sin historial.
+
+### TAR-7 — Evidencia GREEN
+
+- Spec: **7/7 pass** (`npx ts-node --transpile-only src/tarifas/tarifas-historial.spec.ts`).
+- Suite completa: **24/24 spec files, # fail 0, EXIT=0**.
+- Build: `tsc -p tsconfig.json` **EXIT=0**.
+- Implementado: `ConsultarHistorialTarifasDto` (`tipo` enum, `desde`/`hasta` ISO,
+  `montoMin`/`montoMax`), `TarifasService.obtenerHistorial` (consulta las 3 fuentes según
+  `tipo`, aplica rangos por fuente, merge y orden descendente, 400 en fechas inválidas),
+  `GET /tarifas/historial` admin y `toTarifaHistorialItemResponse`.
+- Rama: `feat/tarifas-historial-act44` creada desde `main` actualizado (9c79716) para no
+  ensuciar el PR #15; ACT-43 queda fuera de este trabajo.

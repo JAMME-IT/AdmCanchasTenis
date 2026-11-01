@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Put } from '@nestjs/common';
+import { Body, Controller, Get, Put, Query } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { ActualizarTarifaCuotaDto } from './dto/actualizar-tarifa-cuota.dto';
 import type { ActualizarTarifaTurnoDto } from './dto/actualizar-tarifa-turno.dto';
+import type { ConsultarHistorialTarifasDto } from './dto/consultar-historial-tarifas.dto';
 import type {
   TarifaCuotaResponse,
+  TarifaHistorialItemResponse,
   TarifaTurnoResponse,
   TarifasResponse,
 } from './tarifa-response';
@@ -20,6 +22,14 @@ export class TarifasController {
   @Get()
   obtenerVigentes(): Promise<TarifasResponse> {
     return this.tarifas.obtenerVigentes();
+  }
+
+  @Get('historial')
+  @Roles('admin')
+  obtenerHistorial(
+    @Query() dto: ConsultarHistorialTarifasDto,
+  ): Promise<TarifaHistorialItemResponse[]> {
+    return this.tarifas.obtenerHistorial(dto);
   }
 
   @Put('turno')

@@ -1,8 +1,15 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ConsultarPagosLuzDto } from './dto/consultar-pagos-luz.dto';
 import { CrearPagoLuzDto } from './dto/crear-pago-luz.dto';
-import type { PagoLuzResponse } from './pago-luz-response';
+import type { PagoLuzListItemResponse, PagoLuzResponse } from './pago-luz-response';
 import { PagosLuzService } from './pagos-luz.service';
 
 /**
@@ -22,5 +29,14 @@ export class PagosLuzController {
   @ApiCreatedResponse({ description: 'Pago de luz registrado' })
   async registrar(@Body() dto: CrearPagoLuzDto): Promise<PagoLuzResponse> {
     return this.pagosLuz.registrarPago(dto);
+  }
+
+  /** Listado de pagos de luz con filtros opcionales (RF-44). */
+  @Get()
+  @Roles('admin')
+  @ApiOperation({ summary: 'Listar pagos de luz con filtros opcionales' })
+  @ApiOkResponse({ description: 'Array de pagos con expansión de turno y usuario' })
+  async listar(@Query() dto: ConsultarPagosLuzDto): Promise<PagoLuzListItemResponse[]> {
+    return this.pagosLuz.listar(dto);
   }
 }

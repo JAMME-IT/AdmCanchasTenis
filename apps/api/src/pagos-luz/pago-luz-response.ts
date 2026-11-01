@@ -57,3 +57,69 @@ export function toPagoLuzResponse(pago: {
         : String(pago.created_at),
   };
 }
+
+export interface PagoLuzListItemResponse extends PagoLuzResponse {
+  turno: {
+    id: string;
+    fecha: string;
+    horaInicio: string;
+    canchaId: string;
+  };
+  usuario: {
+    id: string;
+    nombre: string;
+    apellido: string;
+    numeroSocio: string | null;
+  };
+}
+
+/** `@db.Time` Date anchored at the Unix epoch (UTC) → `HH:MM`. */
+function formatearHora(valor: Date | string): string {
+  if (!(valor instanceof Date)) {
+    return String(valor).slice(0, 5);
+  }
+  const horas = String(valor.getUTCHours()).padStart(2, '0');
+  const minutos = String(valor.getUTCMinutes()).padStart(2, '0');
+  return `${horas}:${minutos}`;
+}
+
+export function toPagoLuzListItemResponse(pago: {
+  id_pago_luz: string;
+  turno_id: string;
+  monto_total_luz: unknown;
+  fecha_pago: Date | string;
+  created_at: Date | string;
+  turnos: {
+    id: string;
+    fecha: Date | string;
+    hora_inicio: Date | string;
+    cancha_id: string;
+    usuarios: {
+      id: string;
+      nombre: string;
+      apellido: string;
+      socios: { numero_socio: string } | null;
+    };
+  };
+}): PagoLuzListItemResponse {
+  const fecha =
+    pago.turnos.fecha instanceof Date
+      ? pago.turnos.fecha.toISOString().split('T')[0]
+      : String(pago.turnos.fecha).split('T')[0];
+
+  return {
+    ...toPagoLuzResponse(pago),
+    turno: {
+      id: pago.turnos.id,
+      fecha,
+      horaInicio: formatearHora(pago.turnos.hora_inicio),
+      canchaId: pago.turnos.cancha_id,
+    },
+    usuario: {
+      id: pago.turnos.usuarios.id,
+      nombre: pago.turnos.usuarios.nombre,
+      apellido: pago.turnos.usuarios.apellido,
+      numeroSocio: pago.turnos.usuarios.socios?.numero_socio ?? null,
+    },
+  };
+}

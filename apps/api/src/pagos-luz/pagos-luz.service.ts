@@ -7,8 +7,15 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '../generated/prisma/client';
+import type { ConsultarPagosLuzDto } from './dto/consultar-pagos-luz.dto';
 import type { CrearPagoLuzDto } from './dto/crear-pago-luz.dto';
-import { toPagoLuzResponse, type PagoLuzResponse } from './pago-luz-response';
+import {
+  toPagoLuzListItemResponse,
+  toPagoLuzResponse,
+  type PagoLuzListItemResponse,
+  type PagoLuzResponse,
+} from './pago-luz-response';
 
 /**
  * Payments of the lighting charge (ACT-43, API contract §5.9 POST /pagos-luz).
@@ -81,5 +88,57 @@ export class PagosLuzService {
       }
       throw error;
     }
+  }
+
+  /**
+   * GET /pagos-luz (RF-44): listing with optional filters and the turno/usuario
+   * expansions. Newest payments first; `usuarioId` filters through the turno.
+   */
+  async listar(dto: ConsultarPagosLuzDto): Promise<PagoLuzListItemResponse[]> {
+    const where: Prisma.pagos_luzWhereInput = {};
+
+    if (dto.turnoId) {
+      where.turno_id = dto.turnoId;
+    }
+
+    if (dto.usuarioId) {
+      where.turnos = { usuario_id: dto.usuarioId };
+    }
+
+    if (dto.desde || dto.hasta) {
+      where.fecha_pago = {};
+      if (dto.desde) {
+        const parsed = new Date(dto.desde);
+        if (Number.isNaN(parsed.getTime())) {
+          throw new BadRequestException('desde debe ser una fecha valida');
+        }
+        where.fecha_pago.gte = parsed;
+      }
+      if (dto.hasta) {
+        const parsed = new Date(dto.hasta);
+        if (Number.isNaN(parsed.getTime())) {
+          throw new BadRequestException('hasta debe ser una fecha valida');
+        }
+        where.fecha_pago.lte = parsed;
+      }
+    }
+
+    const pagos = await this.prisma.pagos_luz.findMany({
+      where,
+      include: {
+        turnos: {
+          include: {
+            usuarios: {
+              include: {
+                socios: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { fecha_pago: 'desc' },
+    });
+
+    return pagos.map(toPagoLuzListItemResponse);
   }
 }

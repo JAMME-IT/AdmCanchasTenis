@@ -96,7 +96,7 @@ versiona en `estados_luz` solo si cambia; la franja no se versiona.
 | Tarea | Endpoint | Archivos | Estado |
 |---|---|---|---|
 | TAR-4 | `PUT /tarifas/luz` | `dto/actualizar-tarifa-luz.dto.ts`, `tarifas.service.ts`, `tarifas.controller.ts`, `tarifa-response.ts` + specs | ✅ GREEN |
-| TAR-5 | `POST /pagos-luz` | módulo nuevo `pagos-luz/` (controller/service/dto/response/module) + specs | pendiente |
+| TAR-5 | `POST /pagos-luz` | módulo nuevo `pagos-luz/` (controller/service/dto/response/module) + specs | ✅ GREEN |
 | TAR-6 | `GET /pagos-luz` | listado con filtros y expansiones en `pagos-luz/` + specs | pendiente |
 
 ### TAR-4 — Evidencia RED
@@ -127,3 +127,37 @@ UTC (helper `time()` del seed), no como string. El mapper `aHora` actual usa
   `actualizarTarifaLuz` con upsert transaccional, default 18:30–22:00 al crear,
   versionado en `estados_luz` solo si el costo cambia, validación de franja
   incompleta/orden; `PUT /tarifas/luz` admin; `aHora` ahora formatea `Date` y string.
+
+### TAR-5 — Evidencia RED
+
+Spec: `apps/api/src/pagos-luz/pagos-luz.service.spec.ts`, registrado en la cadena
+`test` de `apps/api/package.json`.
+Comando: `npx ts-node --transpile-only src/pagos-luz/pagos-luz.service.spec.ts`
+Resultado: **`Cannot find module './pagos-luz.service'`** (el módulo aún no existe).
+
+Cobertura del contrato §5.9 en el RED:
+1. Registra el pago de luz de un turno que la requiere (response 201 con
+   `{ id, turnoId, montoTotalLuz, fechaPago, createdAt }`).
+2. Usa `now()` cuando `fechaPago` se omite.
+3. 404 si el turno no existe.
+4. 422 si el turno no requiere luz.
+5. 422 si el turno está cancelado.
+6. 409 si ya existe un pago de luz para el turno.
+7. 400 si `montoTotalLuz <= 0`.
+8. 400 si `fechaPago` es futura.
+
+### TAR-5 — Evidencia GREEN
+
+- Spec: **8/8 pass** (`npx ts-node --transpile-only src/pagos-luz/pagos-luz.service.spec.ts`).
+- Suite completa: **25/25 spec files, # fail 0, EXIT=0**.
+- Build: `tsc -p tsconfig.json` **EXIT=0**.
+- Implementado: `CrearPagoLuzDto` (turnoId UUID, montoTotalLuz > 0, fechaPago ISO opcional),
+  `PagosLuzService.registrarPago` (validaciones 400/404/422/409 y alta dentro de
+  `$transaction`), `PagoLuzController` (`POST /pagos-luz`, admin, Swagger),
+  `PagoLuzModule` registrado en `app.module.ts`, y `pago-luz-response.ts` con timestamps
+  deterministas `-03:00`.
+- Infra del spec: se agregó `$transaction` al stub (sin cambiar aserciones) para reflejar
+  el chequeo + alta transaccional acordado.
+- Limitación conocida: `pagos_luz` no tiene unique sobre `turno_id`; la transacción reduce
+  la ventana de carrera pero no la cierra ante dos POST concurrentes. Si se agrega el
+  índice, el `catch` ya traduce `P2002/23505` a 409.

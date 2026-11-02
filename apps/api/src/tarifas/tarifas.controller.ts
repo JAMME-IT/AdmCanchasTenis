@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Put } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
-import type { ActualizarTarifaCuotaDto } from './dto/actualizar-tarifa-cuota.dto';
-import type { ActualizarTarifaLuzDto } from './dto/actualizar-tarifa-luz.dto';
-import type { ActualizarTarifaTurnoDto } from './dto/actualizar-tarifa-turno.dto';
+import { ActualizarTarifaCuotaDto } from './dto/actualizar-tarifa-cuota.dto';
+import { ActualizarTarifaLuzDto } from './dto/actualizar-tarifa-luz.dto';
+import { ActualizarTarifaTurnoDto } from './dto/actualizar-tarifa-turno.dto';
 import type {
   TarifaCuotaResponse,
   TarifaLuzResponse,

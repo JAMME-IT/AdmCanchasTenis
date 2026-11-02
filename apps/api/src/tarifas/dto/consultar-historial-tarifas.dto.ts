@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsIn, IsISO8601, IsNumber, IsOptional, Min } from 'class-validator';
 
 export type TipoTarifaHistorial = 'turno' | 'luz' | 'cuota';
@@ -22,11 +23,13 @@ export class ConsultarHistorialTarifasDto {
   hasta?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0, { message: 'montoMin no puede ser negativo' })
   montoMin?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0, { message: 'montoMax no puede ser negativo' })
   montoMax?: number;

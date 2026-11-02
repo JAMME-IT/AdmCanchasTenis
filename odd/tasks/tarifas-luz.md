@@ -123,3 +123,18 @@ Casos:
   `GET /tarifas/historial` admin y `toTarifaHistorialItemResponse`.
 - Rama: `feat/tarifas-historial-act44` creada desde `main` actualizado (9c79716) para no
   ensuciar el PR #15; ACT-43 queda fuera de este trabajo.
+
+### Correcciones post-verificación HTTP (commit 751064c)
+
+La prueba autenticada contra la API real detectó dos defectos que los unit tests no cubrían:
+
+1. **DTOs importados como `type` en el controller**: con `emitDecoratorMetadata`, el metatype de
+   `@Query()`/`@Body()` quedaba en `Object` y el `ValidationPipe` no validaba; los filtros del
+   historial se ignoraban. Fix: importar como valor `ActualizarTarifaTurnoDto`,
+   `ActualizarTarifaCuotaDto` y `ConsultarHistorialTarifasDto`.
+2. **Montos de query como string**: `montoMin`/`montoMax` necesitan `@Type(() => Number)` para
+   que `@IsNumber` y `@Min` funcionen sobre el query string.
+
+Verificado por HTTP: `?tipo=cuota` → solo cuota; `?montoMin=5000` → solo cuota;
+`?montoMax=5000` → luz y turno; `?montoMin=-1` y `?montoMin=abc` → 400; PUT con valores
+negativos → 400. Tests 24/24 y build OK. PR #16 actualizado con `c51fe75` + `751064c`.

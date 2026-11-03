@@ -99,7 +99,6 @@ interface FormEdicionT {
 }
 
 interface FormEdicionCanchaT {
-  nro: string;
   superficie: SuperficieCancha;
   iluminacion: boolean;
 }
@@ -416,21 +415,6 @@ function EditorCancha(props: EditorCanchaProps): JSX.Element | null {
         >
           <div className="flex gap-3 flex-wrap items-end">
             <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
-              Número
-              <input
-                type="number"
-                min={1}
-                step={1}
-                required
-                aria-label={`Número de la cancha ${cancha.nroCancha}`}
-                value={formEdicion.nro}
-                onChange={(event) =>
-                  props.onFormChange({ ...formEdicion, nro: event.target.value })
-                }
-                className="min-h-[44px] w-32 rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
               Superficie
               <select
                 aria-label={`Superficie de la cancha ${cancha.nroCancha}`}
@@ -668,15 +652,6 @@ function etiquetaEstadoCancha(estado: EstadoCanchaValor): string {
   return ESTADOS_CANCHA.find((item) => item.value === estado)?.label ?? estado;
 }
 
-/** `nroCancha` must be a positive integer (same rule as the API DTO). */
-function parsearNroCancha(valor: string): number | null {
-  const numero = Number(valor);
-  if (valor.trim() === '' || !Number.isInteger(numero) || numero < 1) {
-    return null;
-  }
-  return numero;
-}
-
 /** Maps court API failures to the copy the admin panel shows. */
 function mensajeErrorCancha(caught: unknown, porDefecto: string): string {
   if (caught instanceof ApiError) {
@@ -880,7 +855,6 @@ export default function Admin(): JSX.Element {
     }
     setEditandoCanchaId(cancha.id);
     setFormCanchaEdicion({
-      nro: String(cancha.nroCancha),
       superficie: cancha.superficie,
       iluminacion: cancha.iluminacion,
     });
@@ -906,16 +880,10 @@ export default function Admin(): JSX.Element {
       if (formCanchaEdicion === null) {
         return;
       }
-      const nro = parsearNroCancha(formCanchaEdicion.nro);
-      if (nro === null) {
-        setErrorCanchas('El número de cancha debe ser un entero mayor o igual a 1.');
-        return;
-      }
       setErrorCanchas(null);
       setGuardandoCancha(true);
       try {
         const actualizada = await api.editarCancha(authToken, cancha.id, {
-          nroCancha: nro,
           superficie: formCanchaEdicion.superficie,
           iluminacion: formCanchaEdicion.iluminacion,
         });
@@ -1222,7 +1190,8 @@ export default function Admin(): JSX.Element {
               </span>
             </div>
             <p className="m-0 text-sm text-[#5A6661]">
-              El club tiene 3 canchas fijas: acá solo se editan sus datos y su estado.
+              El club tiene 3 canchas fijas: el número no se edita, solo la superficie, la iluminación
+              y el estado.
             </p>
           </header>
 

@@ -457,7 +457,7 @@ export const api = {
   editarCancha: (
     token: string | null,
     id: string,
-    body: { nroCancha?: number; superficie?: SuperficieCancha; iluminacion?: boolean },
+    body: { superficie?: SuperficieCancha; iluminacion?: boolean },
   ): Promise<Cancha> => request<Cancha>(`/canchas/${id}`, { method: 'PATCH', token, body }),
   cambiarEstadoCancha: (
     token: string | null,

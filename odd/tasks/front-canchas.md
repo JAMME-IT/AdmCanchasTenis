@@ -28,8 +28,10 @@ pantalla que lo consuma: no hay página, ni tipos, ni métodos en `lib/api.ts`. 
 ## Constraints / decisiones
 
 - **Alcance limitado a las 3 canchas del club**: el club tiene exactamente 3 canchas, así que la pantalla **no
-  ofrece alta** (sin botón "Nueva cancha" ni formulario de creación). Solo lista, edita `superficie`/`iluminación`
-  y cambia el estado. El `POST /canchas` sigue existiendo en el backend pero queda fuera del alcance de esta pantalla.
+  ofrece alta** (sin botón "Nueva cancha" ni formulario de creación). El número de cancha (`nroCancha`) es **fijo**:
+  no existe ningún control para editarlo, se muestra como texto de solo lectura en la tabla y en las tarjetas. La
+  edición se limita a `superficie` e `iluminación` (el PATCH envía solo esos dos campos) y el cambio de estado va por
+  su propio flujo. El `POST /canchas` sigue existiendo en el backend pero queda fuera del alcance de esta pantalla.
 - **Base = rama de Martín (PR #14)**: el panel admin que vamos a extender es el suyo (Tailwind + tabs inline).
   Por eso todo se agrega **dentro de `Admin.tsx`**, sin crear archivos nuevos ni componentes separados: el diff
   queda chico y rebasear cuando él empuje cambios es barato.
@@ -47,8 +49,9 @@ pantalla que lo consuma: no hay página, ni tipos, ni métodos en `lib/api.ts`. 
   - PATCH `:id` body parcial, al menos un campo; 400 si viene vacío; 404; 409 si `nroCancha` se repite.
   - PATCH `:id/estado` body `{ estado, motivo? }`; `motivo` **obligatorio si `estado !== 'disponible'`** (el servicio
     trimea y rechaza con 400), máx. 500; **422 si el estado es igual al actual**.
-- **Validación en cliente**: `nroCancha` entero ≥ 1; superficie y estado desde `<select>`; `motivo` requerido y no
-  vacío cuando el estado no es `disponible`. Nunca bloquear por validaciones que el backend no exige.
+- **Validación en cliente**: el número de cancha es de solo lectura (no se valida ni se envía); superficie y estado
+  desde `<select>`; `motivo` requerido y no vacío cuando el estado no es `disponible`. Nunca bloquear por validaciones
+  que el backend no exige.
 - **Feedback**: reusar `Skeleton` / `ErrorCard onRetry` / `EmptyState` con el patrón de las otras pestañas. Sin toasts:
   el éxito se refleja actualizando el estado local con la respuesta del endpoint; solo los errores renderizan alerta.
 - **Errores**: mostrar el `message` de `ApiError`; para 409 y 422 usar textos claros ("Ya existe una cancha con ese
@@ -75,7 +78,8 @@ pantalla que lo consuma: no hay página, ni tipos, ni métodos en `lib/api.ts`. 
 
 - La pestaña Canchas aparece después de Turnos y no rompe las otras cinco.
 - Lista las canchas ordenadas por número con superficie, iluminación y estado vigente.
-- Permite crear una cancha (nro ≥ 1 único, superficie, iluminación) y editarla.
+- Muestra el número de cancha como solo lectura: no existe ningún control que permita cambiarlo.
+- Permite editar superficie e iluminación de una cancha existente (el PATCH envía solo esos dos campos).
 - Permite cambiar el estado; exige motivo salvo `disponible`; muestra el error del 422 al reintentar el mismo estado.
 - `tsc` y `vite build` pasan sin errores ni warnings nuevos.
 - El diff toca solo los tres archivos de `apps/web` listados + este documento.

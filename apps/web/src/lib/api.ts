@@ -49,6 +49,27 @@ export interface CanchaResumen {
   nroCancha: number;
 }
 
+export type SuperficieCancha = 'dura' | 'polvo_de_ladrillo' | 'cesped';
+
+export type EstadoCanchaValor = 'disponible' | 'en_mantenimiento' | 'inhabilitada';
+
+/** One `estados_cancha` history row (API contract §5.5). The field is `valorState`. */
+export interface EstadoCancha {
+  valorState: EstadoCanchaValor;
+  fechaCambio: string;
+  motivo: string | null;
+}
+
+/** GET/POST/PATCH court shape (API contract §5.5); `conEstados=true` adds the history. */
+export interface Cancha {
+  id: string;
+  nroCancha: number;
+  superficie: SuperficieCancha;
+  iluminacion: boolean;
+  estadoActual: EstadoCanchaValor;
+  estados?: EstadoCancha[];
+}
+
 /** Turno plus the expanded court, shared by GET /turnos/mios[/historial]. */
 export interface TurnoConCanchaResponse extends Turno {
   cancha: CanchaResumen;
@@ -429,4 +450,18 @@ export const api = {
     request<Usuario>(`/usuarios/${id}/rol`, { method: 'PATCH', token, body }),
   darDeBajaUsuario: (token: string | null, id: string): Promise<BajaUsuarioResponse> =>
     request<BajaUsuarioResponse>(`/usuarios/${id}`, { method: 'DELETE', token }),
+  canchas: (token: string | null, options?: { conEstados?: boolean }): Promise<Cancha[]> => {
+    const suffix = options?.conEstados === true ? '?conEstados=true' : '';
+    return request<Cancha[]>(`/canchas${suffix}`, { token });
+  },
+  editarCancha: (
+    token: string | null,
+    id: string,
+    body: { superficie?: SuperficieCancha; iluminacion?: boolean },
+  ): Promise<Cancha> => request<Cancha>(`/canchas/${id}`, { method: 'PATCH', token, body }),
+  cambiarEstadoCancha: (
+    token: string | null,
+    id: string,
+    body: { estado: EstadoCanchaValor; motivo?: string },
+  ): Promise<Cancha> => request<Cancha>(`/canchas/${id}/estado`, { method: 'PATCH', token, body }),
 };

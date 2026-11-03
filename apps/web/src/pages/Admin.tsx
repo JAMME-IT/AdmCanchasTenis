@@ -101,6 +101,19 @@ interface FormEdicionT {
 interface FormEdicionCanchaT {
   superficie: SuperficieCancha;
   iluminacion: boolean;
+  estado: EstadoCanchaValor;
+  motivo: string;
+}
+
+/** Compares the unified court form with the stored court to know which PATCH each change needs. */
+function compararFormCancha(
+  cancha: Cancha,
+  form: FormEdicionCanchaT,
+): { datos: boolean; estado: boolean } {
+  return {
+    datos: form.superficie !== cancha.superficie || form.iluminacion !== cancha.iluminacion,
+    estado: form.estado !== cancha.estadoActual,
+  };
 }
 
 interface FormEdicionUsuarioProps {
@@ -382,156 +395,133 @@ function TableRowUsuario(props: TableRowUsuarioProps): JSX.Element {
 
 interface EditorCanchaProps {
   cancha: Cancha;
-  editando: boolean;
-  cambiandoEstado: boolean;
-  formEdicion: FormEdicionCanchaT | null;
-  nuevoEstado: EstadoCanchaValor;
-  motivoEstado: string;
+  formEdicion: FormEdicionCanchaT;
   guardando: boolean;
   onFormChange: Dispatch<SetStateAction<FormEdicionCanchaT | null>>;
-  onGuardarEdicion: () => void;
-  onNuevoEstado: (estado: EstadoCanchaValor) => void;
-  onMotivoEstado: (motivo: string) => void;
-  onGuardarEstado: () => void;
+  onGuardar: () => void;
+  onCancelar: () => void;
 }
 
-/** Inline edit + state-change forms for one court. Shared by the desktop table
- * row and the mobile stacked card. */
-function EditorCancha(props: EditorCanchaProps): JSX.Element | null {
-  const { cancha, editando, cambiandoEstado, formEdicion } = props;
-  if (!editando && !cambiandoEstado) {
-    return null;
-  }
+/** Single inline form for one court: data, state and the reason for a non-available state.
+ * Shared by the desktop table row and the mobile stacked card. */
+function EditorCancha(props: EditorCanchaProps): JSX.Element {
+  const { cancha, formEdicion } = props;
+  const cambios = compararFormCancha(cancha, formEdicion);
 
   return (
-    <div className="flex flex-col gap-4">
-      {editando && formEdicion !== null && (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            props.onGuardarEdicion();
-          }}
-          className="flex flex-col gap-3"
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        props.onGuardar();
+      }}
+      className="flex flex-col gap-3"
+    >
+      <div className="flex gap-3 flex-wrap items-end">
+        <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+          Superficie
+          <select
+            aria-label={`Superficie de la cancha ${cancha.nroCancha}`}
+            value={formEdicion.superficie}
+            onChange={(event) =>
+              props.onFormChange({
+                ...formEdicion,
+                superficie: event.target.value as SuperficieCancha,
+              })
+            }
+            className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+          >
+            {SUPERFICIES.map((superficie) => (
+              <option key={superficie.value} value={superficie.value}>
+                {superficie.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 min-h-[44px] text-sm text-musgo">
+          <input
+            type="checkbox"
+            checked={formEdicion.iluminacion}
+            onChange={(event) =>
+              props.onFormChange({ ...formEdicion, iluminacion: event.target.checked })
+            }
+          />
+          Con iluminación
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+          Estado
+          <select
+            aria-label={`Estado de la cancha ${cancha.nroCancha}`}
+            value={formEdicion.estado}
+            onChange={(event) => {
+              const estado = event.target.value as EstadoCanchaValor;
+              props.onFormChange({
+                ...formEdicion,
+                estado,
+                // Leaving `disponible` clears the reason; going back to it keeps none.
+                motivo: estado === 'disponible' ? '' : formEdicion.motivo,
+              });
+            }}
+            className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+          >
+            {ESTADOS_CANCHA.map((estado) => (
+              <option key={estado.value} value={estado.value}>
+                {estado.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {formEdicion.estado !== 'disponible' && (
+          <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_240px]">
+            Motivo
+            <input
+              type="text"
+              maxLength={500}
+              aria-label={`Motivo del cambio de estado de la cancha ${cancha.nroCancha}`}
+              placeholder="Riego programado"
+              value={formEdicion.motivo}
+              onChange={(event) =>
+                props.onFormChange({ ...formEdicion, motivo: event.target.value })
+              }
+              className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+            />
+          </label>
+        )}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <button
+          type="submit"
+          disabled={props.guardando || (!cambios.datos && !cambios.estado)}
+          className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <div className="flex gap-3 flex-wrap items-end">
-            <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
-              Superficie
-              <select
-                aria-label={`Superficie de la cancha ${cancha.nroCancha}`}
-                value={formEdicion.superficie}
-                onChange={(event) =>
-                  props.onFormChange({
-                    ...formEdicion,
-                    superficie: event.target.value as SuperficieCancha,
-                  })
-                }
-                className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
-              >
-                {SUPERFICIES.map((superficie) => (
-                  <option key={superficie.value} value={superficie.value}>
-                    {superficie.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-2 min-h-[44px] text-sm text-musgo">
-              <input
-                type="checkbox"
-                checked={formEdicion.iluminacion}
-                onChange={(event) =>
-                  props.onFormChange({ ...formEdicion, iluminacion: event.target.checked })
-                }
-              />
-              Con iluminación
-            </label>
-          </div>
-          <div>
-            <button
-              type="submit"
-              disabled={props.guardando}
-              className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
-            >
-              {props.guardando ? 'Guardando…' : 'Guardar cambios'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {cambiandoEstado && (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            props.onGuardarEstado();
-          }}
-          className={`flex flex-col gap-3 ${editando ? 'pt-3 border-t border-[#ECEEEB]' : ''}`}
+          {props.guardando ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+        <button
+          type="button"
+          onClick={props.onCancelar}
+          disabled={props.guardando}
+          className="min-h-[44px] rounded-md px-4 py-2.5 font-semibold cursor-pointer bg-white border border-sereno text-musgo transition hover:border-peridot hover:text-peridot disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <div className="flex gap-3 flex-wrap items-end">
-            <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
-              Estado
-              <select
-                aria-label={`Nuevo estado de la cancha ${cancha.nroCancha}`}
-                value={props.nuevoEstado}
-                onChange={(event) => props.onNuevoEstado(event.target.value as EstadoCanchaValor)}
-                className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
-              >
-                {ESTADOS_CANCHA.map((estado) => (
-                  <option key={estado.value} value={estado.value}>
-                    {estado.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {props.nuevoEstado !== 'disponible' && (
-              <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_240px]">
-                Motivo
-                <input
-                  type="text"
-                  required
-                  maxLength={500}
-                  aria-label={`Motivo del cambio de estado de la cancha ${cancha.nroCancha}`}
-                  placeholder="Riego programado"
-                  value={props.motivoEstado}
-                  onChange={(event) => props.onMotivoEstado(event.target.value)}
-                  className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
-                />
-              </label>
-            )}
-          </div>
-          <div>
-            <button
-              type="submit"
-              disabled={props.guardando}
-              className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-musgo text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
-            >
-              {props.guardando ? 'Guardando…' : 'Cambiar estado'}
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }
 
 interface TableRowCanchaProps {
   cancha: Cancha;
   editando: boolean;
-  cambiandoEstado: boolean;
   formEdicion: FormEdicionCanchaT | null;
-  nuevoEstado: EstadoCanchaValor;
-  motivoEstado: string;
   guardando: boolean;
   onEditar: () => void;
-  onCambiarEstado: () => void;
   onFormChange: Dispatch<SetStateAction<FormEdicionCanchaT | null>>;
-  onGuardarEdicion: () => void;
-  onNuevoEstado: (estado: EstadoCanchaValor) => void;
-  onMotivoEstado: (motivo: string) => void;
-  onGuardarEstado: () => void;
+  onGuardar: () => void;
+  onCancelar: () => void;
 }
 
-/** One court: data row plus its expanded editor row when an action is open. */
+/** One court: data row plus its expanded editor row when the edit action is open. */
 function TableRowCancha(props: TableRowCanchaProps): JSX.Element {
-  const { cancha, editando, cambiandoEstado } = props;
+  const { cancha, editando } = props;
   const ultimo = cancha.estados?.[0];
 
   return (
@@ -577,39 +567,20 @@ function TableRowCancha(props: TableRowCanchaProps): JSX.Element {
                 <Pencil className="size-4" aria-hidden="true" />
               )}
             </button>
-            <button
-              type="button"
-              aria-label={
-                cambiandoEstado
-                  ? `Cerrar cambio de estado de la cancha ${cancha.nroCancha}`
-                  : `Cambiar estado de la cancha ${cancha.nroCancha}`
-              }
-              aria-expanded={cambiandoEstado}
-              onClick={props.onCambiarEstado}
-              className="min-h-[44px] rounded-md px-3 text-xs font-semibold cursor-pointer bg-white border border-sereno text-musgo transition hover:border-peridot hover:text-peridot focus-visible:outline-2 focus-visible:outline-peridot"
-            >
-              {cambiandoEstado ? 'Cerrar' : 'Cambiar estado'}
-            </button>
           </div>
         </td>
       </tr>
 
-      {(editando || cambiandoEstado) && (
+      {editando && props.formEdicion !== null && (
         <tr>
           <td colSpan={6} className="bg-[#FBFCFB] px-4 py-4">
             <EditorCancha
               cancha={cancha}
-              editando={editando}
-              cambiandoEstado={cambiandoEstado}
               formEdicion={props.formEdicion}
-              nuevoEstado={props.nuevoEstado}
-              motivoEstado={props.motivoEstado}
               guardando={props.guardando}
               onFormChange={props.onFormChange}
-              onGuardarEdicion={props.onGuardarEdicion}
-              onNuevoEstado={props.onNuevoEstado}
-              onMotivoEstado={props.onMotivoEstado}
-              onGuardarEstado={props.onGuardarEstado}
+              onGuardar={props.onGuardar}
+              onCancelar={props.onCancelar}
             />
           </td>
         </tr>
@@ -704,9 +675,6 @@ export default function Admin(): JSX.Element {
   const [guardandoCancha, setGuardandoCancha] = useState(false);
   const [editandoCanchaId, setEditandoCanchaId] = useState<string | null>(null);
   const [formCanchaEdicion, setFormCanchaEdicion] = useState<FormEdicionCanchaT | null>(null);
-  const [estadoCanchaSeleccionada, setEstadoCanchaSeleccionada] = useState<string | null>(null);
-  const [nuevoEstado, setNuevoEstado] = useState<EstadoCanchaValor>('disponible');
-  const [motivoEstado, setMotivoEstado] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -844,10 +812,9 @@ export default function Admin(): JSX.Element {
     setErrorUsuarios(null);
   };
 
-  /** Opens/closes the inline edit form for one court. */
+  /** Opens/closes the inline edit form for one court (data and state share one form). */
   const alternarEdicionCancha = (cancha: Cancha): void => {
     setErrorCanchas(null);
-    setEstadoCanchaSeleccionada(null);
     if (editandoCanchaId === cancha.id) {
       setEditandoCanchaId(null);
       setFormCanchaEdicion(null);
@@ -857,61 +824,33 @@ export default function Admin(): JSX.Element {
     setFormCanchaEdicion({
       superficie: cancha.superficie,
       iluminacion: cancha.iluminacion,
+      estado: cancha.estadoActual,
+      motivo: '',
     });
   };
 
-  /** Opens/closes the inline state-change form for one court. */
-  const alternarEstadoCancha = (cancha: Cancha): void => {
-    setErrorCanchas(null);
+  /** Closes the editor without saving. */
+  const cerrarEdicionCancha = (): void => {
     setEditandoCanchaId(null);
     setFormCanchaEdicion(null);
-    if (estadoCanchaSeleccionada === cancha.id) {
-      setEstadoCanchaSeleccionada(null);
-      return;
-    }
-    setEstadoCanchaSeleccionada(cancha.id);
-    setNuevoEstado(cancha.estadoActual);
-    setMotivoEstado('');
   };
 
-  /** PATCH /canchas/:id: swaps the row in place and keeps the numeric order. */
-  const guardarEdicionCancha = useCallback(
+  /** Single save handler: PATCHes only the resources that actually changed.
+   * The data PATCH runs first because a failed estado PATCH still leaves the
+   * court data saved; on any failure the list is resynced from the server. */
+  const guardarCancha = useCallback(
     async (authToken: string | null, cancha: Cancha) => {
       if (formCanchaEdicion === null) {
         return;
       }
-      setErrorCanchas(null);
-      setGuardandoCancha(true);
-      try {
-        const actualizada = await api.editarCancha(authToken, cancha.id, {
-          superficie: formCanchaEdicion.superficie,
-          iluminacion: formCanchaEdicion.iluminacion,
-        });
-        setCanchas((lista) =>
-          ordenarCanchas(
-            lista.map((item) =>
-              item.id === cancha.id
-                ? { ...actualizada, estados: actualizada.estados ?? item.estados }
-                : item,
-            ),
-          ),
-        );
-        setEditandoCanchaId(null);
-        setFormCanchaEdicion(null);
-      } catch (caught) {
-        setErrorCanchas(mensajeErrorCancha(caught, 'No se pudo guardar la cancha.'));
-      } finally {
-        setGuardandoCancha(false);
+      const cambios = compararFormCancha(cancha, formCanchaEdicion);
+      if (!cambios.datos && !cambios.estado) {
+        return;
       }
-    },
-    [formCanchaEdicion],
-  );
-
-  /** PATCH /canchas/:id/estado: motivo is required unless the target is disponible. */
-  const guardarEstadoCancha = useCallback(
-    async (authToken: string | null, cancha: Cancha) => {
-      const motivo = motivoEstado.trim();
-      if (nuevoEstado !== 'disponible' && motivo === '') {
+      // Only a real estado change needs a reason; disponible clears it.
+      const motivo =
+        formCanchaEdicion.estado === 'disponible' ? '' : formCanchaEdicion.motivo.trim();
+      if (cambios.estado && formCanchaEdicion.estado !== 'disponible' && motivo === '') {
         setErrorCanchas('El motivo es obligatorio cuando la cancha no queda disponible.');
         return;
       }
@@ -919,39 +858,54 @@ export default function Admin(): JSX.Element {
         setErrorCanchas('El motivo no puede superar los 500 caracteres.');
         return;
       }
+
       setErrorCanchas(null);
       setGuardandoCancha(true);
+      let guardada = cancha;
       try {
-        const actualizada = await api.cambiarEstadoCancha(authToken, cancha.id, {
-          estado: nuevoEstado,
-          ...(motivo === '' ? {} : { motivo }),
-        });
-        // The endpoint returns the court without `estados`; prepend the new
-        // history entry locally so the row keeps showing the latest change.
-        const entrada: EstadoCancha = {
-          valorState: actualizada.estadoActual,
-          fechaCambio: new Date().toISOString(),
-          motivo: motivo === '' ? null : motivo,
-        };
+        if (cambios.datos) {
+          guardada = await api.editarCancha(authToken, cancha.id, {
+            superficie: formCanchaEdicion.superficie,
+            iluminacion: formCanchaEdicion.iluminacion,
+          });
+        }
+        if (cambios.estado) {
+          const conEstado = await api.cambiarEstadoCancha(authToken, cancha.id, {
+            estado: formCanchaEdicion.estado,
+            ...(motivo === '' ? {} : { motivo }),
+          });
+          // The estado endpoint returns the court without `estados`; prepend the
+          // new history entry locally so the row keeps showing the latest change.
+          const entrada: EstadoCancha = {
+            valorState: conEstado.estadoActual,
+            fechaCambio: new Date().toISOString(),
+            motivo: motivo === '' ? null : motivo,
+          };
+          guardada = {
+            ...conEstado,
+            estados: [entrada, ...(conEstado.estados ?? guardada.estados ?? cancha.estados ?? [])],
+          };
+        }
         setCanchas((lista) =>
-          lista.map((item) =>
-            item.id === cancha.id
-              ? {
-                  ...actualizada,
-                  estados: [entrada, ...(actualizada.estados ?? item.estados ?? [])],
-                }
-              : item,
+          ordenarCanchas(
+            lista.map((item) =>
+              item.id === cancha.id
+                ? { ...guardada, estados: guardada.estados ?? item.estados }
+                : item,
+            ),
           ),
         );
-        setEstadoCanchaSeleccionada(null);
-        setMotivoEstado('');
+        cerrarEdicionCancha();
       } catch (caught) {
-        setErrorCanchas(mensajeErrorCancha(caught, 'No se pudo cambiar el estado.'));
+        setErrorCanchas(mensajeErrorCancha(caught, 'No se pudo guardar la cancha.'));
+        // A previous call may have succeeded, so the list must reflect the server.
+        await cargar(authToken, 'canchas');
+        cerrarEdicionCancha();
       } finally {
         setGuardandoCancha(false);
       }
     },
-    [nuevoEstado, motivoEstado],
+    [formCanchaEdicion, cargar],
   );
 
   /** Saves the admin edit (PATCH /usuarios/:id) and swaps the row in place. */
@@ -1260,20 +1214,14 @@ export default function Admin(): JSX.Element {
                         key={cancha.id}
                         cancha={cancha}
                         editando={editandoCanchaId === cancha.id}
-                        cambiandoEstado={estadoCanchaSeleccionada === cancha.id}
                         formEdicion={
                           editandoCanchaId === cancha.id ? formCanchaEdicion : null
                         }
-                        nuevoEstado={nuevoEstado}
-                        motivoEstado={motivoEstado}
                         guardando={guardandoCancha}
                         onEditar={() => alternarEdicionCancha(cancha)}
-                        onCambiarEstado={() => alternarEstadoCancha(cancha)}
                         onFormChange={setFormCanchaEdicion}
-                        onGuardarEdicion={() => void guardarEdicionCancha(token, cancha)}
-                        onNuevoEstado={setNuevoEstado}
-                        onMotivoEstado={setMotivoEstado}
-                        onGuardarEstado={() => void guardarEstadoCancha(token, cancha)}
+                        onGuardar={() => void guardarCancha(token, cancha)}
+                        onCancelar={cerrarEdicionCancha}
                       />
                     ))}
                   </tbody>
@@ -1285,7 +1233,6 @@ export default function Admin(): JSX.Element {
                 {canchas.map((cancha) => {
                   const ultimo = cancha.estados?.[0];
                   const editando = editandoCanchaId === cancha.id;
-                  const cambiandoEstado = estadoCanchaSeleccionada === cancha.id;
                   return (
                     <li
                       key={cancha.id}
@@ -1331,37 +1278,18 @@ export default function Admin(): JSX.Element {
                               <Pencil className="size-4" aria-hidden="true" />
                             )}
                           </button>
-                          <button
-                            type="button"
-                            aria-label={
-                              cambiandoEstado
-                                ? `Cerrar cambio de estado de la cancha ${cancha.nroCancha}`
-                                : `Cambiar estado de la cancha ${cancha.nroCancha}`
-                            }
-                            aria-expanded={cambiandoEstado}
-                            onClick={() => alternarEstadoCancha(cancha)}
-                            className="min-h-[44px] rounded-md px-3 text-xs font-semibold cursor-pointer bg-white border border-sereno text-musgo transition hover:border-peridot hover:text-peridot focus-visible:outline-2 focus-visible:outline-peridot"
-                          >
-                            {cambiandoEstado ? 'Cerrar' : 'Cambiar estado'}
-                          </button>
                         </div>
                       </div>
 
-                      {(editando || cambiandoEstado) && (
+                      {editando && formCanchaEdicion !== null && (
                         <div className="mt-4 pt-4 border-t border-sereno">
                           <EditorCancha
                             cancha={cancha}
-                            editando={editando}
-                            cambiandoEstado={cambiandoEstado}
-                            formEdicion={editando ? formCanchaEdicion : null}
-                            nuevoEstado={nuevoEstado}
-                            motivoEstado={motivoEstado}
+                            formEdicion={formCanchaEdicion}
                             guardando={guardandoCancha}
                             onFormChange={setFormCanchaEdicion}
-                            onGuardarEdicion={() => void guardarEdicionCancha(token, cancha)}
-                            onNuevoEstado={setNuevoEstado}
-                            onMotivoEstado={setMotivoEstado}
-                            onGuardarEstado={() => void guardarEstadoCancha(token, cancha)}
+                            onGuardar={() => void guardarCancha(token, cancha)}
+                            onCancelar={cerrarEdicionCancha}
                           />
                         </div>
                       )}

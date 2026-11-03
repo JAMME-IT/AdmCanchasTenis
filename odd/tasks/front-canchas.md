@@ -30,8 +30,15 @@ pantalla que lo consuma: no hay página, ni tipos, ni métodos en `lib/api.ts`. 
 - **Alcance limitado a las 3 canchas del club**: el club tiene exactamente 3 canchas, así que la pantalla **no
   ofrece alta** (sin botón "Nueva cancha" ni formulario de creación). El número de cancha (`nroCancha`) es **fijo**:
   no existe ningún control para editarlo, se muestra como texto de solo lectura en la tabla y en las tarjetas. La
-  edición se limita a `superficie` e `iluminación` (el PATCH envía solo esos dos campos) y el cambio de estado va por
-  su propio flujo. El `POST /canchas` sigue existiendo en el backend pero queda fuera del alcance de esta pantalla.
+  edición se limita a `superficie`, `iluminación` y `estado`. El `POST /canchas` sigue existiendo en el backend pero
+  queda fuera del alcance de esta pantalla.
+- **Una sola edición por cancha**: datos y estado comparten **un único formulario inline** (`superficie`,
+  `iluminación`, `estado`, `motivo` condicional) con un solo botón `Guardar cambios` y un `Cancelar`. No hay acción
+  ni formulario separado de "Cambiar estado". Al guardar se comparan los valores contra la cancha actual y se
+  PATCHea **solo el recurso que cambió**: `PATCH /canchas/:id` si cambió superficie o iluminación,
+  `PATCH /canchas/:id/estado` si cambió el estado (nunca si el estado elegido es el actual, porque la API responde
+  422). Si falla una llamada se muestra el error mapeado y se resincroniza la lista con el servidor, porque la
+  primera llamada pudo haber tenido éxito; el editor solo queda abierto ante errores de validación en cliente.
 - **Base = rama de Martín (PR #14)**: el panel admin que vamos a extender es el suyo (Tailwind + tabs inline).
   Por eso todo se agrega **dentro de `Admin.tsx`**, sin crear archivos nuevos ni componentes separados: el diff
   queda chico y rebasear cuando él empuje cambios es barato.
@@ -79,7 +86,8 @@ pantalla que lo consuma: no hay página, ni tipos, ni métodos en `lib/api.ts`. 
 - La pestaña Canchas aparece después de Turnos y no rompe las otras cinco.
 - Lista las canchas ordenadas por número con superficie, iluminación y estado vigente.
 - Muestra el número de cancha como solo lectura: no existe ningún control que permita cambiarlo.
-- Permite editar superficie e iluminación de una cancha existente (el PATCH envía solo esos dos campos).
-- Permite cambiar el estado; exige motivo salvo `disponible`; muestra el error del 422 al reintentar el mismo estado.
+- Permite editar superficie, iluminación y estado desde un único formulario con un solo `Guardar cambios`; cada
+  recurso se PATCHea solo si cambió (el PATCH de datos envía solo esos dos campos).
+- Exige motivo salvo `disponible`; nunca dispara el PATCH de estado si el estado elegido es el actual.
 - `tsc` y `vite build` pasan sin errores ni warnings nuevos.
 - El diff toca solo los tres archivos de `apps/web` listados + este documento.

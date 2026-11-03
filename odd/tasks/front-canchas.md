@@ -27,6 +27,9 @@ pantalla que lo consuma: no hay página, ni tipos, ni métodos en `lib/api.ts`. 
 
 ## Constraints / decisiones
 
+- **Alcance limitado a las 3 canchas del club**: el club tiene exactamente 3 canchas, así que la pantalla **no
+  ofrece alta** (sin botón "Nueva cancha" ni formulario de creación). Solo lista, edita `superficie`/`iluminación`
+  y cambia el estado. El `POST /canchas` sigue existiendo en el backend pero queda fuera del alcance de esta pantalla.
 - **Base = rama de Martín (PR #14)**: el panel admin que vamos a extender es el suyo (Tailwind + tabs inline).
   Por eso todo se agrega **dentro de `Admin.tsx`**, sin crear archivos nuevos ni componentes separados: el diff
   queda chico y rebasear cuando él empuje cambios es barato.

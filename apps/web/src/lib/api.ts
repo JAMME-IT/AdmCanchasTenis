@@ -454,10 +454,6 @@ export const api = {
     const suffix = options?.conEstados === true ? '?conEstados=true' : '';
     return request<Cancha[]>(`/canchas${suffix}`, { token });
   },
-  crearCancha: (
-    token: string | null,
-    body: { nroCancha: number; superficie: SuperficieCancha; iluminacion?: boolean },
-  ): Promise<Cancha> => request<Cancha>('/canchas', { method: 'POST', token, body }),
   editarCancha: (
     token: string | null,
     id: string,

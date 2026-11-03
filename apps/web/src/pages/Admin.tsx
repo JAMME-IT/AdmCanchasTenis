@@ -727,12 +727,6 @@ export default function Admin(): JSX.Element {
   const [canchas, setCanchas] = useState<Cancha[]>([]);
   const [errorCanchas, setErrorCanchas] = useState<string | null>(null);
   const [guardandoCancha, setGuardandoCancha] = useState(false);
-  const [mostrandoFormCancha, setMostrandoFormCancha] = useState(false);
-  const [nuevoNro, setNuevoNro] = useState('');
-  const [nuevaSuperficie, setNuevaSuperficie] = useState<SuperficieCancha>(
-    'polvo_de_ladrillo',
-  );
-  const [nuevaIluminacion, setNuevaIluminacion] = useState(true);
   const [editandoCanchaId, setEditandoCanchaId] = useState<string | null>(null);
   const [formCanchaEdicion, setFormCanchaEdicion] = useState<FormEdicionCanchaT | null>(null);
   const [estadoCanchaSeleccionada, setEstadoCanchaSeleccionada] = useState<string | null>(null);
@@ -905,36 +899,6 @@ export default function Admin(): JSX.Element {
     setNuevoEstado(cancha.estadoActual);
     setMotivoEstado('');
   };
-
-  /** POST /canchas: appends the created court in numeric order. */
-  const crearCancha = useCallback(
-    async (authToken: string | null) => {
-      const nro = parsearNroCancha(nuevoNro);
-      if (nro === null) {
-        setErrorCanchas('El número de cancha debe ser un entero mayor o igual a 1.');
-        return;
-      }
-      setErrorCanchas(null);
-      setGuardandoCancha(true);
-      try {
-        const creada = await api.crearCancha(authToken, {
-          nroCancha: nro,
-          superficie: nuevaSuperficie,
-          iluminacion: nuevaIluminacion,
-        });
-        setCanchas((lista) => ordenarCanchas([...lista, creada]));
-        setNuevoNro('');
-        setNuevaSuperficie('polvo_de_ladrillo');
-        setNuevaIluminacion(true);
-        setMostrandoFormCancha(false);
-      } catch (caught) {
-        setErrorCanchas(mensajeErrorCancha(caught, 'No se pudo crear la cancha.'));
-      } finally {
-        setGuardandoCancha(false);
-      }
-    },
-    [nuevoNro, nuevaSuperficie, nuevaIluminacion],
-  );
 
   /** PATCH /canchas/:id: swaps the row in place and keeps the numeric order. */
   const guardarEdicionCancha = useCallback(
@@ -1247,7 +1211,7 @@ export default function Admin(): JSX.Element {
 
       {tab === 'canchas' && (
         <section aria-label="Canchas" className="flex flex-col gap-4">
-          <header className="flex flex-wrap items-center justify-between gap-4">
+          <header className="flex flex-col gap-1">
             <div className="flex items-baseline gap-3">
               <h2 className="m-0 text-lg font-semibold text-musgo">Canchas del club</h2>
               <span
@@ -1257,84 +1221,15 @@ export default function Admin(): JSX.Element {
                 {canchas.length} {canchas.length === 1 ? 'cancha' : 'canchas'}
               </span>
             </div>
-            <button
-              type="button"
-              aria-expanded={mostrandoFormCancha}
-              onClick={() => {
-                setErrorCanchas(null);
-                setMostrandoFormCancha((visible) => !visible);
-              }}
-              className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none focus-visible:outline-2 focus-visible:outline-peridot"
-            >
-              {mostrandoFormCancha ? 'Cancelar' : 'Nueva cancha'}
-            </button>
+            <p className="m-0 text-sm text-[#5A6661]">
+              El club tiene 3 canchas fijas: acá solo se editan sus datos y su estado.
+            </p>
           </header>
 
           {errorCanchas !== null && (
             <div role="alert" className="bg-white border border-error rounded-lg p-6 text-error">
               {errorCanchas}
             </div>
-          )}
-
-          {mostrandoFormCancha && (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void crearCancha(token);
-              }}
-              className="bg-white rounded-lg p-4 shadow-[0_2px_8px_rgba(56,69,67,0.08)] flex flex-col gap-3"
-            >
-              <div className="flex gap-3 flex-wrap items-end">
-                <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
-                  Número
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    required
-                    aria-label="Número de la nueva cancha"
-                    placeholder="1"
-                    value={nuevoNro}
-                    onChange={(event) => setNuevoNro(event.target.value)}
-                    className="min-h-[44px] w-32 rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
-                  Superficie
-                  <select
-                    aria-label="Superficie de la nueva cancha"
-                    value={nuevaSuperficie}
-                    onChange={(event) =>
-                      setNuevaSuperficie(event.target.value as SuperficieCancha)
-                    }
-                    className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
-                  >
-                    {SUPERFICIES.map((superficie) => (
-                      <option key={superficie.value} value={superficie.value}>
-                        {superficie.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 min-h-[44px] text-sm text-musgo">
-                  <input
-                    type="checkbox"
-                    checked={nuevaIluminacion}
-                    onChange={(event) => setNuevaIluminacion(event.target.checked)}
-                  />
-                  Con iluminación
-                </label>
-              </div>
-              <div>
-                <button
-                  type="submit"
-                  disabled={guardandoCancha}
-                  className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-musgo text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
-                >
-                  {guardandoCancha ? 'Guardando…' : 'Crear cancha'}
-                </button>
-              </div>
-            </form>
           )}
 
           {cargando ? (

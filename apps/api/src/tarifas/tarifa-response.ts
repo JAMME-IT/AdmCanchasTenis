@@ -67,9 +67,16 @@ function aNumero(valor: unknown): number {
 }
 
 /**
- * Hora `HH:MM` del contrato. Prisma devuelve TIME como "HH:MM:SS[.f]" según adapter.
+ * Hora `HH:MM` del contrato. Prisma entrega `@db.Time` como `Date` anclada al
+ * epoch UTC (ver `time()` en prisma/seed.ts); otros adapters lo devuelven como
+ * string "HH:MM:SS[.f]". Ambos formatos se normalizan acá.
  */
 function aHora(valor: unknown): string {
+  if (valor instanceof Date) {
+    const horas = String(valor.getUTCHours()).padStart(2, '0');
+    const minutos = String(valor.getUTCMinutes()).padStart(2, '0');
+    return `${horas}:${minutos}`;
+  }
   return String(valor).slice(0, 5);
 }
 

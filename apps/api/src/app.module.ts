@@ -8,6 +8,7 @@ import { RolesGuard } from './auth/roles.guard';
 import { CanchasModule } from './canchas/canchas.module';
 import { ConfigModule } from './config/config.module';
 import { CuotasModule } from './cuotas/cuotas.module';
+import { PagosLuzModule } from './pagos-luz/pagos-luz.module';
 import { PagosTurnoModule } from './pagos-turno/pagos-turno.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReportesModule } from './reportes/reportes.module';
@@ -17,7 +18,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, AuthModule, TurnosModule, UsuariosModule, WebhooksModule, CuotasModule, ReportesModule, CanchasModule, TarifasModule, PagosTurnoModule, ConfigModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, AuthModule, TurnosModule, UsuariosModule, WebhooksModule, CuotasModule, ReportesModule, CanchasModule, TarifasModule, PagosTurnoModule, PagosLuzModule, ConfigModule],
   controllers: [AppController],
   providers: [
     { provide: APP_GUARD, useClass: ClerkAuthGuard },

@@ -196,3 +196,62 @@ Cobertura del contrato §5.9 en el RED:
 
 TAR-4, TAR-5 y TAR-6 cerradas en GREEN. La suite de la API queda en 26 archivos y el build
 en verde. Pendiente: push de la rama y revisión según la política del equipo.
+
+## ACT-44 — Historial de tarifas con filtros (En curso)
+
+Rama: `feat/tarifas-historial-act44` (desde main actualizado; ACT-43 queda en el PR #15). Jira: ACT-44 movido a **En curso**;
+ACT-43 movido a **En revisión**. Criterios: RF-30, RF-31.
+Endpoint: `GET /tarifas/historial` (admin).
+
+### Plan (TAR-7)
+
+- DTO `ConsultarHistorialTarifasDto`: `tipo` (`turno|luz|cuota`, opcional), `desde`/`hasta`
+  ISO opcionales, `montoMin`/`montoMax` numéricos opcionales.
+- `TarifasService.obtenerHistorial`: consulta `valores_turno` (costo_x_hora/fecha_cambio),
+  `valores_cuota` (precio/fecha_cambio) y `estados_luz` (costo_x_hora/fecha) según `tipo`;
+  aplica los rangos en cada fuente; merge y orden por fecha descendente.
+- `GET /tarifas/historial` en `TarifasController` con `@Roles('admin')`.
+- Response `{ tipo, monto, fechaCambio }` con `formatearFechaCambio` (-03:00).
+- 400 por fecha inválida (y `tipo` fuera del enum vía DTO).
+
+### TAR-7 — Evidencia RED
+
+Spec: `apps/api/src/tarifas/tarifas-historial.spec.ts`, registrado en la cadena `test`.
+Comando: `npx ts-node --transpile-only src/tarifas/tarifas-historial.spec.ts`
+Resultado: **7/7 fallan** con `TypeError: service.obtenerHistorial is not a function`.
+
+Casos:
+1. Sin filtros: consulta las 3 fuentes y ordena por fecha desc.
+2. `tipo=cuota`: consulta solo `valores_cuota`.
+3. `tipo=luz`: monto desde `costo_x_hora` y fecha desde `estados_luz.fecha`.
+4. Rango `desde`/`hasta` aplicado a `fecha_cambio` (turno/cuota) y `fecha` (luz).
+5. Rango `montoMin`/`montoMax` aplicado a `costo_x_hora`/`precio`.
+6. 400 si `desde` es inválida.
+7. Array vacío sin historial.
+
+### TAR-7 — Evidencia GREEN
+
+- Spec: **7/7 pass** (`npx ts-node --transpile-only src/tarifas/tarifas-historial.spec.ts`).
+- Suite completa: **24/24 spec files, # fail 0, EXIT=0**.
+- Build: `tsc -p tsconfig.json` **EXIT=0**.
+- Implementado: `ConsultarHistorialTarifasDto` (`tipo` enum, `desde`/`hasta` ISO,
+  `montoMin`/`montoMax`), `TarifasService.obtenerHistorial` (consulta las 3 fuentes según
+  `tipo`, aplica rangos por fuente, merge y orden descendente, 400 en fechas inválidas),
+  `GET /tarifas/historial` admin y `toTarifaHistorialItemResponse`.
+- Rama: `feat/tarifas-historial-act44` creada desde `main` actualizado (9c79716) para no
+  ensuciar el PR #15; ACT-43 queda fuera de este trabajo.
+
+### Correcciones post-verificación HTTP (commit 751064c)
+
+La prueba autenticada contra la API real detectó dos defectos que los unit tests no cubrían:
+
+1. **DTOs importados como `type` en el controller**: con `emitDecoratorMetadata`, el metatype de
+   `@Query()`/`@Body()` quedaba en `Object` y el `ValidationPipe` no validaba; los filtros del
+   historial se ignoraban. Fix: importar como valor `ActualizarTarifaTurnoDto`,
+   `ActualizarTarifaCuotaDto` y `ConsultarHistorialTarifasDto`.
+2. **Montos de query como string**: `montoMin`/`montoMax` necesitan `@Type(() => Number)` para
+   que `@IsNumber` y `@Min` funcionen sobre el query string.
+
+Verificado por HTTP: `?tipo=cuota` → solo cuota; `?montoMin=5000` → solo cuota;
+`?montoMax=5000` → luz y turno; `?montoMin=-1` y `?montoMin=abc` → 400; PUT con valores
+negativos → 400. Tests 24/24 y build OK. PR #16 actualizado con `c51fe75` + `751064c`.

@@ -4,6 +4,8 @@
  * (camelCase, number money, timestamp with local offset).
  */
 
+import type { TipoTarifaHistorial } from './dto/consultar-historial-tarifas.dto';
+
 export interface TarifaTurnoResponse {
   id: string;
   costoXHora: number;
@@ -127,5 +129,23 @@ export function toTarifaLuzResponse(
     franjaHorarioInicio: aHora(fila.franja_horario_inicio),
     franjaHorarioFin: aHora(fila.franja_horario_fin),
     fechaCambio: formatearFechaCambio(fechaCambio),
+  };
+}
+
+export interface TarifaHistorialItemResponse {
+  tipo: TipoTarifaHistorial;
+  monto: number;
+  fechaCambio: string;
+}
+
+export function toTarifaHistorialItemResponse(
+  tipo: TipoTarifaHistorial,
+  monto: unknown,
+  fecha: Date,
+): TarifaHistorialItemResponse {
+  return {
+    tipo,
+    monto: aNumero(monto),
+    fechaCambio: formatearFechaCambio(fecha),
   };
 }

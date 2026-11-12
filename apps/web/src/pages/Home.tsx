@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
 import { ApiError, api, type Usuario } from '../lib/api';
+import { urlAltaSocio } from '../lib/whatsapp';
 import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
 // Palette: refined green #384543, whisper white #F5F3EF,
@@ -78,6 +79,11 @@ export default function Home(): JSX.Element {
     }
     void cargarPerfil();
   }, [cargarPerfil, isLoaded, isSignedIn]);
+
+  const altaSocioUrl =
+    usuario && usuario.rol === 'no_socio'
+      ? urlAltaSocio(import.meta.env.VITE_WHATSAPP_ADMIN, usuario)
+      : null;
 
   if (!isLoaded) {
     return (
@@ -178,6 +184,46 @@ export default function Home(): JSX.Element {
             <EmptyState message="Todavía no se cargó tu perfil." />
           )}
         </section>
+
+        {usuario?.rol === 'no_socio' && (
+          <section
+            style={{
+              ...cardStyle,
+              border: '2px solid #328161',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>¿Querés ser socio?</h2>
+            <p style={{ margin: 0 }}>
+              El alta de socio se coordina por WhatsApp con la administradora. Escribile con
+              tus datos y el club actualiza tu rol.
+            </p>
+            {altaSocioUrl ? (
+              <a
+                href={altaSocioUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  ...buttonPrimary,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  alignSelf: 'flex-start',
+                  minHeight: '44px',
+                  textDecoration: 'none',
+                }}
+              >
+                Pedir alta por WhatsApp
+              </a>
+            ) : (
+              <p role="status" style={{ margin: 0, color: '#5A6661' }}>
+                El WhatsApp de la administradora no está configurado. Pedile el alta al club
+                por el canal de siempre.
+              </p>
+            )}
+          </section>
+        )}
 
         {/* Blocked section: no new endpoints, all actions disabled. */}
         <section style={cardStyle}>

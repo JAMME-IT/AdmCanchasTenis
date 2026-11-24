@@ -61,8 +61,9 @@ pantalla que lo consuma: no hay página, ni tipos, ni métodos en `lib/api.ts`. 
   que el backend no exige.
 - **Feedback**: reusar `Skeleton` / `ErrorCard onRetry` / `EmptyState` con el patrón de las otras pestañas. Sin toasts:
   el éxito se refleja actualizando el estado local con la respuesta del endpoint; solo los errores renderizan alerta.
-- **Errores**: mostrar el `message` de `ApiError`; para 409 y 422 usar textos claros ("Ya existe una cancha con ese
-  número", "La cancha ya está en ese estado").
+- **Errores**: mostrar el `message` de `ApiError`; para 422 usar un texto claro ("La cancha ya está en ese estado").
+  El 409 no aplica: no hay alta y el número es de solo lectura. Si el guardado falla, la lista se resincroniza con
+  el servidor y el editor queda abierto con lo cargado para reintentar.
 - **Estado de guardado separado** (`guardandoCancha`) para no bloquear los botones de las otras pestañas.
 - **Responsive**: tabla en `md+` y tarjetas apiladas en mobile, siguiendo el patrón de la pestaña Usuarios. Controles
   con `min-h-[44px]`, foco visible y `aria-*` como el resto del panel.

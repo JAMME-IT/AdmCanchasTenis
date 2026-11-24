@@ -626,9 +626,6 @@ function etiquetaEstadoCancha(estado: EstadoCanchaValor): string {
 /** Maps court API failures to the copy the admin panel shows. */
 function mensajeErrorCancha(caught: unknown, porDefecto: string): string {
   if (caught instanceof ApiError) {
-    if (caught.status === 409) {
-      return 'Ya existe una cancha con ese número.';
-    }
     if (caught.status === 422) {
       return 'La cancha ya está en ese estado.';
     }
@@ -899,8 +896,8 @@ export default function Admin(): JSX.Element {
       } catch (caught) {
         setErrorCanchas(mensajeErrorCancha(caught, 'No se pudo guardar la cancha.'));
         // A previous call may have succeeded, so the list must reflect the server.
+        // The editor stays open so the admin keeps what they typed and can retry.
         await cargar(authToken, 'canchas');
-        cerrarEdicionCancha();
       } finally {
         setGuardandoCancha(false);
       }

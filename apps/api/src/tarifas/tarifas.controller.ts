@@ -1,9 +1,13 @@
-import { Body, Controller, Get, Put } from '@nestjs/common';
+import { Body, Controller, Get, Put, Query } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
-import type { ActualizarTarifaCuotaDto } from './dto/actualizar-tarifa-cuota.dto';
-import type { ActualizarTarifaTurnoDto } from './dto/actualizar-tarifa-turno.dto';
+import { ActualizarTarifaCuotaDto } from './dto/actualizar-tarifa-cuota.dto';
+import { ActualizarTarifaLuzDto } from './dto/actualizar-tarifa-luz.dto';
+import { ActualizarTarifaTurnoDto } from './dto/actualizar-tarifa-turno.dto';
+import { ConsultarHistorialTarifasDto } from './dto/consultar-historial-tarifas.dto';
 import type {
   TarifaCuotaResponse,
+  TarifaHistorialItemResponse,
+  TarifaLuzResponse,
   TarifaTurnoResponse,
   TarifasResponse,
 } from './tarifa-response';
@@ -22,6 +26,14 @@ export class TarifasController {
     return this.tarifas.obtenerVigentes();
   }
 
+  @Get('historial')
+  @Roles('admin')
+  obtenerHistorial(
+    @Query() dto: ConsultarHistorialTarifasDto,
+  ): Promise<TarifaHistorialItemResponse[]> {
+    return this.tarifas.obtenerHistorial(dto);
+  }
+
   @Put('turno')
   @Roles('admin')
   actualizarTarifaTurno(@Body() dto: ActualizarTarifaTurnoDto): Promise<TarifaTurnoResponse> {
@@ -32,5 +44,11 @@ export class TarifasController {
   @Roles('admin')
   actualizarTarifaCuota(@Body() dto: ActualizarTarifaCuotaDto): Promise<TarifaCuotaResponse> {
     return this.tarifas.actualizarTarifaCuota(dto);
+  }
+
+  @Put('luz')
+  @Roles('admin')
+  actualizarTarifaLuz(@Body() dto: ActualizarTarifaLuzDto): Promise<TarifaLuzResponse> {
+    return this.tarifas.actualizarTarifaLuz(dto);
   }
 }

@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_CLERK_PUBLISHABLE_KEY?: string;
   readonly VITE_API_URL?: string;
+  readonly VITE_WHATSAPP_ADMIN?: string;
 }
 
 interface ImportMeta {

@@ -4,14 +4,7 @@ import { ClerkProvider } from '@clerk/react';
 import { esES } from '@clerk/localizations';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import { tokens } from './styles/tokens';
-
-// Base global minima: fondo whisper + texto musgo en las paginas con
-// Layout (login/registro ya resetean el body desde AuthMarca).
-document.body.style.margin = '0';
-document.body.style.backgroundColor = tokens.colors.whisper;
-document.body.style.color = tokens.colors.musgo;
-document.body.style.fontFamily = tokens.fonts.body;
+import './styles/index.css';
 
 // Localización rioplatense: parte de esES y overridea solo las strings
 // visibles del flujo sign-in/sign-up que estaban en peninsular o en

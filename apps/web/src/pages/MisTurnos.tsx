@@ -3,11 +3,6 @@ import { useAuth } from '@clerk/react';
 import { ApiError, api, type EstadoHistorial, type MiTurno, type TurnoConCanchaResponse } from '../lib/api';
 import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
-// Palette: refined green #384543, whisper white #F5F3EF,
-// peridot #328161, serene gray #8A9A93.
-
-// Date-only 'YYYY-MM-DD' must be formatted by string manipulation only:
-// new Date(fecha) parses as UTC and shifts the day in Argentina (UTC-3).
 function formatoFechaCorta(fecha: string): string {
   const partes = fecha.split('-');
   if (partes.length !== 3) {
@@ -47,7 +42,6 @@ export default function MisTurnos(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<EstadoHistorial>('finalizado');
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
-  // Inline cancellation form state (no modal): which row is expanded.
   const [cancelandoId, setCancelandoId] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
   const [enviandoCancelacion, setEnviandoCancelacion] = useState(false);
@@ -99,7 +93,6 @@ export default function MisTurnos(): JSX.Element {
     }
   }, []);
 
-  // Fetch vigentes on mount (once the token arrives); historial when its tab/filters change.
   useEffect(() => {
     if (token === null) {
       return;
@@ -152,44 +145,31 @@ export default function MisTurnos(): JSX.Element {
   }
 
   return (
-    <main
-      style={{
-        fontFamily: 'system-ui, sans-serif',
-        backgroundColor: '#F5F3EF',
-        color: '#384543',
-        minHeight: '100dvh',
-        padding: '2.5rem 1.5rem 3rem',
-      }}
-    >
-      <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <header style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <p style={{ margin: 0, fontSize: '0.85rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A9A93' }}>
+    <main className="py-10 px-6 pb-12 font-sans bg-whisper text-musgo min-h-dvh">
+      <div className="max-w-[960px] mx-auto flex flex-col gap-5">
+        <header className="flex flex-col gap-2">
+          <p className="m-0 text-sm tracking-[0.08em] uppercase text-sereno">
             Club · Mis reservas
           </p>
-          <h1 style={{ margin: 0, fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', lineHeight: 1.1 }}>
+          <h1 className="m-0 text-[clamp(1.8rem,4vw,2.6rem)] leading-[1.1]">
             Mis turnos
           </h1>
-          <p style={{ margin: 0, maxWidth: '65ch' }}>
+          <p className="m-0 max-w-[65ch]">
             Acá ves tus próximos turnos y tu historial. Podés cancelar hasta 1 hora antes del inicio.
           </p>
         </header>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }} role="tablist" aria-label="Mis turnos">
+        <div className="flex gap-2" role="tablist" aria-label="Mis turnos">
           <button
             type="button"
             role="tab"
             aria-selected={tab === 'vigentes'}
             onClick={() => setTab('vigentes')}
-            style={{
-              minHeight: '44px',
-              borderRadius: '0.75rem',
-              border: '1px solid #8A9A93',
-              padding: '0.6rem 1rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              backgroundColor: tab === 'vigentes' ? '#384543' : '#FFFFFF',
-              color: tab === 'vigentes' ? '#FFFFFF' : '#384543',
-            }}
+            className={`min-h-[44px] rounded-xl border border-sereno px-4 py-2.5 font-bold cursor-pointer transition-colors ${
+              tab === 'vigentes'
+                ? 'bg-musgo text-white'
+                : 'bg-white text-musgo'
+            }`}
           >
             Vigentes
           </button>
@@ -198,39 +178,29 @@ export default function MisTurnos(): JSX.Element {
             role="tab"
             aria-selected={tab === 'historial'}
             onClick={() => setTab('historial')}
-            style={{
-              minHeight: '44px',
-              borderRadius: '0.75rem',
-              border: '1px solid #8A9A93',
-              padding: '0.6rem 1rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              backgroundColor: tab === 'historial' ? '#384543' : '#FFFFFF',
-              color: tab === 'historial' ? '#FFFFFF' : '#384543',
-            }}
+            className={`min-h-[44px] rounded-xl border border-sereno px-4 py-2.5 font-bold cursor-pointer transition-colors ${
+              tab === 'historial'
+                ? 'bg-musgo text-white'
+                : 'bg-white text-musgo'
+            }`}
           >
             Historial
           </button>
         </div>
 
         {tab === 'historial' && (
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="flex gap-2 flex-wrap">
             {FILTROS_HISTORIAL.map((opcion) => (
               <button
                 key={opcion.valor}
                 type="button"
                 aria-pressed={filtro === opcion.valor}
                 onClick={() => setFiltro(opcion.valor)}
-                style={{
-                  minHeight: '44px',
-                  borderRadius: '999px',
-                  border: '1px solid #8A9A93',
-                  padding: '0.5rem 1rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  backgroundColor: filtro === opcion.valor ? '#328161' : '#FFFFFF',
-                  color: filtro === opcion.valor ? '#FFFFFF' : '#384543',
-                }}
+                className={`min-h-[44px] rounded-full border border-sereno px-4 py-2 font-semibold cursor-pointer transition-colors ${
+                  filtro === opcion.valor
+                    ? 'bg-peridot text-white'
+                    : 'bg-white text-musgo'
+                }`}
               >
                 {opcion.etiqueta}
               </button>
@@ -239,7 +209,7 @@ export default function MisTurnos(): JSX.Element {
         )}
 
         {mensajeExito && (
-          <p role="status" style={{ margin: 0, color: '#328161', fontWeight: 700 }}>
+          <p role="status" className="m-0 text-peridot font-bold">
             {mensajeExito}
           </p>
         )}
@@ -257,21 +227,13 @@ export default function MisTurnos(): JSX.Element {
         )}
 
         {!cargando && !error && turnos.length > 0 && (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <ul className="list-none m-0 p-0 flex flex-col gap-3">
             {turnos.map((turno) => (
               <li
                 key={turno.id}
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #8A9A93',
-                  borderRadius: '1rem',
-                  padding: '1rem 1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.5rem',
-                }}
+                className="bg-white border border-sereno rounded-2xl px-5 py-4 flex flex-col gap-2"
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
                   <strong>
                     Cancha {turno.cancha.nroCancha} · {formatoFechaCorta(turno.fecha)} · {turno.horaInicio}–{turno.horaFin}
                   </strong>
@@ -281,8 +243,8 @@ export default function MisTurnos(): JSX.Element {
                 {tab === 'vigentes' &&
                   ('puedeCancelar' in turno && turno.puedeCancelar ? (
                     cancelandoId === turno.id ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ display: 'grid', gap: '0.25rem', fontWeight: 600 }}>
+                      <div className="flex flex-col gap-2">
+                        <label className="grid gap-1 font-semibold">
                           Motivo de la cancelación
                           <textarea
                             value={motivo}
@@ -290,52 +252,31 @@ export default function MisTurnos(): JSX.Element {
                             rows={3}
                             onChange={(event) => setMotivo(event.target.value)}
                             placeholder="Contanos por qué cancelás"
-                            style={{
-                              borderRadius: '0.75rem',
-                              border: '1px solid #8A9A93',
-                              padding: '0.5rem 0.75rem',
-                              fontFamily: 'inherit',
-                              color: '#384543',
-                            }}
+                            className="rounded-xl border border-sereno px-3 py-2 font-[inherit] text-musgo"
                           />
                         </label>
                         {errorCancelacion && (
-                          <p role="alert" style={{ margin: 0, fontSize: '0.9rem', color: '#9B2C2C' }}>
+                          <p role="alert" className="m-0 text-sm text-error">
                             {errorCancelacion}
                           </p>
                         )}
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <div className="flex gap-2 flex-wrap">
                           <button
                             type="button"
                             disabled={enviandoCancelacion || motivo.trim().length === 0}
                             onClick={() => void confirmarCancelacion(turno.id)}
-                            style={{
-                              minHeight: '44px',
-                              backgroundColor: '#9B2C2C',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              borderRadius: '0.75rem',
-                              padding: '0.6rem 1rem',
-                              fontWeight: 700,
-                              cursor: enviandoCancelacion ? 'wait' : 'pointer',
-                              opacity: enviandoCancelacion || motivo.trim().length === 0 ? 0.6 : 1,
-                            }}
+                            className={`min-h-[44px] bg-error text-white border-none rounded-xl px-4 py-2.5 font-bold transition-opacity ${
+                              enviandoCancelacion || motivo.trim().length === 0
+                                ? 'opacity-60 cursor-not-allowed'
+                                : 'opacity-100 cursor-pointer'
+                            }`}
                           >
                             {enviandoCancelacion ? 'Cancelando…' : 'Confirmar cancelación'}
                           </button>
                           <button
                             type="button"
                             onClick={cerrarCancelacion}
-                            style={{
-                              minHeight: '44px',
-                              backgroundColor: 'transparent',
-                              color: '#384543',
-                              border: '1px solid #8A9A93',
-                              borderRadius: '0.75rem',
-                              padding: '0.6rem 1rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                            }}
+                            className="min-h-[44px] bg-transparent text-musgo border border-sereno rounded-xl px-4 py-2.5 font-semibold cursor-pointer"
                           >
                             Volver
                           </button>
@@ -346,23 +287,14 @@ export default function MisTurnos(): JSX.Element {
                         <button
                           type="button"
                           onClick={() => abrirCancelacion(turno.id)}
-                          style={{
-                            minHeight: '44px',
-                            backgroundColor: 'transparent',
-                            color: '#9B2C2C',
-                            border: '1px solid #9B2C2C',
-                            borderRadius: '0.75rem',
-                            padding: '0.6rem 1rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
+                          className="min-h-[44px] bg-transparent text-error border border-error rounded-xl px-4 py-2.5 font-bold cursor-pointer"
                         >
                           Cancelar
                         </button>
                       </div>
                     )
                   ) : (
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#8A9A93' }}>
+                    <p className="m-0 text-sm text-sereno">
                       Ya no se puede cancelar (menos de 1 h)
                     </p>
                   ))}

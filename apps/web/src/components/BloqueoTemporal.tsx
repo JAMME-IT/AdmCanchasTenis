@@ -4,35 +4,16 @@ interface BloqueoTemporalProps {
   motivo?: string;
 }
 
-const chipStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '0.5rem',
-  fontSize: '0.8rem',
-  fontWeight: 600,
-  letterSpacing: '0.01em',
-  color: '#384543',
-  backgroundColor: '#F5F3EF',
-  border: '1px solid #8A9A93',
-  borderRadius: '999px',
-  padding: '0.3rem 0.75rem',
-  lineHeight: 1.2,
-};
-
-const dotStyle: React.CSSProperties = {
-  width: '0.5rem',
-  height: '0.5rem',
-  borderRadius: '999px',
-  backgroundColor: '#328161',
-  flexShrink: 0,
-};
-
 export default function BloqueoTemporal({ motivo }: BloqueoTemporalProps): JSX.Element {
   // Keep the label fixed; only the short reason varies.
   const label = motivo ? `Bloqueado momentáneamente · ${motivo}` : 'Bloqueado momentáneamente';
   return (
-    <span style={chipStyle} role="status" aria-label={label}>
-      <span style={dotStyle} aria-hidden="true" />
+    <span
+      className="inline-flex items-center gap-2 text-sm font-semibold tracking-[0.01em] text-musgo bg-whisper border border-sereno rounded-full px-3 py-1.5 leading-[1.2] cursor-default"
+      role="status"
+      aria-label={label}
+    >
+      <span className="w-2 h-2 rounded-full bg-peridot flex-shrink-0" aria-hidden="true" />
       {label}
     </span>
   );

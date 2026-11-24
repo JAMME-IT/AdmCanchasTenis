@@ -11,6 +11,13 @@ export function normalizarWhatsApp(valor: string | undefined): string {
   return (valor ?? '').replace(/\D/g, '');
 }
 
+export function mensajeAltaSocio(usuario: UsuarioWhatsApp): string {
+  return (
+    'Hola, quiero solicitar el alta como socio del Tenis Ranch Club. ' +
+    `Soy ${usuario.nombre} ${usuario.apellido} (usuario: @${usuario.username}).`
+  );
+}
+
 export function urlAltaSocio(
   telefono: string | undefined,
   usuario: UsuarioWhatsApp,
@@ -19,8 +26,5 @@ export function urlAltaSocio(
   if (numero.length < 8) {
     return null;
   }
-  const mensaje =
-    'Hola, quiero solicitar el alta como socio del Tenis Ranch Club. ' +
-    `Soy ${usuario.nombre} ${usuario.apellido} (usuario: @${usuario.username}).`;
-  return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+  return `https://wa.me/${numero}?text=${encodeURIComponent(mensajeAltaSocio(usuario))}`;
 }

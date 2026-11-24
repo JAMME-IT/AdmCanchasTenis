@@ -4,6 +4,8 @@
  * (camelCase, number money, timestamp with local offset).
  */
 
+import type { TipoTarifaHistorial } from './dto/consultar-historial-tarifas.dto';
+
 export interface TarifaTurnoResponse {
   id: string;
   costoXHora: number;
@@ -67,9 +69,16 @@ function aNumero(valor: unknown): number {
 }
 
 /**
- * Hora `HH:MM` del contrato. Prisma devuelve TIME como "HH:MM:SS[.f]" según adapter.
+ * Hora `HH:MM` del contrato. Prisma entrega `@db.Time` como `Date` anclada al
+ * epoch UTC (ver `time()` en prisma/seed.ts); otros adapters lo devuelven como
+ * string "HH:MM:SS[.f]". Ambos formatos se normalizan acá.
  */
 function aHora(valor: unknown): string {
+  if (valor instanceof Date) {
+    const horas = String(valor.getUTCHours()).padStart(2, '0');
+    const minutos = String(valor.getUTCMinutes()).padStart(2, '0');
+    return `${horas}:${minutos}`;
+  }
   return String(valor).slice(0, 5);
 }
 
@@ -120,5 +129,23 @@ export function toTarifaLuzResponse(
     franjaHorarioInicio: aHora(fila.franja_horario_inicio),
     franjaHorarioFin: aHora(fila.franja_horario_fin),
     fechaCambio: formatearFechaCambio(fechaCambio),
+  };
+}
+
+export interface TarifaHistorialItemResponse {
+  tipo: TipoTarifaHistorial;
+  monto: number;
+  fechaCambio: string;
+}
+
+export function toTarifaHistorialItemResponse(
+  tipo: TipoTarifaHistorial,
+  monto: unknown,
+  fecha: Date,
+): TarifaHistorialItemResponse {
+  return {
+    tipo,
+    monto: aNumero(monto),
+    fechaCambio: formatearFechaCambio(fecha),
   };
 }

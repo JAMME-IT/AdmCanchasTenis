@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
 import { Calendar, Clock, CreditCard, Shield, TrendingUp } from 'lucide-react';
 import { ApiError, api, type Usuario } from '../lib/api';
+import WhatsAppAltaSocio from '../components/WhatsAppAltaSocio';
 import { Skeleton } from '../components/Feedback';
 
 export default function Home(): JSX.Element {
@@ -132,6 +133,8 @@ export default function Home(): JSX.Element {
             </Link>
           </div>
         </section>
+
+        {usuario?.rol === 'no_socio' && <WhatsAppAltaSocio usuario={usuario} />}
 
         {/* Admin section */}
         {usuario?.rol === 'admin' && (

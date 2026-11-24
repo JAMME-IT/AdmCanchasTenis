@@ -88,8 +88,10 @@ export function EmptyState({ message }: { message: string }): JSX.Element {
 
 // ---------------------------------------------------------------------------
 // StatusPill: semantic colors per estado.
-// green: confirmado / finalizado / pagada · gray: cancelado / cancelada
-// amber: adeudada / pendiente / parcial · red: vencida / no_asistio
+// green: confirmado / finalizado / pagada / disponible
+// gray: cancelado / cancelada
+// amber: adeudada / pendiente / parcial / en_mantenimiento
+// red: vencida / no_asistio / inhabilitada
 // Color never stands alone: the estado label is always rendered as text.
 // ---------------------------------------------------------------------------
 const PILL_CLASSES: Record<string, string> = {
@@ -102,7 +104,13 @@ const PILL_CLASSES: Record<string, string> = {
 
 function pillTone(estado: string): keyof typeof PILL_CLASSES {
   const key = estado.trim().toLowerCase();
-  if (key === 'confirmado' || key === 'confirmada' || key === 'finalizado' || key === 'pagada') {
+  if (
+    key === 'confirmado' ||
+    key === 'confirmada' ||
+    key === 'finalizado' ||
+    key === 'pagada' ||
+    key === 'disponible'
+  ) {
     return 'green';
   }
   if (key === 'cancelado' || key === 'cancelada') {
@@ -112,11 +120,17 @@ function pillTone(estado: string): keyof typeof PILL_CLASSES {
     key === 'adeudada' ||
     key === 'adeudado' ||
     key === 'pendiente' ||
-    key === 'parcial'
+    key === 'parcial' ||
+    key === 'en_mantenimiento'
   ) {
     return 'amber';
   }
-  if (key === 'vencida' || key === 'vencido' || key === 'no_asistio') {
+  if (
+    key === 'vencida' ||
+    key === 'vencido' ||
+    key === 'no_asistio' ||
+    key === 'inhabilitada'
+  ) {
     return 'red';
   }
   return 'neutral';

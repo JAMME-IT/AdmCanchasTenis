@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
 import { Calendar, Clock, CreditCard, Shield, TrendingUp } from 'lucide-react';
 import { ApiError, api, type Usuario } from '../lib/api';
-import { urlAltaSocio } from '../lib/whatsapp';
+import WhatsAppAltaSocio from '../components/WhatsAppAltaSocio';
 import { Skeleton } from '../components/Feedback';
 
 export default function Home(): JSX.Element {
@@ -30,11 +30,6 @@ export default function Home(): JSX.Element {
     }
     void cargarPerfil();
   }, [cargarPerfil, isLoaded, isSignedIn]);
-
-  const altaSocioUrl =
-    usuario && usuario.rol === 'no_socio'
-      ? urlAltaSocio(import.meta.env.VITE_WHATSAPP_ADMIN, usuario)
-      : null;
 
   if (!isLoaded) {
     return (
@@ -139,30 +134,7 @@ export default function Home(): JSX.Element {
           </div>
         </section>
 
-        {usuario?.rol === 'no_socio' && (
-          <section className="flex flex-col gap-3 bg-white rounded-2xl p-6 border-2 border-peridot shadow-[0_2px_8px_rgba(56,69,67,0.08)]">
-            <h2 className="m-0 text-xl font-semibold text-musgo">¿Querés ser socio?</h2>
-            <p className="m-0 text-[#5A6661] leading-relaxed">
-              El alta de socio se coordina por WhatsApp con la administradora. Escribile con
-              tus datos y el club actualiza tu rol.
-            </p>
-            {altaSocioUrl ? (
-              <a
-                href={altaSocioUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center self-start min-h-11 px-5 rounded-lg bg-peridot text-white font-semibold no-underline transition-colors duration-200 hover:bg-fairway"
-              >
-                Pedir alta por WhatsApp
-              </a>
-            ) : (
-              <p role="status" className="m-0 text-[#5A6661]">
-                El WhatsApp de la administradora no está configurado. Pedile el alta al club
-                por el canal de siempre.
-              </p>
-            )}
-          </section>
-        )}
+        {usuario?.rol === 'no_socio' && <WhatsAppAltaSocio usuario={usuario} />}
 
         {/* Admin section */}
         {usuario?.rol === 'admin' && (

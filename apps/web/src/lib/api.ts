@@ -254,7 +254,21 @@ export interface HistorialParams {
   hasta?: string;
 }
 
-/** ACT-43: lighting config returned by GET /tarifas (edited via PUT /tarifas/luz). */
+/** ACT-42: current turno tariff (PUT /tarifas/turno, GET /tarifas). */
+export interface TarifaTurno {
+  id: string;
+  costoXHora: number;
+  fechaCambio: string;
+}
+
+/** ACT-42: current monthly membership tariff (PUT /tarifas/cuota). */
+export interface TarifaCuota {
+  id: string;
+  precio: number;
+  fechaCambio: string;
+}
+
+/** Read-only lighting config returned by GET /tarifas; edited in ACT-43. */
 export interface TarifaLuz {
   id: string;
   costoXHora: number;
@@ -263,11 +277,10 @@ export interface TarifaLuz {
   fechaCambio: string;
 }
 
-/** GET /tarifas response; only `luz` is used by the ACT-43 tab. */
 export interface TarifasResponse {
-  turno: { id: string; costoXHora: number; fechaCambio: string } | null;
+  turno: TarifaTurno | null;
   luz: TarifaLuz | null;
-  cuota: { id: string; precio: number; fechaCambio: string } | null;
+  cuota: TarifaCuota | null;
 }
 
 /** GET /pagos-luz item (ACT-43). */
@@ -358,6 +371,16 @@ export const api = {
     },
   ): Promise<TarifaLuz> =>
     request<TarifaLuz>('/tarifas/luz', { method: 'PUT', token, body }),
+  actualizarTarifaTurno: (
+    token: string | null,
+    body: { costoXHora: number },
+  ): Promise<TarifaTurno> =>
+    request<TarifaTurno>('/tarifas/turno', { method: 'PUT', token, body }),
+  actualizarTarifaCuota: (
+    token: string | null,
+    body: { precio: number },
+  ): Promise<TarifaCuota> =>
+    request<TarifaCuota>('/tarifas/cuota', { method: 'PUT', token, body }),
   pagosLuz: (token: string | null, params?: PagosLuzParams): Promise<PagoLuz[]> => {
     const query = new URLSearchParams();
     if (params?.turnoId) {

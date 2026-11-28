@@ -306,6 +306,24 @@ export interface CrearPagoLuzBody {
   montoTotalLuz: number;
   fechaPago?: string;
 }
+
+export type TipoTarifaHistorial = 'turno' | 'luz' | 'cuota';
+
+/** GET /tarifas/historial item (ACT-44). */
+export interface TarifaHistorialItem {
+  tipo: TipoTarifaHistorial;
+  monto: number;
+  fechaCambio: string;
+}
+
+export interface HistorialTarifasParams {
+  tipo?: TipoTarifaHistorial;
+  desde?: string;
+  hasta?: string;
+  montoMin?: number;
+  montoMax?: number;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -362,6 +380,29 @@ export const api = {
   me: (token: string | null): Promise<Usuario> => request<Usuario>('/auth/me', { token }),
   tarifas: (token: string | null): Promise<TarifasResponse> =>
     request<TarifasResponse>('/tarifas', { token }),
+  historialTarifas: (
+    token: string | null,
+    params?: HistorialTarifasParams,
+  ): Promise<TarifaHistorialItem[]> => {
+    const query = new URLSearchParams();
+    if (params?.tipo) {
+      query.set('tipo', params.tipo);
+    }
+    if (params?.desde) {
+      query.set('desde', params.desde);
+    }
+    if (params?.hasta) {
+      query.set('hasta', params.hasta);
+    }
+    if (params?.montoMin !== undefined) {
+      query.set('montoMin', String(params.montoMin));
+    }
+    if (params?.montoMax !== undefined) {
+      query.set('montoMax', String(params.montoMax));
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<TarifaHistorialItem[]>(`/tarifas/historial${suffix}`, { token });
+  },
   actualizarTarifaLuz: (
     token: string | null,
     body: {

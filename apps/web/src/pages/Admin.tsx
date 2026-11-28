@@ -17,15 +17,18 @@ import {
   type EstadoCanchaValor,
   type EstadisticasResponse,
   type FinancieroResponse,
+  type PagoLuz,
   type PagoTurno,
+  type PagosLuzParams,
   type RangoHorarioBody,
   type SuperficieCancha,
+  type TarifaLuz,
   type TurnoAdmin,
   type Usuario,
 } from '../lib/api';
 import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
-type Tab = 'turnos' | 'canchas' | 'pagos' | 'reportes' | 'usuarios' | 'config';
+type Tab = 'turnos' | 'canchas' | 'pagos' | 'reportes' | 'usuarios' | 'luz' | 'config';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'turnos', label: 'Turnos' },
@@ -33,6 +36,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'pagos', label: 'Pagos' },
   { id: 'reportes', label: 'Reportes' },
   { id: 'usuarios', label: 'Usuarios' },
+  { id: 'luz', label: 'Luz' },
   { id: 'config', label: 'Configuración' },
 ];
 
@@ -597,6 +601,15 @@ function formatoMoneda(valor: number): string {
   }).format(valor);
 }
 
+/** Light and payment amounts allow cents (ACT-43). */
+function formatoMonedaLuz(valor: number): string {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 2,
+  }).format(valor);
+}
+
 function formatoFechaCorta(fecha: string): string {
   const [anio, mes, dia] = fecha.slice(0, 10).split('-');
   return `${dia}/${mes}/${anio}`;
@@ -617,6 +630,11 @@ function etiquetaSuperficie(superficie: SuperficieCancha): string {
 /** Keeps the court list in the same order the API returns it. */
 function ordenarCanchas(lista: Cancha[]): Cancha[] {
   return [...lista].sort((a, b) => a.nroCancha - b.nroCancha);
+}
+
+/** Resolves the court number from a payment's `canchaId` (ACT-43). */
+function nroCanchaPorId(canchas: Cancha[], id: string): number | null {
+  return canchas.find((cancha) => cancha.id === id)?.nroCancha ?? null;
 }
 
 function etiquetaEstadoCancha(estado: EstadoCanchaValor): string {
@@ -672,6 +690,26 @@ export default function Admin(): JSX.Element {
   const [guardandoCancha, setGuardandoCancha] = useState(false);
   const [editandoCanchaId, setEditandoCanchaId] = useState<string | null>(null);
   const [formCanchaEdicion, setFormCanchaEdicion] = useState<FormEdicionCanchaT | null>(null);
+  const [luz, setLuz] = useState<TarifaLuz | null>(null);
+  const [formLuzCosto, setFormLuzCosto] = useState('');
+  const [formLuzInicio, setFormLuzInicio] = useState('18:30');
+  const [formLuzFin, setFormLuzFin] = useState('22:00');
+  const [guardandoLuz, setGuardandoLuz] = useState(false);
+  const [errorLuz, setErrorLuz] = useState<string | null>(null);
+  const [mensajeLuz, setMensajeLuz] = useState<string | null>(null);
+  const [pagosLuz, setPagosLuz] = useState<PagoLuz[]>([]);
+  const [turnosLuz, setTurnosLuz] = useState<TurnoAdmin[]>([]);
+  const [canchasLuz, setCanchasLuz] = useState<Cancha[]>([]);
+  const [formPagoTurno, setFormPagoTurno] = useState('');
+  const [formPagoMonto, setFormPagoMonto] = useState('');
+  const [formPagoFecha, setFormPagoFecha] = useState('');
+  const [guardandoPagoLuz, setGuardandoPagoLuz] = useState(false);
+  const [errorPagoLuz, setErrorPagoLuz] = useState<string | null>(null);
+  const [mensajePagoLuz, setMensajePagoLuz] = useState<string | null>(null);
+  const [filtroTurnoPago, setFiltroTurnoPago] = useState('');
+  const [filtroUsuarioPago, setFiltroUsuarioPago] = useState('');
+  const [filtroDesdePago, setFiltroDesdePago] = useState('');
+  const [filtroHastaPago, setFiltroHastaPago] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -724,6 +762,28 @@ export default function Admin(): JSX.Element {
           setUsuarios(await api.usuarios(authToken));
         } else if (tabActual === 'canchas') {
           setCanchas(await api.canchas(authToken, { conEstados: true }));
+        } else if (tabActual === 'luz') {
+          const [tarifasData, pagosData, turnosData, canchasData] = await Promise.all([
+            api.tarifas(authToken),
+            api.pagosLuz(authToken),
+            api.turnosAdmin(authToken),
+            api.canchas(authToken),
+          ]);
+          setLuz(tarifasData.luz);
+          setFormLuzCosto(tarifasData.luz ? String(tarifasData.luz.costoXHora) : '');
+          setFormLuzInicio(tarifasData.luz?.franjaHorarioInicio ?? '18:30');
+          setFormLuzFin(tarifasData.luz?.franjaHorarioFin ?? '22:00');
+          setPagosLuz(pagosData);
+          setCanchasLuz(canchasData);
+          const pagados = new Set(pagosData.map((pago) => pago.turnoId));
+          setTurnosLuz(
+            turnosData.filter(
+              (turno) =>
+                turno.requiereLuz &&
+                turno.estadoActual !== 'cancelado' &&
+                !pagados.has(turno.id),
+            ),
+          );
         } else {
           const [est, fin] = await Promise.all([
             api.estadisticas(authToken),
@@ -794,6 +854,147 @@ export default function Admin(): JSX.Element {
       }
     },
     [dias, rangos],
+  );
+
+  /** Saves the lighting config (ACT-43). PUT is admin-only. */
+  const guardarLuz = useCallback(
+    async (authToken: string | null) => {
+      setErrorLuz(null);
+      setMensajeLuz(null);
+      const costoTexto = formLuzCosto.trim();
+      if (costoTexto === '') {
+        setErrorLuz('El costo de luz es obligatorio.');
+        return;
+      }
+      if (!/^\d+(\.\d{1,2})?$/.test(costoTexto)) {
+        setErrorLuz('El costo debe ser un número mayor o igual a 0 con hasta 2 decimales.');
+        return;
+      }
+      const costo = Number(costoTexto);
+      const inicio = formLuzInicio.trim();
+      const fin = formLuzFin.trim();
+      if ((inicio === '') !== (fin === '')) {
+        setErrorLuz('La franja debe tener inicio y fin, o quedar los dos vacíos.');
+        return;
+      }
+      if (inicio !== '' && fin !== '') {
+        if (
+          !/^([01]\d|2[0-3]):[0-5]\d$/.test(inicio) ||
+          !/^([01]\d|2[0-3]):[0-5]\d$/.test(fin)
+        ) {
+          setErrorLuz('La franja debe usar el formato HH:MM.');
+          return;
+        }
+        if (fin <= inicio) {
+          setErrorLuz('El fin de la franja debe ser posterior al inicio.');
+          return;
+        }
+      }
+
+      setGuardandoLuz(true);
+      try {
+        const actualizada = await api.actualizarTarifaLuz(authToken, {
+          costoXHora: costo,
+          ...(inicio !== '' && fin !== ''
+            ? { franjaHorarioInicio: inicio, franjaHorarioFin: fin }
+            : {}),
+        });
+        setLuz(actualizada);
+        setFormLuzCosto(String(actualizada.costoXHora));
+        setFormLuzInicio(actualizada.franjaHorarioInicio);
+        setFormLuzFin(actualizada.franjaHorarioFin);
+        setMensajeLuz('Configuración de luz actualizada.');
+      } catch (caught) {
+        setErrorLuz(
+          caught instanceof ApiError ? caught.message : 'No se pudo guardar la luz.',
+        );
+      } finally {
+        setGuardandoLuz(false);
+      }
+    },
+    [formLuzCosto, formLuzInicio, formLuzFin],
+  );
+
+  /** Reloads the luz payments with the current filters (ACT-43). */
+  const cargarPagosLuz = useCallback(
+    async (authToken: string | null) => {
+      setErrorPagoLuz(null);
+      try {
+        const params: PagosLuzParams = {
+          ...(filtroTurnoPago.trim() !== '' ? { turnoId: filtroTurnoPago.trim() } : {}),
+          ...(filtroUsuarioPago.trim() !== ''
+            ? { usuarioId: filtroUsuarioPago.trim() }
+            : {}),
+          ...(filtroDesdePago !== '' ? { desde: filtroDesdePago } : {}),
+          ...(filtroHastaPago !== '' ? { hasta: filtroHastaPago } : {}),
+        };
+        setPagosLuz(await api.pagosLuz(authToken, params));
+      } catch (caught) {
+        setErrorPagoLuz(
+          caught instanceof ApiError ? caught.message : 'No se pudieron cargar los pagos.',
+        );
+      }
+    },
+    [filtroTurnoPago, filtroUsuarioPago, filtroDesdePago, filtroHastaPago],
+  );
+
+  /** Registers one verified lighting payment (ACT-43). */
+  const registrarPagoLuz = useCallback(
+    async (authToken: string | null) => {
+      setErrorPagoLuz(null);
+      setMensajePagoLuz(null);
+      if (formPagoTurno.trim() === '') {
+        setErrorPagoLuz('Elegí un turno.');
+        return;
+      }
+      const montoTexto =
+        formPagoMonto.trim() !== '' ? formPagoMonto.trim() : luz ? String(luz.costoXHora) : '';
+      if (!/^\d+(\.\d{1,2})?$/.test(montoTexto)) {
+        setErrorPagoLuz('El monto debe ser un número mayor a 0 con hasta 2 decimales.');
+        return;
+      }
+      const monto = Number(montoTexto);
+      if (!Number.isFinite(monto) || monto <= 0) {
+        setErrorPagoLuz('El monto debe ser mayor a 0.');
+        return;
+      }
+      let fechaPago: string | undefined;
+      if (formPagoFecha.trim() !== '') {
+        const parsed = new Date(formPagoFecha);
+        if (Number.isNaN(parsed.getTime())) {
+          setErrorPagoLuz('La fecha de pago no es válida.');
+          return;
+        }
+        if (parsed.getTime() > Date.now()) {
+          setErrorPagoLuz('La fecha de pago no puede ser futura.');
+          return;
+        }
+        fechaPago = parsed.toISOString();
+      }
+
+      const turnoId = formPagoTurno.trim();
+      setGuardandoPagoLuz(true);
+      try {
+        const creado = await api.registrarPagoLuz(authToken, {
+          turnoId,
+          montoTotalLuz: monto,
+          ...(fechaPago !== undefined ? { fechaPago } : {}),
+        });
+        setPagosLuz((prev) => [creado, ...prev]);
+        setTurnosLuz((prev) => prev.filter((turno) => turno.id !== turnoId));
+        setFormPagoTurno('');
+        setFormPagoMonto('');
+        setFormPagoFecha('');
+        setMensajePagoLuz('Pago de luz registrado.');
+      } catch (caught) {
+        setErrorPagoLuz(
+          caught instanceof ApiError ? caught.message : 'No se pudo registrar el pago.',
+        );
+      } finally {
+        setGuardandoPagoLuz(false);
+      }
+    },
+    [formPagoTurno, formPagoMonto, formPagoFecha, luz],
   );
 
   /** Opens the inline edit form for one user. */
@@ -1643,6 +1844,294 @@ export default function Admin(): JSX.Element {
                 </li>
               )}
             </ul>
+          )}
+        </section>
+      )}
+
+      {tab === 'luz' && (
+        <section aria-label="Luz" className="flex flex-col gap-4">
+          <header className="flex flex-col gap-1">
+            <h2 className="m-0 text-lg font-semibold text-musgo">Luz</h2>
+            <p className="m-0 text-sm text-[#5A6661]">
+              Configurá el costo y la franja de iluminación, y registrá los pagos del cargo de luz
+              por turno.
+            </p>
+          </header>
+
+          {cargando ? (
+            <Skeleton rows={4} label="Cargando luz y pagos…" />
+          ) : error ? (
+            <ErrorCard message={error} onRetry={() => void cargar(token, 'luz')} />
+          ) : (
+            <>
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)] flex flex-col gap-3">
+                <div>
+                  <h3 className="m-0 text-lg font-semibold text-musgo">Configuración de luz</h3>
+                  <p className="m-0 mt-1 text-sm text-[#5A6661]">
+                    El costo se versiona en el historial cuando cambia; la franja no.
+                  </p>
+                </div>
+                {luz !== null ? (
+                  <div className="flex gap-6 flex-wrap items-baseline">
+                    <p className="m-0 text-3xl font-display tabular-nums text-musgo">
+                      {formatoMonedaLuz(luz.costoXHora)}
+                      <span className="text-sm font-body text-[#5A6661]"> /hora</span>
+                    </p>
+                    <p className="m-0 text-sm text-[#5A6661]">
+                      Franja {luz.franjaHorarioInicio}–{luz.franjaHorarioFin}
+                    </p>
+                    <p className="m-0 text-xs text-[#5A6661]">
+                      Vigente desde {formatoFechaHora(luz.fechaCambio)}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="m-0 text-sm text-[#5A6661]">Sin configuración de luz.</p>
+                )}
+                {errorLuz !== null && (
+                  <div
+                    role="alert"
+                    className="bg-white border border-error rounded-lg p-4 text-error"
+                  >
+                    {errorLuz}
+                  </div>
+                )}
+                {mensajeLuz !== null && (
+                  <div
+                    role="status"
+                    className="bg-[#DDF0E3] border border-peridot rounded-lg p-4 text-[#1F6B45]"
+                  >
+                    {mensajeLuz}
+                  </div>
+                )}
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void guardarLuz(token);
+                  }}
+                  className="flex gap-3 flex-wrap items-end mt-2"
+                >
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_160px]">
+                    Costo por hora
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      aria-label="Costo de luz por hora"
+                      value={formLuzCosto}
+                      onChange={(event) => setFormLuzCosto(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+                    Desde
+                    <input
+                      type="time"
+                      aria-label="Inicio de la franja de luz"
+                      value={formLuzInicio}
+                      onChange={(event) => setFormLuzInicio(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+                    Hasta
+                    <input
+                      type="time"
+                      aria-label="Fin de la franja de luz"
+                      value={formLuzFin}
+                      onChange={(event) => setFormLuzFin(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={guardandoLuz}
+                    className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    {guardandoLuz ? 'Guardando…' : 'Guardar luz'}
+                  </button>
+                </form>
+              </article>
+
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)] flex flex-col gap-3">
+                <div>
+                  <h3 className="m-0 text-lg font-semibold text-musgo">Pagos de luz</h3>
+                  <p className="m-0 mt-1 text-sm text-[#5A6661]">
+                    Registrá el pago verificado del cargo de luz de un turno nocturno. Un pago por
+                    turno.
+                  </p>
+                </div>
+                {errorPagoLuz !== null && (
+                  <div
+                    role="alert"
+                    className="bg-white border border-error rounded-lg p-4 text-error"
+                  >
+                    {errorPagoLuz}
+                  </div>
+                )}
+                {mensajePagoLuz !== null && (
+                  <div
+                    role="status"
+                    className="bg-[#DDF0E3] border border-peridot rounded-lg p-4 text-[#1F6B45]"
+                  >
+                    {mensajePagoLuz}
+                  </div>
+                )}
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void registrarPagoLuz(token);
+                  }}
+                  className="flex gap-3 flex-wrap items-end"
+                >
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_260px]">
+                    Turno
+                    <select
+                      aria-label="Turno con luz"
+                      value={formPagoTurno}
+                      onChange={(event) => {
+                        setFormPagoTurno(event.target.value);
+                        if (event.target.value !== '' && luz !== null) {
+                          setFormPagoMonto(String(luz.costoXHora));
+                        }
+                      }}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    >
+                      <option value="">Elegir…</option>
+                      {turnosLuz.map((turno) => (
+                        <option key={turno.id} value={turno.id}>
+                          Cancha {turno.cancha.nroCancha} · {formatoFechaCorta(turno.fecha)}{' '}
+                          {turno.horaInicio.slice(0, 5)} · {turno.usuario.nombre}{' '}
+                          {turno.usuario.apellido}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_140px]">
+                    Monto
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      aria-label="Monto total de luz"
+                      value={formPagoMonto}
+                      onChange={(event) => setFormPagoMonto(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_180px]">
+                    Fecha de pago (opcional)
+                    <input
+                      type="datetime-local"
+                      aria-label="Fecha de pago de luz"
+                      value={formPagoFecha}
+                      onChange={(event) => setFormPagoFecha(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={guardandoPagoLuz || formPagoTurno === ''}
+                    className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {guardandoPagoLuz ? 'Registrando…' : 'Registrar pago'}
+                  </button>
+                </form>
+                {turnosLuz.length === 0 && (
+                  <p className="m-0 text-sm text-[#5A6661]">
+                    No hay turnos con luz pendientes de pago.
+                  </p>
+                )}
+
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void cargarPagosLuz(token);
+                  }}
+                  className="flex gap-3 flex-wrap items-end mt-4 pt-4 border-t border-[#ECEEEB]"
+                >
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_180px]">
+                    Turno ID
+                    <input
+                      type="text"
+                      aria-label="Filtrar pagos por turno"
+                      value={filtroTurnoPago}
+                      onChange={(event) => setFiltroTurnoPago(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_180px]">
+                    Usuario ID
+                    <input
+                      type="text"
+                      aria-label="Filtrar pagos por usuario"
+                      value={filtroUsuarioPago}
+                      onChange={(event) => setFiltroUsuarioPago(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+                    Desde
+                    <input
+                      type="date"
+                      aria-label="Filtrar pagos desde"
+                      value={filtroDesdePago}
+                      onChange={(event) => setFiltroDesdePago(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+                    Hasta
+                    <input
+                      type="date"
+                      aria-label="Filtrar pagos hasta"
+                      value={filtroHastaPago}
+                      onChange={(event) => setFiltroHastaPago(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none"
+                  >
+                    Filtrar
+                  </button>
+                </form>
+
+                {pagosLuz.length === 0 ? (
+                  <EmptyState message="No hay pagos de luz registrados." />
+                ) : (
+                  <ul className="list-none m-0 p-0 grid gap-3">
+                    {pagosLuz.map((pago) => (
+                      <li
+                        key={pago.id}
+                        className="bg-[#FBFCFB] rounded-md p-4 border border-[#ECEEEB]"
+                      >
+                        <div className="flex gap-3 flex-wrap items-center justify-between">
+                          <strong className="text-musgo">
+                            {formatoMonedaLuz(pago.montoTotalLuz)}
+                          </strong>
+                          <span className="text-sm text-[#5A6661]">
+                            {formatoFechaHora(pago.fechaPago)}
+                          </span>
+                        </div>
+                        <p className="m-0 mt-1 text-sm text-[#5A6661]">
+                          Cancha {nroCanchaPorId(canchasLuz, pago.turno.canchaId) ?? '—'} ·{' '}
+                          {formatoFechaCorta(pago.turno.fecha)} {pago.turno.horaInicio.slice(0, 5)}
+                        </p>
+                        <p className="m-0 text-sm text-[#5A6661]">
+                          {pago.usuario.nombre} {pago.usuario.apellido}
+                          {pago.usuario.numeroSocio !== null
+                            ? ` · socio ${pago.usuario.numeroSocio}`
+                            : ''}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            </>
           )}
         </section>
       )}

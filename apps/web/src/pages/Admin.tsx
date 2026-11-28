@@ -17,13 +17,16 @@ import {
   type EstadoCanchaValor,
   type EstadisticasResponse,
   type FinancieroResponse,
+  type HistorialTarifasParams,
   type PagoLuz,
   type PagoTurno,
   type PagosLuzParams,
   type RangoHorarioBody,
   type SuperficieCancha,
+  type TarifaHistorialItem,
   type TarifaLuz,
   type TarifasResponse,
+  type TipoTarifaHistorial,
   type TurnoAdmin,
   type Usuario,
 } from '../lib/api';
@@ -37,6 +40,7 @@ type Tab =
   | 'usuarios'
   | 'tarifas'
   | 'luz'
+  | 'historial'
   | 'config';
 
 const TABS: { id: Tab; label: string }[] = [
@@ -47,6 +51,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'usuarios', label: 'Usuarios' },
   { id: 'tarifas', label: 'Tarifas' },
   { id: 'luz', label: 'Luz' },
+  { id: 'historial', label: 'Historial' },
   { id: 'config', label: 'Configuración' },
 ];
 
@@ -81,6 +86,19 @@ const ETIQUETAS_ROL: Record<string, string> = {
   admin: 'Admin',
   socio: 'Socio',
   no_socio: 'No Socio',
+};
+
+/** Human labels for the tariff history type (ACT-44). */
+const ETIQUETAS_TIPO_TARIFA: Record<TipoTarifaHistorial, string> = {
+  turno: 'Turno',
+  luz: 'Luz',
+  cuota: 'Cuota',
+};
+
+const CHIP_TIPO_TARIFA: Record<TipoTarifaHistorial, string> = {
+  turno: 'bg-[#E8F5F0] text-musgo',
+  luz: 'bg-[#FDF0D5] text-[#7A5200]',
+  cuota: 'bg-[#ECEEEB] text-[#5A6661]',
 };
 
 const ROLES = ['admin', 'socio', 'no_socio'] as const;
@@ -735,6 +753,14 @@ export default function Admin(): JSX.Element {
   const [guardandoTarifa, setGuardandoTarifa] = useState<'turno' | 'cuota' | null>(null);
   const [errorTarifas, setErrorTarifas] = useState<string | null>(null);
   const [mensajeTarifas, setMensajeTarifas] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<TarifaHistorialItem[]>([]);
+  const [filtroTipoHistorial, setFiltroTipoHistorial] = useState<
+    'todos' | TipoTarifaHistorial
+  >('todos');
+  const [filtroDesdeHistorial, setFiltroDesdeHistorial] = useState('');
+  const [filtroHastaHistorial, setFiltroHastaHistorial] = useState('');
+  const [filtroMontoMinHistorial, setFiltroMontoMinHistorial] = useState('');
+  const [filtroMontoMaxHistorial, setFiltroMontoMaxHistorial] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -814,6 +840,34 @@ export default function Admin(): JSX.Element {
           setTarifas(data);
           setFormTarifaTurno(data.turno ? String(data.turno.costoXHora) : '');
           setFormTarifaCuota(data.cuota ? String(data.cuota.precio) : '');
+        } else if (tabActual === 'historial') {
+          const montoMin =
+            filtroMontoMinHistorial.trim() === ''
+              ? undefined
+              : Number(filtroMontoMinHistorial);
+          const montoMax =
+            filtroMontoMaxHistorial.trim() === ''
+              ? undefined
+              : Number(filtroMontoMaxHistorial);
+          if (
+            (montoMin !== undefined && !Number.isFinite(montoMin)) ||
+            (montoMax !== undefined && !Number.isFinite(montoMax))
+          ) {
+            setError('Los montos del historial deben ser numéricos.');
+            return;
+          }
+          if (montoMin !== undefined && montoMax !== undefined && montoMin > montoMax) {
+            setError('El monto mínimo del historial no puede superar al máximo.');
+            return;
+          }
+          const params: HistorialTarifasParams = {
+            ...(filtroTipoHistorial !== 'todos' ? { tipo: filtroTipoHistorial } : {}),
+            ...(filtroDesdeHistorial !== '' ? { desde: filtroDesdeHistorial } : {}),
+            ...(filtroHastaHistorial !== '' ? { hasta: filtroHastaHistorial } : {}),
+            ...(montoMin !== undefined ? { montoMin } : {}),
+            ...(montoMax !== undefined ? { montoMax } : {}),
+          };
+          setHistorial(await api.historialTarifas(authToken, params));
         } else {
           const [est, fin] = await Promise.all([
             api.estadisticas(authToken),
@@ -830,7 +884,15 @@ export default function Admin(): JSX.Element {
         setCargando(false);
       }
     },
-    [busqueda, fecha],
+    [
+      busqueda,
+      fecha,
+      filtroTipoHistorial,
+      filtroDesdeHistorial,
+      filtroHastaHistorial,
+      filtroMontoMinHistorial,
+      filtroMontoMaxHistorial,
+    ],
   );
 
   useEffect(() => {
@@ -2368,6 +2430,139 @@ export default function Admin(): JSX.Element {
                 )}
               </article>
             </>
+          )}
+        </section>
+      )}
+
+      {tab === 'historial' && (
+        <section aria-label="Historial de tarifas" className="flex flex-col gap-4">
+          <header className="flex flex-col gap-1">
+            <h2 className="m-0 text-lg font-semibold text-musgo">Historial de tarifas</h2>
+            <p className="m-0 text-sm text-[#5A6661]">
+              Consultá los cambios de tarifas de turno, luz y cuota, ordenados por fecha
+              descendente.
+            </p>
+          </header>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void cargar(token, 'historial');
+            }}
+            className="flex gap-3 flex-wrap items-end"
+          >
+            <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+              Tipo
+              <select
+                aria-label="Tipo de tarifa"
+                value={filtroTipoHistorial}
+                onChange={(event) =>
+                  setFiltroTipoHistorial(
+                    event.target.value as 'todos' | TipoTarifaHistorial,
+                  )
+                }
+                className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+              >
+                <option value="todos">Todos</option>
+                <option value="turno">Turno</option>
+                <option value="luz">Luz</option>
+                <option value="cuota">Cuota</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+              Desde
+              <input
+                type="date"
+                aria-label="Historial desde"
+                value={filtroDesdeHistorial}
+                onChange={(event) => setFiltroDesdeHistorial(event.target.value)}
+                className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-[#5A6661]">
+              Hasta
+              <input
+                type="date"
+                aria-label="Historial hasta"
+                value={filtroHastaHistorial}
+                onChange={(event) => setFiltroHastaHistorial(event.target.value)}
+                className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_140px]">
+              Monto mínimo
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                aria-label="Monto mínimo del historial"
+                value={filtroMontoMinHistorial}
+                onChange={(event) => setFiltroMontoMinHistorial(event.target.value)}
+                className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_140px]">
+              Monto máximo
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                aria-label="Monto máximo del historial"
+                value={filtroMontoMaxHistorial}
+                onChange={(event) => setFiltroMontoMaxHistorial(event.target.value)}
+                className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+              />
+            </label>
+            <button
+              type="submit"
+              className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none"
+            >
+              Filtrar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFiltroTipoHistorial('todos');
+                setFiltroDesdeHistorial('');
+                setFiltroHastaHistorial('');
+                setFiltroMontoMinHistorial('');
+                setFiltroMontoMaxHistorial('');
+              }}
+              className="min-h-[44px] rounded-md px-4 py-2.5 font-semibold cursor-pointer bg-white border border-sereno text-musgo"
+            >
+              Limpiar
+            </button>
+          </form>
+
+          {cargando ? (
+            <Skeleton rows={4} label="Cargando historial…" />
+          ) : error ? (
+            <ErrorCard message={error} onRetry={() => void cargar(token, 'historial')} />
+          ) : historial.length === 0 ? (
+            <EmptyState message="No hay cambios de tarifas para esos filtros." />
+          ) : (
+            <ul className="list-none m-0 p-0 grid gap-3">
+              {historial.map((item, indice) => (
+                <li
+                  key={`${item.tipo}-${item.fechaCambio}-${indice}`}
+                  className="bg-white rounded-lg p-4 shadow-[0_2px_8px_rgba(56,69,67,0.08)] flex flex-wrap items-center justify-between gap-3"
+                >
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${CHIP_TIPO_TARIFA[item.tipo]}`}
+                  >
+                    {ETIQUETAS_TIPO_TARIFA[item.tipo]}
+                  </span>
+                  <strong className="text-musgo tabular-nums">
+                    {formatoMonedaTarifa(item.monto)}
+                  </strong>
+                  <span className="text-sm text-[#5A6661]">
+                    {formatoFechaHora(item.fechaCambio)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       )}

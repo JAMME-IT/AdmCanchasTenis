@@ -2,8 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { UserButton, useAuth } from '@clerk/react';
 import { BottomNavigation, BottomNavigationAction, Paper, ThemeProvider, createTheme } from '@mui/material';
-import { Home, type LucideIcon } from 'lucide-react';
-import { api } from '../lib/api';
+import { CalendarDays, Clock, Home, ShieldCheck, Wallet, type LucideIcon } from 'lucide-react';
+import { ApiError, api } from '../lib/api';
 
 const NAV: ReadonlyArray<{
   to: string;
@@ -12,6 +12,10 @@ const NAV: ReadonlyArray<{
   icon: LucideIcon;
 }> = [
   { to: '/', label: 'Inicio', end: true, icon: Home },
+  { to: '/turnos', label: 'Turnos', icon: CalendarDays },
+  { to: '/mis-turnos', label: 'Mis turnos', icon: Clock },
+  { to: '/mis-cuotas', label: 'Mis cuotas', icon: Wallet },
+  { to: '/admin', label: 'Admin', icon: ShieldCheck },
 ];
 
 type ApiState = 'checking' | 'ok' | 'down';
@@ -74,16 +78,25 @@ export default function Layout({ children }: { children: ReactNode }): JSX.Eleme
         if (active) {
           setRol(perfil.rol);
         }
-      } catch {
+      } catch (caught) {
         if (active) {
           setRol(null);
+        }
+        // Domain profile missing: send the signed-in user to finish it.
+        if (
+          caught instanceof ApiError &&
+          caught.status === 403 &&
+          /perfil incompleto/i.test(caught.message) &&
+          location.pathname !== '/completar-perfil'
+        ) {
+          navigate('/completar-perfil', { replace: true });
         }
       }
     })();
     return () => {
       active = false;
     };
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn, getToken, location.pathname, navigate]);
 
   const dockValue =
     NAV.find((item) =>

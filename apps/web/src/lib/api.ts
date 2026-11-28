@@ -282,6 +282,30 @@ export interface TarifasResponse {
   luz: TarifaLuz | null;
   cuota: TarifaCuota | null;
 }
+
+/** GET /pagos-luz item (ACT-43). */
+export interface PagoLuz {
+  id: string;
+  turnoId: string;
+  montoTotalLuz: number;
+  fechaPago: string;
+  createdAt: string;
+  turno: { id: string; fecha: string; horaInicio: string; canchaId: string };
+  usuario: { id: string; nombre: string; apellido: string; numeroSocio: string | null };
+}
+
+export interface PagosLuzParams {
+  turnoId?: string;
+  usuarioId?: string;
+  desde?: string;
+  hasta?: string;
+}
+
+export interface CrearPagoLuzBody {
+  turnoId: string;
+  montoTotalLuz: number;
+  fechaPago?: string;
+}
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -338,6 +362,15 @@ export const api = {
   me: (token: string | null): Promise<Usuario> => request<Usuario>('/auth/me', { token }),
   tarifas: (token: string | null): Promise<TarifasResponse> =>
     request<TarifasResponse>('/tarifas', { token }),
+  actualizarTarifaLuz: (
+    token: string | null,
+    body: {
+      costoXHora: number;
+      franjaHorarioInicio?: string;
+      franjaHorarioFin?: string;
+    },
+  ): Promise<TarifaLuz> =>
+    request<TarifaLuz>('/tarifas/luz', { method: 'PUT', token, body }),
   actualizarTarifaTurno: (
     token: string | null,
     body: { costoXHora: number },
@@ -348,6 +381,25 @@ export const api = {
     body: { precio: number },
   ): Promise<TarifaCuota> =>
     request<TarifaCuota>('/tarifas/cuota', { method: 'PUT', token, body }),
+  pagosLuz: (token: string | null, params?: PagosLuzParams): Promise<PagoLuz[]> => {
+    const query = new URLSearchParams();
+    if (params?.turnoId) {
+      query.set('turnoId', params.turnoId);
+    }
+    if (params?.usuarioId) {
+      query.set('usuarioId', params.usuarioId);
+    }
+    if (params?.desde) {
+      query.set('desde', params.desde);
+    }
+    if (params?.hasta) {
+      query.set('hasta', params.hasta);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request<PagoLuz[]>(`/pagos-luz${suffix}`, { token });
+  },
+  registrarPagoLuz: (token: string | null, body: CrearPagoLuzBody): Promise<PagoLuz> =>
+    request<PagoLuz>('/pagos-luz', { method: 'POST', token, body }),
   completarPerfil: (token: string | null, body: CompletarPerfilBody): Promise<Usuario> =>
     request<Usuario>('/usuarios/completar-perfil', { method: 'POST', token, body }),
   logout: (token: string | null): Promise<{ message: string }> =>

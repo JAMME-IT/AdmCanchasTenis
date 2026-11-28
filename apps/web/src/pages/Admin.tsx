@@ -20,12 +20,13 @@ import {
   type PagoTurno,
   type RangoHorarioBody,
   type SuperficieCancha,
+  type TarifasResponse,
   type TurnoAdmin,
   type Usuario,
 } from '../lib/api';
 import { EmptyState, ErrorCard, Skeleton, StatusPill } from '../components/Feedback';
 
-type Tab = 'turnos' | 'canchas' | 'pagos' | 'reportes' | 'usuarios' | 'config';
+type Tab = 'turnos' | 'canchas' | 'pagos' | 'reportes' | 'usuarios' | 'tarifas' | 'config';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'turnos', label: 'Turnos' },
@@ -33,6 +34,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'pagos', label: 'Pagos' },
   { id: 'reportes', label: 'Reportes' },
   { id: 'usuarios', label: 'Usuarios' },
+  { id: 'tarifas', label: 'Tarifas' },
   { id: 'config', label: 'Configuración' },
 ];
 
@@ -597,6 +599,15 @@ function formatoMoneda(valor: number): string {
   }).format(valor);
 }
 
+/** Tariffs allow cents, so this helper keeps two decimals (ACT-42). */
+function formatoMonedaTarifa(valor: number): string {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 2,
+  }).format(valor);
+}
+
 function formatoFechaCorta(fecha: string): string {
   const [anio, mes, dia] = fecha.slice(0, 10).split('-');
   return `${dia}/${mes}/${anio}`;
@@ -672,6 +683,12 @@ export default function Admin(): JSX.Element {
   const [guardandoCancha, setGuardandoCancha] = useState(false);
   const [editandoCanchaId, setEditandoCanchaId] = useState<string | null>(null);
   const [formCanchaEdicion, setFormCanchaEdicion] = useState<FormEdicionCanchaT | null>(null);
+  const [tarifas, setTarifas] = useState<TarifasResponse | null>(null);
+  const [formTarifaTurno, setFormTarifaTurno] = useState('');
+  const [formTarifaCuota, setFormTarifaCuota] = useState('');
+  const [guardandoTarifa, setGuardandoTarifa] = useState<'turno' | 'cuota' | null>(null);
+  const [errorTarifas, setErrorTarifas] = useState<string | null>(null);
+  const [mensajeTarifas, setMensajeTarifas] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -724,6 +741,11 @@ export default function Admin(): JSX.Element {
           setUsuarios(await api.usuarios(authToken));
         } else if (tabActual === 'canchas') {
           setCanchas(await api.canchas(authToken, { conEstados: true }));
+        } else if (tabActual === 'tarifas') {
+          const data = await api.tarifas(authToken);
+          setTarifas(data);
+          setFormTarifaTurno(data.turno ? String(data.turno.costoXHora) : '');
+          setFormTarifaCuota(data.cuota ? String(data.cuota.precio) : '');
         } else {
           const [est, fin] = await Promise.all([
             api.estadisticas(authToken),
@@ -794,6 +816,63 @@ export default function Admin(): JSX.Element {
       }
     },
     [dias, rangos],
+  );
+
+  /** Saves one tariff (ACT-42). PUT is admin-only; validates before calling the API. */
+  const guardarTarifa = useCallback(
+    async (authToken: string | null, tipo: 'turno' | 'cuota') => {
+      setErrorTarifas(null);
+      setMensajeTarifas(null);
+
+      const valor = (tipo === 'turno' ? formTarifaTurno : formTarifaCuota).trim();
+      const etiqueta = tipo === 'turno' ? 'La tarifa de turno' : 'La cuota mensual';
+
+      if (valor === '') {
+        setErrorTarifas(`${etiqueta} es obligatoria.`);
+        return;
+      }
+      if (!/^\d+(\.\d{1,2})?$/.test(valor)) {
+        setErrorTarifas(
+          `${etiqueta} debe ser un número mayor o igual a 0 con hasta 2 decimales.`,
+        );
+        return;
+      }
+      const numero = Number(valor);
+      if (!Number.isFinite(numero) || numero < 0) {
+        setErrorTarifas(`${etiqueta} debe ser un número mayor o igual a 0.`);
+        return;
+      }
+
+      setGuardandoTarifa(tipo);
+      try {
+        if (tipo === 'turno') {
+          const actualizada = await api.actualizarTarifaTurno(authToken, { costoXHora: numero });
+          setTarifas((prev) => ({
+            turno: actualizada,
+            luz: prev?.luz ?? null,
+            cuota: prev?.cuota ?? null,
+          }));
+          setFormTarifaTurno(String(actualizada.costoXHora));
+          setMensajeTarifas('Tarifa de turno actualizada.');
+        } else {
+          const actualizada = await api.actualizarTarifaCuota(authToken, { precio: numero });
+          setTarifas((prev) => ({
+            turno: prev?.turno ?? null,
+            luz: prev?.luz ?? null,
+            cuota: actualizada,
+          }));
+          setFormTarifaCuota(String(actualizada.precio));
+          setMensajeTarifas('Cuota mensual actualizada.');
+        }
+      } catch (caught) {
+        setErrorTarifas(
+          caught instanceof ApiError ? caught.message : 'No se pudo guardar la tarifa.',
+        );
+      } finally {
+        setGuardandoTarifa(null);
+      }
+    },
+    [formTarifaTurno, formTarifaCuota],
   );
 
   /** Opens the inline edit form for one user. */
@@ -1643,6 +1722,155 @@ export default function Admin(): JSX.Element {
                 </li>
               )}
             </ul>
+          )}
+        </section>
+      )}
+
+      {tab === 'tarifas' && (
+        <section aria-label="Tarifas" className="flex flex-col gap-4">
+          <header className="flex flex-col gap-1">
+            <h2 className="m-0 text-lg font-semibold text-musgo">Tarifas del club</h2>
+            <p className="m-0 text-sm text-[#5A6661]">
+              Consultá y actualizá la tarifa por hora de cancha y la cuota mensual. La luz se
+              configura en el módulo de luz (ACT-43).
+            </p>
+          </header>
+
+          {errorTarifas !== null && (
+            <div role="alert" className="bg-white border border-error rounded-lg p-6 text-error">
+              {errorTarifas}
+            </div>
+          )}
+          {mensajeTarifas !== null && (
+            <div
+              role="status"
+              className="bg-[#DDF0E3] border border-peridot rounded-lg p-4 text-[#1F6B45]"
+            >
+              {mensajeTarifas}
+            </div>
+          )}
+
+          {cargando ? (
+            <Skeleton rows={3} label="Cargando tarifas…" />
+          ) : error ? (
+            <ErrorCard message={error} onRetry={() => void cargar(token, 'tarifas')} />
+          ) : tarifas === null ? (
+            <EmptyState message="No se pudieron cargar las tarifas." />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)] flex flex-col gap-3">
+                <div>
+                  <h3 className="m-0 text-lg font-semibold text-musgo">Tarifa de turno</h3>
+                  <p className="m-0 mt-1 text-sm text-[#5A6661]">Valor por hora de cancha.</p>
+                </div>
+                <p className="m-0 text-3xl font-display tabular-nums text-musgo">
+                  {tarifas.turno
+                    ? formatoMonedaTarifa(tarifas.turno.costoXHora)
+                    : 'Sin tarifa configurada'}
+                </p>
+                {tarifas.turno !== null && (
+                  <p className="m-0 text-xs text-[#5A6661]">
+                    Vigente desde {formatoFechaHora(tarifas.turno.fechaCambio)}
+                  </p>
+                )}
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void guardarTarifa(token, 'turno');
+                  }}
+                  className="flex gap-3 flex-wrap items-end mt-2"
+                >
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_180px]">
+                    Nueva tarifa por hora
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      aria-label="Nueva tarifa por hora de cancha"
+                      value={formTarifaTurno}
+                      onChange={(event) => setFormTarifaTurno(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={guardandoTarifa !== null}
+                    className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    {guardandoTarifa === 'turno' ? 'Guardando…' : 'Guardar tarifa'}
+                  </button>
+                </form>
+              </article>
+
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)] flex flex-col gap-3">
+                <div>
+                  <h3 className="m-0 text-lg font-semibold text-musgo">Cuota mensual</h3>
+                  <p className="m-0 mt-1 text-sm text-[#5A6661]">Valor de la cuota de socio.</p>
+                </div>
+                <p className="m-0 text-3xl font-display tabular-nums text-musgo">
+                  {tarifas.cuota
+                    ? formatoMonedaTarifa(tarifas.cuota.precio)
+                    : 'Sin tarifa configurada'}
+                </p>
+                {tarifas.cuota !== null && (
+                  <p className="m-0 text-xs text-[#5A6661]">
+                    Vigente desde {formatoFechaHora(tarifas.cuota.fechaCambio)}
+                  </p>
+                )}
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void guardarTarifa(token, 'cuota');
+                  }}
+                  className="flex gap-3 flex-wrap items-end mt-2"
+                >
+                  <label className="flex flex-col gap-1 text-sm text-[#5A6661] flex-[1_1_180px]">
+                    Nueva cuota mensual
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      aria-label="Nueva cuota mensual"
+                      value={formTarifaCuota}
+                      onChange={(event) => setFormTarifaCuota(event.target.value)}
+                      className="min-h-[44px] rounded-md border border-sereno px-3 py-2.5 text-base bg-white text-musgo"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={guardandoTarifa !== null}
+                    className="min-h-[44px] rounded-md px-4 py-2.5 font-bold cursor-pointer bg-peridot text-whisper border-none disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    {guardandoTarifa === 'cuota' ? 'Guardando…' : 'Guardar cuota'}
+                  </button>
+                </form>
+              </article>
+
+              <article className="bg-white rounded-lg p-6 shadow-[0_2px_8px_rgba(56,69,67,0.08)] md:col-span-2">
+                <h3 className="m-0 text-lg font-semibold text-musgo">Luz</h3>
+                <p className="m-0 mt-1 text-sm text-[#5A6661]">
+                  La configuración de luz se edita en el módulo de luz (ACT-43).
+                </p>
+                {tarifas.luz !== null ? (
+                  <div className="mt-3 flex gap-6 flex-wrap items-baseline">
+                    <p className="m-0 text-2xl font-display tabular-nums text-musgo">
+                      {formatoMonedaTarifa(tarifas.luz.costoXHora)}
+                      <span className="text-sm font-body text-[#5A6661]"> /hora</span>
+                    </p>
+                    <p className="m-0 text-sm text-[#5A6661]">
+                      Franja {tarifas.luz.franjaHorarioInicio}–{tarifas.luz.franjaHorarioFin}
+                    </p>
+                    <p className="m-0 text-xs text-[#5A6661]">
+                      Vigente desde {formatoFechaHora(tarifas.luz.fechaCambio)}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="m-0 mt-3 text-sm text-[#5A6661]">Sin configuración de luz.</p>
+                )}
+              </article>
+            </div>
           )}
         </section>
       )}

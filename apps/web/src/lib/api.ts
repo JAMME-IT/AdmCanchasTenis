@@ -253,6 +253,35 @@ export interface HistorialParams {
   desde?: string;
   hasta?: string;
 }
+
+/** ACT-42: current turno tariff (PUT /tarifas/turno, GET /tarifas). */
+export interface TarifaTurno {
+  id: string;
+  costoXHora: number;
+  fechaCambio: string;
+}
+
+/** ACT-42: current monthly membership tariff (PUT /tarifas/cuota). */
+export interface TarifaCuota {
+  id: string;
+  precio: number;
+  fechaCambio: string;
+}
+
+/** Read-only lighting config returned by GET /tarifas; edited in ACT-43. */
+export interface TarifaLuz {
+  id: string;
+  costoXHora: number;
+  franjaHorarioInicio: string;
+  franjaHorarioFin: string;
+  fechaCambio: string;
+}
+
+export interface TarifasResponse {
+  turno: TarifaTurno | null;
+  luz: TarifaLuz | null;
+  cuota: TarifaCuota | null;
+}
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -307,6 +336,18 @@ export const api = {
     return (await response.json()) as { status: string };
   },
   me: (token: string | null): Promise<Usuario> => request<Usuario>('/auth/me', { token }),
+  tarifas: (token: string | null): Promise<TarifasResponse> =>
+    request<TarifasResponse>('/tarifas', { token }),
+  actualizarTarifaTurno: (
+    token: string | null,
+    body: { costoXHora: number },
+  ): Promise<TarifaTurno> =>
+    request<TarifaTurno>('/tarifas/turno', { method: 'PUT', token, body }),
+  actualizarTarifaCuota: (
+    token: string | null,
+    body: { precio: number },
+  ): Promise<TarifaCuota> =>
+    request<TarifaCuota>('/tarifas/cuota', { method: 'PUT', token, body }),
   completarPerfil: (token: string | null, body: CompletarPerfilBody): Promise<Usuario> =>
     request<Usuario>('/usuarios/completar-perfil', { method: 'POST', token, body }),
   logout: (token: string | null): Promise<{ message: string }> =>
